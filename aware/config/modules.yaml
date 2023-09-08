@@ -1,0 +1,17 @@
+user:
+  model:
+    type: openai
+    name: gpt-4-1106-preview
+planner:
+  model:
+    type: openai
+    name: gpt-4-1106-preview
+executor:
+  model:
+    type: openai
+    name: gpt-4-1106-preview
+# TODO: Fix creator based on latest improvements.
+tool_creator:
+  model:
+    type: openai
+    name: gpt-4-1106-preview

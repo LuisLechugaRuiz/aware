@@ -1,0 +1,20 @@
+user:
+  model:
+    type: open_source
+    name: TheBloke/Starling-LM-7B-alpha-GPTQ
+    revision: gptq-8bit-32g-actorder_True
+planner:
+  model:
+    type: open_source
+    name: TheBloke/Starling-LM-7B-alpha-GPTQ # TODO decide which one is the king of reasoning!
+    revision: gptq-8bit-32g-actorder_True # TODO decide which one is the king of reasoning!
+tool_creator:
+  model:
+    type: open_source
+    name: TheBloke/Magicoder-S-DS-6.7B-GPTQ
+    revision: gptq-8bit-32g-actorder_True
+tool_executor:
+  model:
+    type: open_source
+    name: TheBloke/NexusRaven-V2-13B-GPTQ
+    revision: gptq-8bit--1g-actorder_True # lowest 8 bit is too big... and gptq-4bit-32g-actorder_True Highest 4bit quality is broken.. :( find new tool_executor model

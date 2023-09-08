@@ -1,0 +1,12 @@
+# Saving here but will move to poetry when scaling the system, trying to install as less libs as possible
+transformers # Add last version.
+openai
+python-dotenv
+pydantic # upgrade pydantic to latest version.
+zmq # User for the first version of our communication protocols
+google-auth-oauthlib
+google-api-python-client
+jinja2
+weaviate-client
+tzlocal
+# python3-tk python3-dev for pywhatkit
