@@ -21,6 +21,9 @@ class OpenAIModel(Model):
         self.client = OpenAI()
         super().__init__()
 
+    def get_name(self) -> str:
+        return self.model_name
+
     # TODO: get temperature from cfg
     def get_response(
         self,

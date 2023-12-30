@@ -6,9 +6,10 @@ from openai.types.chat import (
 
 from aware.chat.conversation import Conversation
 from aware.chat.parser.pydantic_parser import PydanticParser
-from aware.prompts.load import load_prompt
-from aware.models.models_manager import ModelsManager
 from aware.data.database.manager import DatabaseManager
+from aware.models.models_manager import ModelsManager
+from aware.prompts.load import load_prompt
+from aware.utils.helpers import get_current_date
 
 # TODO: Create our own logger.
 LOG = getLogger(__name__)
@@ -25,17 +26,21 @@ class Chat:
         memory_enabled: bool = True,
         register_database: bool = True,
     ):
-        self.user_name = user_name
-        self.model = None
         self.module_name = module_name
+        self.model = ModelsManager().create_model(self.module_name)
+        self.user_name = user_name
+
         self.memory_enabled = memory_enabled
-        self.short_term_memory = "Empty, use update_short_term_memory to save relevant context and avoid loosing information."  # TODO: Get from permanent storage
+        self.short_term_memory = "Short term memory is EMPTY!, use update_short_term_memory() to save relevant context and avoid loosing information."  # TODO: Get from permanent storage
         self.retrieved_data = "Empty"  # TODO: Get from permanent storage
 
+        # Init conversation
+        self.conversation = Conversation(module_name, self.model.get_name())
         self.system_instruction_message = self.load_prompt(
             "system", self.module_name, system_prompt_kwargs
         )
         system_message = self.update_system()
+        self.conversation.add_system_message(system_message)
 
         if user_name is not None:
             user = user_name
@@ -46,7 +51,6 @@ class Chat:
             name=user,
             register=register_database,
         )
-        self.conversation = Conversation(module_name, system_message)
         if memory_enabled:
             self.functions = [
                 self.update_short_term_memory,
@@ -66,9 +70,7 @@ class Chat:
         save_assistant_message=True,
     ):
         """Call the model to get a response."""
-
-        if self.model is None:
-            self.load_model()
+        self.update_system()
 
         function_schemas = []
         if add_default_functions:
@@ -105,7 +107,10 @@ class Chat:
             self.system = self.load_prompt(
                 "system_meta",
                 args={
+                    "date": get_current_date(),
                     "instruction": self.system_instruction_message,
+                    "conversation_remaining_tokens": self.conversation.get_remaining_tokens(),
+                    "conversation_warning_threshold": self.conversation.should_trigger_warning(),
                     "short_term_memory": self.get_short_term_memory(),
                     "retrieved_data": self.retrieved_data,
                 },
@@ -121,22 +126,14 @@ class Chat:
         user_name: Optional[str] = None,
     ) -> str | List[ChatCompletionMessageToolCall]:
         """Get a reponse from the model, can be a single string or a list of tool call."""
-
-        if self.model is None:
-            self.load_model()
-
-        # 1. Load user prompt.
+        # Add user message
         prompt = self.load_prompt("user", self.module_name, prompt_kwargs)
-        # 2. Search the most relevant information at long term memory.
-        self.retrieved_data = self.search_on_long_term_memory(prompt)
-        # 3. Update system message with the new information.
-        self.update_system()
-
         self.conversation.add_user_message(prompt, user_name)
-        return self.call(functions)
 
-    def load_model(self):
-        self.model = ModelsManager().create_model(self.module_name)
+        # Get relevant information from the database.
+        self.retrieved_data = self.search_on_long_term_memory(prompt)
+
+        return self.call(functions)
 
     def load_prompt(
         self, prompt_name: str, path: Optional[str] = None, args: Dict[str, Any] = {}
