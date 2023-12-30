@@ -147,7 +147,7 @@ class Executor:
                     potential_tools[tool["name"]] = tool["description"]
         if not potential_tools:
             return f"No tools found for approach: {potential_approach}"
-        tools_str = "\n".join(
+        tools_str = "\n\n".join(
             f"Tool: {name}, description: {description}"
             for name, description in potential_tools.items()
         )

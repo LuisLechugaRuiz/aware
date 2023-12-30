@@ -9,3 +9,8 @@ class Model(abc.ABC):
     def get_response(self, *args, **kwargs) -> ChatCompletionMessage:
         """Get a response from the model with variable arguments."""
         pass
+
+    @abc.abstractmethod
+    def get_name(self) -> str:
+        """Get the name of the model."""
+        pass

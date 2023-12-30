@@ -91,7 +91,7 @@ class Assistant:
         )
 
         self.assistant_functions = [
-            self.communicate_with_users,
+            self.talk,
             self.send_request,
             self.search_user_info,
             self.store_user_info,
@@ -159,15 +159,15 @@ class Assistant:
         self.active_goal_handles[new_request.get_id()] = (user_name, goal_handle)
         self.update_request(new_request)
         print(colored(f"Request: {request}", "yellow"))
-        return "Request sent."
+        return "Request sent to the system; the status will be updated soon."
 
     # NOT USED FOR NOW TO HAVE A GROUP COMMUNICATION - FOR NOW JUST BROADCASTING
     # def send_message_to_user(self, user_name: str, message: str):
     #     self.users[user_name].send_message(message)
 
-    def communicate_with_users(self, message: str):
+    def talk(self, message: str):
         """
-        Communicate with the users.
+        Use this tool as the only way to communicate with the user.
 
         Args:
             message (str): The message to be sent.
@@ -178,6 +178,7 @@ class Assistant:
         print(f'{colored("Assistant:", "blue")} {message}')
         assistant_message = UserMessage(user_name="Aware", message=message)
         self.broadcast_message(assistant_message.to_json())
+        self.running = False
         return "Message sent."
 
     def search_user_info(self, user_name: str, query: str):
@@ -242,9 +243,7 @@ class Assistant:
             self.chat.conversation.add_assistant_message(
                 f"Request: {request.request}\n\nRequires feedback: {feedback}"
             )
-            self.communicate_with_users(
-                f"Request: {request.request}\n\nrequires feedback: {feedback}"
-            )
+            self.talk(f"Request: {request.request}\n\nrequires feedback: {feedback}")
 
             # Wait for feedback
             self.wait_user_message()
@@ -308,7 +307,7 @@ class Assistant:
                     self.running = False
                     print("Stopping assistant due to None call.")
                 elif isinstance(tools_call, str):
-                    self.communicate_with_users(tools_call)
+                    self.talk(tools_call)
                     self.running = False
                 else:
                     self.tools_manager.execute_tools(
