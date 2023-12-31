@@ -6,7 +6,10 @@ from aware.chat.parser.pydantic_parser import PydanticParser
 from aware.chat.chat import Chat
 from aware.tools.tools_manager import ToolsManager
 from aware.utils.helpers import colored
+from aware.utils.logger.file_logger import FileLogger
 
+
+from aware.data.database.weaviate.weaviate import WeaviateDB
 
 MAX_ITERATIONS = 30  # TODO: Move to config.
 
@@ -17,17 +20,20 @@ class Execution:
         self.success: bool = success
 
 
-# TODO: Set MAX short term memory size and MAX conversation size!(Important to calculate number of tokens).
 class Executor:
     """Execute different tools to satisfy the user request."""
 
     def __init__(self, get_user_feedback: Callable, user_name: str):
         self.chat = Chat(
             module_name="executor",
+            logger=FileLogger("executor"),
             system_prompt_kwargs={"request": ""},
             user_name=user_name,
         )
-        self.tools_manager = ToolsManager()
+        self.weaviate_db = (
+            WeaviateDB()
+        )  # TODO: REMOVE WHEN MIGRATING EXECUTOR TO AGENT.
+        self.tools_manager = ToolsManager(FileLogger("executor"))
         self.planner_functions = [
             self.find_tools,
             self.select_tool,
@@ -141,10 +147,9 @@ class Executor:
         """
         potential_tools: Dict[str, str] = {}
         for description in descriptions:
-            tool = self.chat.database.search_tool(description)
-            if tool is not None:
-                if tool["name"] not in potential_tools.keys():
-                    potential_tools[tool["name"]] = tool["description"]
+            tools = self.chat.database.search_tool(description)
+            for tool in tools:
+                potential_tools[tool.name] = tool.description
         if not potential_tools:
             return f"No tools found for approach: {potential_approach}"
         tools_str = "\n\n".join(
@@ -182,6 +187,7 @@ class Executor:
 
         return "Task completed."
 
+    # TODO: Refactor use memory manager to retrieve this info.
     def search_user_info(self, user_info: str):
         """
         Search user info.
@@ -193,7 +199,7 @@ class Executor:
             str: The user info.
         """
         # THIS MEANS THAT SYSTEM DB IS THE SAME AS USER DB, MODIFY IF WE CENTRALIZE USER DB (1 db for user and multiple systems connected).
-        data = self.chat.search_on_long_term_memory(user_info)
+        data = self.weaviate_db.search_info(user_info)
         if data is None:
             return "Information not found."
         return data
@@ -211,6 +217,6 @@ class Executor:
             tools.append(self.tools_manager.get_tool(tool_name))
         for tool in tools:
             function_schema = PydanticParser.get_function_schema(tool)["function"]
-            self.chat.database.store_tool(
+            self.weaviate_db.store_tool(
                 name=function_schema["name"], description=function_schema["description"]
             )

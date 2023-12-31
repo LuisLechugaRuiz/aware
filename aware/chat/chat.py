@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from logging import getLogger
 from openai.types.chat import (
     ChatCompletionMessageToolCall,
@@ -6,10 +6,10 @@ from openai.types.chat import (
 
 from aware.chat.conversation import Conversation
 from aware.chat.parser.pydantic_parser import PydanticParser
-from aware.data.database.manager import DatabaseManager
 from aware.models.models_manager import ModelsManager
 from aware.prompts.load import load_prompt
 from aware.utils.helpers import get_current_date
+from aware.utils.logger.file_logger import FileLogger
 
 # TODO: Create our own logger.
 LOG = getLogger(__name__)
@@ -21,18 +21,15 @@ class Chat:
     def __init__(
         self,
         module_name: str,
+        logger: FileLogger,
         system_prompt_kwargs: Dict[str, Any] = {},
         user_name: Optional[str] = None,
-        memory_enabled: bool = True,
-        register_database: bool = True,
+        assistant_name: Optional[str] = None,
     ):
         self.module_name = module_name
-        self.model = ModelsManager().create_model(self.module_name)
+        self.model = ModelsManager().create_model(self.module_name, logger)
         self.user_name = user_name
-
-        self.memory_enabled = memory_enabled
-        self.short_term_memory = "Short term memory is EMPTY!, use update_short_term_memory() to save relevant context and avoid loosing information."  # TODO: Get from permanent storage
-        self.retrieved_data = "Empty"  # TODO: Get from permanent storage
+        self.assistant_name = assistant_name
 
         # Init conversation
         self.conversation = Conversation(module_name, self.model.get_name())
@@ -41,24 +38,7 @@ class Chat:
         )
         system_message = self.update_system()
         self.conversation.add_system_message(system_message)
-
-        if user_name is not None:
-            user = user_name
-        else:
-            user = module_name
-
-        self.database = DatabaseManager(
-            name=user,
-            register=register_database,
-        )
-        if memory_enabled:
-            self.functions = [
-                self.update_short_term_memory,
-                self.store_on_long_term_memory,
-                self.search_on_long_term_memory,
-            ]
-        else:
-            self.functions = []
+        self.logger = logger
 
     def add_tool_feedback(self, id: str, message: str):
         self.conversation.add_tool_message(id=id, message=message)
@@ -66,15 +46,11 @@ class Chat:
     def call(
         self,
         functions: List[Callable] = [],
-        add_default_functions=True,
-        save_assistant_message=True,
     ):
         """Call the model to get a response."""
         self.update_system()
 
         function_schemas = []
-        if add_default_functions:
-            functions.extend(self.functions)
         for function in functions:
             function_schemas.append(PydanticParser.get_function_schema(function))
         response = self.model.get_response(
@@ -85,13 +61,24 @@ class Chat:
             tool_calls = response.tool_calls
             if tool_calls is not None:
                 # In case we are sending tools we should save them in the traces as OpenAI doesn't include them on prompt.
-                if save_assistant_message:
-                    self.conversation.add_assistant_tool_message(tool_calls)
+                self.conversation.add_assistant_tool_message(
+                    tool_calls, assistant_name=self.assistant_name
+                )
+                self.logger.info(
+                    f"--- CONVERSATION ---\n{self.conversation.get_conversation_string()}",
+                    should_print_local=False,
+                )
                 return tool_calls
 
         response = response.content
-        if save_assistant_message:
-            self.conversation.add_assistant_message(response)
+        self.conversation.add_assistant_message(
+            response, assistant_name=self.assistant_name
+        )
+        print("DEBUG - ASSISTANT MESSAGE: ", response)
+        self.logger.info(
+            f"--- CONVERSATION ---\n{self.conversation.get_conversation_string()}",
+            should_print_local=False,
+        )
         return response
 
     def edit_system_message(self, system_prompt_kwargs: Dict[str, Any]):
@@ -102,91 +89,41 @@ class Chat:
         system = self.update_system()
         self.conversation.edit_system_message(system)
 
-    def update_system(self):
-        if self.memory_enabled:
-            self.system = self.load_prompt(
-                "system_meta",
-                args={
-                    "date": get_current_date(),
-                    "instruction": self.system_instruction_message,
-                    "conversation_remaining_tokens": self.conversation.get_remaining_tokens(),
-                    "conversation_warning_threshold": self.conversation.should_trigger_warning(),
-                    "short_term_memory": self.get_short_term_memory(),
-                    "retrieved_data": self.retrieved_data,
-                },
-            )
-        else:
-            self.system = self.system_instruction_message
-        return self.system
-
     def get_response(
         self,
         prompt_kwargs: Dict[str, Any],
         functions: List[Callable] = [],
         user_name: Optional[str] = None,
+        assistant_name: Optional[str] = None,
     ) -> str | List[ChatCompletionMessageToolCall]:
         """Get a reponse from the model, can be a single string or a list of tool call."""
         # Add user message
         prompt = self.load_prompt("user", self.module_name, prompt_kwargs)
         self.conversation.add_user_message(prompt, user_name)
 
-        # Get relevant information from the database.
-        self.retrieved_data = self.search_on_long_term_memory(prompt)
+        return self.call(functions, assistant_name=assistant_name)
 
-        return self.call(functions)
+    def get_conversation(self):
+        return self.conversation
+
+    def get_remaining_tokens(self) -> Tuple[int, bool]:
+        """Returns the remaining tokens of the conversation and if it should trigger a warning."""
+        return (
+            self.conversation.get_remaining_tokens(),
+            self.conversation.should_trigger_warning(),
+        )
 
     def load_prompt(
         self, prompt_name: str, path: Optional[str] = None, args: Dict[str, Any] = {}
     ):
         return load_prompt(prompt_name, path=path, **args)
 
-    def get_short_term_memory(self):
-        """Get the short-term memory of the system."""
-
-        return self.short_term_memory
-
-    def update_short_term_memory(self, info: str):
-        """
-        Updates the short-term memory of the system, which is the information displayed on the system message.
-        This information is very useful to maintain a context that will be always displayed on the next prompt.
-        Use this to save relevant information that might be relevant in the next prompts.
-        """
-
-        self.short_term_memory = info
-        return "Succesfully updated short-term memory."
-
-    # TODO: Store full conversation after it finishes.
-    # We can do that and update them periodically extracting relevant data (Fine-tuning).
-    def store_on_long_term_memory(self, info: str):
-        """
-        Interacts with the external database Weaviate to store information in real-time.
-        This function stores information in the long-term memory, allowing the system to
-        retrieve it later on by using the search_on_long_term_memory function.
-
-        Args:
-            info (str): The information to be stored in the database.
-
-        Returns:
-            str: A string confirming the information was stored successfully.
-        """
-        try:
-            self.database.store(info)
-            return "Succesfully stored on database."
-        except Exception as e:
-            print(f"Error storing information on database: {e}")
-            return f"Error storing information on database: {e}"
-
-    def search_on_long_term_memory(self, query: str):
-        """
-        Interacts with the external database Weaviate to retrieve information stored in real-time
-        by using store_on_long_term_memory. This function searches the long-term memory,
-        retrieving data based on similarity to the provided query, enhancing response relevance
-        and accuracy with the most current data available.
-
-        Args:
-            query (str): The query used to search the database for similar information.
-
-        Returns:
-            str: The content most closely matching the query in terms of relevance and similarity from the database.
-        """
-        return self.database.search(query)
+    def update_system(self):
+        self.system = self.load_prompt(
+            "system_meta",
+            args={
+                "date": get_current_date(),
+                "instruction": self.system_instruction_message,
+            },
+        )
+        return self.system

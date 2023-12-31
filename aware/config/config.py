@@ -26,8 +26,11 @@ class Config(metaclass=Singleton):
     """
 
     def __init__(self):
-        # KEYS
+        # OPENAI
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        self.openai_num_retries = os.getenv("OPENAI_NUM_RETRIES", 3)
+
+        self.assistant_name = os.getenv("ASSISTANT_NAME", "Aware")
 
         # Memory
         self.max_conversation_tokens = 2000  # TODO: Define this value.
@@ -37,11 +40,13 @@ class Config(metaclass=Singleton):
         self.max_long_term_memory_tokens = 1000  # TODO: Define this value.
 
         # Weaviate
-        self.weaviate_url = os.getenv("WEAVIATE_URL", "http://weaviate")
+        # Only local for now.
         self.local_weaviate_url = os.getenv(
-            "LOCAL_WEAVIATE_URL", "http://localhost"
+            "LOCAL_WEAVIATE_URL", "localhost"
         )  # TODO: Remove after moving to cloud
-        self.weaviate_port = os.getenv("WEAVIATE_PORT", "9090")
+        self.weaviate_port = os.getenv("WEAVIATE_PORT", 9090)
+
+        self.weaviate_url = os.getenv("WEAVIATE_URL", "http://weaviate")
         self.weaviate_key = os.getenv("WEAVIATE_KEY")
 
         # TODO: Add here IPs and ports.
