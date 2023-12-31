@@ -1,13 +1,10 @@
 # TODO: Use a proper ui, probably the next version of https://github.com/mckaywrigley/chatbot-ui.
 import argparse
 import curses
-import time
 import random
 
-from aware.architecture.helpers.tmp_ips import (
-    DEF_ASSISTANT_IP,
-)
 from aware.architecture.user.user import User
+from aware.config.config import Config
 
 
 class UserUI:
@@ -319,27 +316,27 @@ class UserUI:
         return chosen_color_pair_number
 
 
-def main(stdscr):
+def main(stdscr, user):
+    # Initialize User UI with the pre-initialized User object
+    ui = UserUI(user=user)
+
+    # Start the chat UI
+    ui.chat_ui(stdscr)
+
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="User configuration script.")
-    parser.add_argument("-n", "--name", default="Luis", help="User name")
     parser.add_argument(
         "-a",
         "--assistant_ip",
         type=str,
-        default=DEF_ASSISTANT_IP,
+        default=Config().assistant_ip,
         help="Assistant IP",
     )
     args = parser.parse_args()
 
-    # Initialize user and user UI
-    user = User(
-        args.name,
-        assistant_ip=args.assistant_ip,
-    )
-    ui = UserUI(user=user)
-    ui.chat_ui(stdscr)  # Start the chat UI
+    # Initialize User
+    user = User(assistant_ip=args.assistant_ip)
 
-
-# Ensure curses wrapper is used to start the main function
-if __name__ == "__main__":
-    curses.wrapper(main)
+    # Start curses application and pass the User object to main
+    curses.wrapper(main, user)

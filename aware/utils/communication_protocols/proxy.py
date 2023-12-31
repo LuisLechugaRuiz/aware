@@ -3,19 +3,19 @@ import threading
 
 
 class Proxy:
-    def __init__(self, ip, xsub_port, xpub_port):
+    def __init__(self, ip, sub_port, pub_port):
         self.context = zmq.Context()
 
         # XSUB socket for publishers to connect
         self.xsub_socket = self.context.socket(zmq.XSUB)
-        self.xsub_socket.bind(f"tcp://{ip}:{xsub_port}")
+        self.xsub_socket.bind(f"tcp://{ip}:{pub_port}")
 
         # XPUB socket for subscribers to connect
         self.xpub_socket = self.context.socket(zmq.XPUB)
-        self.xpub_socket.bind(f"tcp://{ip}:{xpub_port}")
+        self.xpub_socket.bind(f"tcp://{ip}:{sub_port}")
 
-        self.xsub_port = xsub_port
-        self.xpub_port = xpub_port
+        self.xsub_port = pub_port
+        self.xpub_port = sub_port
 
         self.listener_thread = threading.Thread(target=self.start, daemon=True)
         self.listener_thread.start()

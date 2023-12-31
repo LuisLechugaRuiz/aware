@@ -53,9 +53,7 @@ def get_free_port():
         return None
 
 
-def count_message_tokens(
-    messages: List[Dict[str, Any]], model_name: str = "gpt-3.5-turbo"
-) -> int:
+def count_message_tokens(messages: str, model_name: str = "gpt-3.5-turbo") -> int:
     """
     Returns the number of tokens used by a list of messages.
 
@@ -66,28 +64,18 @@ def count_message_tokens(
     Returns:
     int: The number of tokens used by the list of messages.
     """
-    encoding, tokens_per_message, tokens_per_name = get_encoding(model_name)
-    num_tokens = 0
-    for message in messages:
-        num_tokens += get_message_tokens(
-            message, encoding, tokens_per_message, tokens_per_name
-        )
+    encoding = get_encoding(model_name)
+    num_tokens = len(encoding.encode(messages))
     num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
     return num_tokens
 
 
 def get_encoding(
     model_name: str = "gpt-4",
-) -> Tuple[tiktoken.core.Encoding, int, int]:
+) -> tiktoken.core.Encoding:
     if model_name.startswith("gpt-3.5-turbo"):
-        tokens_per_message = (
-            4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
-        )
-        tokens_per_name = -1  # if there's a name, the role is omitted
         encoding_model = "gpt-3.5-turbo"
     elif model_name.startswith("gpt-4"):
-        tokens_per_message = 3
-        tokens_per_name = 1
         encoding_model = "gpt-4"
     else:
         raise NotImplementedError(
@@ -100,41 +88,7 @@ def get_encoding(
     except KeyError:
         print(f"Model {model_name} not found. Defaulting to cl100k_base encoding.")
         encoding = tiktoken.get_encoding("cl100k_base")
-    return (encoding, tokens_per_message, tokens_per_name)
-
-
-def get_message_tokens(
-    message: Dict[str, Any],
-    encoding: tiktoken.core.Encoding,
-    tokens_per_message: int = 3,
-    tokens_per_name: int = 1,
-) -> int:
-    if encoding is None:
-        encoding = get_encoding()
-
-    num_tokens = tokens_per_message
-    for key, value in message.items():
-        if key == "tool_calls":
-            tool_call_value = ""
-            value: List[ChatCompletionMessageToolCallParam]
-            for tool in value:
-                for item in value:
-                    function_dict = {
-                        "arguments": tool.function.arguments,
-                        "name": tool.function.name,
-                    }
-                    tool_call_param_dict = {
-                        "id": tool.id,
-                        "function": function_dict,
-                        "type": tool.type,
-                    }
-                    tool_call_value += json.dumps(tool_call_param_dict)
-            value = tool_call_value
-
-        num_tokens += len(encoding.encode(value))
-        if key == "name":
-            num_tokens += tokens_per_name
-    return num_tokens
+    return encoding
 
 
 def count_string_tokens(string: str, model_name: str = "gpt-3.5-turbo") -> int:
