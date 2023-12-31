@@ -1,12 +1,12 @@
-user:
-  model:
-    type: openai
-    name: gpt-4-1106-preview
-planner:
+assistant:
   model:
     type: openai
     name: gpt-4-1106-preview
 executor:
+  model:
+    type: openai
+    name: gpt-4-1106-preview
+user_memory_manager:
   model:
     type: openai
     name: gpt-4-1106-preview

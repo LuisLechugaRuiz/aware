@@ -1,6 +1,6 @@
 import json
 from typing import Any, Callable, cast, Dict, Generic, List, Optional, TypeVar, Type
-from pydantic import create_model, BaseModel, ValidationError
+from pydantic import create_model, BaseModel
 import inspect
 from logging import getLogger
 import re

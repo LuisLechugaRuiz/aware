@@ -1,0 +1,84 @@
+{
+    "Category": {
+        "description": "A category to classify data",
+        "properties": {
+            "name": {
+                "type": "text",
+                "description": "The category name"
+            },
+            "description": {
+                "type": "text",
+                "description": "The category description"
+            }
+        }
+    },
+    "User": {
+        "description": "A specific user",
+        "properties": {
+            "name": {
+                "type": "text",
+                "description": "The name of the user"
+            }
+        }
+    },
+    "Conversation": {
+        "description": "A conversation between users and the assistant",
+        "properties": {
+            "users": {
+                "type": "User",
+                "description": "The users in the conversation"
+            },
+            "summary": {
+                "type": "text",
+                "description": "The conversation summary"
+            },
+            "potential_query": {
+                "type": "text",
+                "description": "A potential query that could be used to search for this conversation"
+            }
+        }
+    },
+    "LastConversation": {
+        "description": "The last conversation of a user",
+        "properties": {
+            "name": {
+                "type": "Conversation",
+                "description": "The last conversation"
+            }
+        }
+    },
+    "Info": {
+        "description": "Information from a certain category",
+        "properties": {
+            "category": {
+                "type": "Category",
+                "description": "The category of the information"
+            },
+            "data": {
+                "type": "text",
+                "description": "The data"
+            },
+            "potential_query": {
+                "type": "text",
+                "description": "A potential query that could be used to search for this information"
+            },
+            "user": {
+                "type": "User",
+                "description": "The user that provided the information"
+            }
+        }
+    },
+    "Tool": {
+        "description": "Tool information",
+        "properties": {
+            "name": {
+                "type": "text",
+                "description": "The name of the tool"
+            },
+            "description": {
+                "type": "text",
+                "description": "The description of the tool"
+            }
+        }
+    }
+}

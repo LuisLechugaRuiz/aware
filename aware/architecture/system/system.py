@@ -11,7 +11,6 @@ from aware.utils.helpers import colored, get_local_ip
 from aware.architecture.helpers.tmp_ips import (
     DEF_ASSISTANT_IP,
     DEF_CLIENT_PORT,
-    DEF_SYSTEM_PORT,
     DEF_ACTION_SERVER_PORT,
 )
 from aware.architecture.helpers.topics import DEF_REGISTRATION_SERVER
@@ -30,7 +29,6 @@ class System:
         self,
         user_name: str,
         assistant_ip: str,
-        system_port: int,
     ):
         self.system_ip = get_local_ip()
 
@@ -43,7 +41,6 @@ class System:
             user_name=user_name,
         )
         self.executor.register_tools()
-        # Communication - TODO: Centralize comms at assistant - connect to ActionServer Broker.
         self.system_action_server = ActionServer(
             broker_address=f"tcp://{assistant_ip}:{DEF_ACTION_SERVER_PORT}",
             topic=f"{user_name}_system_action_server",  # TODO: USE USER ID
@@ -51,7 +48,7 @@ class System:
             action_class=Request,
             update_callback=self.update_request_callback,
         )
-        self.register_with_assistant(assistant_ip, system_port)
+        self.register_with_assistant(assistant_ip)
 
     def add_request(self, request: Request):
         # In case request already exists just update it.
@@ -115,7 +112,6 @@ class System:
     def register_with_assistant(
         self,
         assistant_ip: str,
-        system_port: int,
     ):
         print("REGISTERING WITH ASSISTANT")
         client = Client(f"tcp://{assistant_ip}:{DEF_CLIENT_PORT}")
@@ -140,16 +136,12 @@ def main():
         default=DEF_ASSISTANT_IP,
         help="Assistant IP",
     )
-    parser.add_argument(
-        "-s", "--system_port", type=int, default=DEF_SYSTEM_PORT, help="System port"
-    )
     args = parser.parse_args()
 
     # When user starts initialize his system.
     system = System(
         user_name=args.name,
         assistant_ip=args.assistant_ip,
-        system_port=args.system_port,
     )
     while True:
         sleep(0.1)

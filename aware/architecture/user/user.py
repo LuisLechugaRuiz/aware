@@ -2,6 +2,7 @@ import argparse
 import logging
 from typing import List
 
+from aware.agent.memory.user_memory_manager import UserMemoryManager
 from aware.architecture.helpers.topics import (
     DEF_ASSISTANT_MESSAGE,
     DEF_USER_MESSAGE,
@@ -11,7 +12,7 @@ from aware.architecture.helpers.tmp_ips import (
     DEF_PUB_PORT,
     DEF_SUB_PORT,
 )
-from aware.architecture.user.user_message import UserMessage
+from aware.architecture.user.user_message import UserContextMessage, UserMessage
 from aware.utils.communication_protocols import Publisher, Subscriber
 
 
@@ -23,15 +24,10 @@ class User:
 
     def __init__(
         self,
-        user_name: str,
         assistant_ip: str,
     ):
-        # TODO: Fetch User database or start questionnaire if he is not in the database.
-        self.user_name = user_name  # Temporal until we can gather info from database.
-
-        # self.users_message_publisher = Publisher(
-        #     address=f"tcp://{assistant_ip}:{assistant_port}", topic=DEF_USER_MESSAGE
-        # )
+        self.user_memory_manager = UserMemoryManager()
+        self.user_name = self.user_memory_manager.get_name()
         self.users_message_publisher = Publisher(
             address=f"tcp://{assistant_ip}:{DEF_SUB_PORT}", topic=DEF_USER_MESSAGE
         )
@@ -41,13 +37,24 @@ class User:
             callback=self.receive_assistant_message,
         )
         self.incoming_messages: List[UserMessage] = []
+        self.conversation_timer = None
 
     def receive_assistant_message(self, message: str):
-        self.incoming_messages.append(UserMessage.from_json(message))
+        user_message = UserMessage.from_json(message)
+        self.user_memory_manager.add_message(
+            user_message
+        )  # Only entry point to memory manager as assistant is the broker.
+        self.incoming_messages.append(user_message)
 
+    # TODO: SEND ALSO USER CONTEXT PROVIDED BY MEMORY MANAGER.
     def send_message(self, message: str):
         user_message = UserMessage(user_name=self.user_name, message=message)
-        self.users_message_publisher.publish(user_message.to_json())
+        user_context_message = UserContextMessage(
+            user_message=user_message,
+            context=self.user_memory_manager.context,
+            thought=self.user_memory_manager.thought,
+        )
+        self.users_message_publisher.publish(user_context_message.to_json())
 
 
 # TODO: START USING THE RIGHT IP
