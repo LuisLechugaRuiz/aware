@@ -4,26 +4,19 @@ from typing import Dict, Tuple
 from time import sleep
 from queue import Queue
 
-from aware.architecture.helpers.tmp_ips import (
-    DEF_ASSISTANT_IP,
-    DEF_PUB_PORT,
-    DEF_SUB_PORT,
-    DEF_CLIENT_PORT,
-    DEF_SERVER_PORT,
-    DEF_ACTION_CLIENT_PORT,
-    DEF_ACTION_SERVER_PORT,
-)
+from aware.agent.agent import Agent
 from aware.architecture.helpers.topics import (
     DEF_ASSISTANT_MESSAGE,
     DEF_USER_MESSAGE,
-    DEF_SEARCH_DATABASE,
-    DEF_STORE_DATABASE,
+    DEF_GET_THOUGHT,
     DEF_REGISTRATION_SERVER,
 )
 from aware.architecture.helpers.request import Request, RequestStatus
-from aware.architecture.user.user_message import UserMessage
+from aware.architecture.user.user_message import UserMessage, UserContextMessage
 from aware.chat.chat import Chat
-from aware.tools.tools_manager import ToolsManager
+from aware.config.config import Config
+
+# from aware.tools.tools_manager import ToolsManager
 from aware.utils.helpers import colored
 from aware.utils.communication_protocols import (
     Proxy,
@@ -36,24 +29,23 @@ from aware.utils.communication_protocols import (
     ActionBroker,
     GoalHandle,
 )
+from aware.utils.logger.file_logger import FileLogger
 
 LOG = logging.getLogger(__name__)
 
 
-class Assistant:
+class Assistant(Agent):
     """Your classical chatbot! But it can send requests to the system"""
 
     def __init__(self, assistant_ip: str):
         self.assistant_ip = assistant_ip
         self.requests: Dict[str, Request] = {}  # TODO: Get them from database
         self.active_goal_handles: Dict[str, Tuple[str, GoalHandle]] = {}
-        self.chat = Chat(
-            module_name="user",
-            system_prompt_kwargs={"requests": self.get_requests()},
-        )
+        self.context = ""
+        self.thought = ""
 
         self.users: Dict[str, str] = {}
-        self.user_messages: Queue[UserMessage] = Queue()
+        self.user_context_messages: Queue[UserContextMessage] = Queue()
 
         # Action client for each user system.
         self.system_action_clients: Dict[str, ActionClient] = {}
@@ -62,30 +54,32 @@ class Assistant:
 
         # Communications
         self.proxy = Proxy(
-            ip=assistant_ip, xsub_port=DEF_SUB_PORT, xpub_port=DEF_PUB_PORT
+            ip=assistant_ip, sub_port=Config().sub_port, pub_port=Config().pub_port
         )
         self.broker = Broker(
-            ip=assistant_ip, client_port=DEF_CLIENT_PORT, server_port=DEF_SERVER_PORT
+            ip=assistant_ip,
+            client_port=Config().client_port,
+            server_port=Config().server_port,
         )
         self.action_broker = ActionBroker(
             ip=assistant_ip,
-            client_port=DEF_ACTION_CLIENT_PORT,
-            server_port=DEF_ACTION_SERVER_PORT,
+            client_port=Config().action_client_port,
+            server_port=Config().action_server_port,
         )
 
         self.assistant_message_publisher = Publisher(
-            address=f"tcp://{assistant_ip}:{DEF_SUB_PORT}",
+            address=f"tcp://{assistant_ip}:{Config().pub_port}",
             topic=DEF_ASSISTANT_MESSAGE,
         )
         self.users_message_subscriber = Subscriber(
-            address=f"tcp://{assistant_ip}:{DEF_PUB_PORT}",
+            address=f"tcp://{assistant_ip}:{Config().sub_port}",
             topic=DEF_USER_MESSAGE,
             callback=self.user_message_callback,
         )
 
         # Server to handle user registration
         self.registration_server = Server(
-            address=f"tcp://{assistant_ip}:{DEF_SERVER_PORT}",
+            address=f"tcp://{assistant_ip}:{Config().server_port}",
             topics=[DEF_REGISTRATION_SERVER],
             callback=self.handle_registration,
         )
@@ -94,10 +88,22 @@ class Assistant:
             self.talk,
             self.send_request,
             self.search_user_info,
-            self.store_user_info,
             self.wait_for_user,
         ]
-        self.tools_manager = ToolsManager()
+        # self.tools_manager = ToolsManager()
+        super().__init__(
+            chat=Chat(
+                module_name="assistant",
+                logger=FileLogger("assistant"),
+                system_prompt_kwargs={
+                    "requests": self.get_requests(),
+                    "context": self.context,
+                    "thought": self.thought,
+                },
+            ),
+            functions=self.assistant_functions,
+            logger=FileLogger("assistant"),
+        )
 
     # When registering we need also to create a new client to database.
     def handle_registration(self, message):
@@ -106,13 +112,13 @@ class Assistant:
         # TODO: RECEIVE HERE!! THE USER UUID!
         user_info = json.loads(message)
         self.system_action_clients[user_info["user_name"]] = ActionClient(
-            broker_address=f"tcp://{self.assistant_ip}:{DEF_ACTION_CLIENT_PORT}",
+            broker_address=f"tcp://{self.assistant_ip}:{Config().action_client_port}",
             topic=f"{user_info['user_name']}_system_action_server",
             callback=self.update_request,
             action_class=Request,
         )
         self.database_clients[user_info["user_name"]] = Client(
-            address=f"tcp://{self.assistant_ip}:{DEF_CLIENT_PORT}",
+            address=f"tcp://{self.assistant_ip}:{Config().client_port}",
         )
         print(f"Registered user: {user_info['user_name']}")
         return "Registered Successfully"
@@ -125,21 +131,29 @@ class Assistant:
     def broadcast_message(self, message: str):
         self.assistant_message_publisher.publish(message)
 
-    def user_message_callback(self, user_message: str):
+    def user_message_callback(self, message_str: str):
         # Save user message in a queue.
-        message = UserMessage.from_json(user_message)
+        message = UserContextMessage.from_json(message_str)
+        user_message = message.user_message
         print(
-            colored(f"User {message.user_name}: ", "red")
-            + f"message: {message.message}"
+            colored(f"User {user_message.user_name}: ", "red")
+            + f"message: {user_message.message}"
         )
-        self.user_messages.put(message)
+        print(colored(f"CONTEXT: {message.context}", "green"))
+        print(colored(f"THOUGHT: {message.thought}", "yellow"))
+        self.user_context_messages.put(message)
 
         # Broadcast to all users
-        self.broadcast_message(user_message)
+        self.broadcast_message(user_message.to_json())
 
     def update_system(self):
+        "Overriding agent update system to also update the requests and the context"
         self.chat.edit_system_message(
-            system_prompt_kwargs={"requests": self.get_requests()}
+            system_prompt_kwargs={
+                "requests": self.get_requests(),
+                "context": self.context,
+                "thought": self.thought,
+            }
         )
 
     def send_request(self, user_name: str, request: str):
@@ -176,9 +190,11 @@ class Assistant:
             str
         """
         print(f'{colored("Assistant:", "blue")} {message}')
-        assistant_message = UserMessage(user_name="Aware", message=message)
+        assistant_message = UserMessage(
+            user_name=Config().assistant_name, message=message
+        )
         self.broadcast_message(assistant_message.to_json())
-        self.running = False
+        self.stop_agent()
         return "Message sent."
 
     def search_user_info(self, user_name: str, query: str):
@@ -193,33 +209,13 @@ class Assistant:
             str
         """
         try:
+            print(f"Searching for {query} on {user_name}'s database")
             data = self.database_clients[user_name].send(
-                topic=f"{user_name}_{DEF_SEARCH_DATABASE}", message=query
+                topic=f"{user_name}_{DEF_GET_THOUGHT}", message=query
             )
             return f"Search returned: {data}"
         except Exception as e:
             return f"Error searching: {e}"
-
-    def store_user_info(self, user_name: str, info: str):
-        """
-        Store the info on user's semantic database.
-
-        Args:
-            user_name (str): The user name.
-            info (str): The info to be stored.
-
-        Returns:
-            str
-        """
-        print(f"STORING INFO: {info}")
-        data = self.database_clients[user_name].send(
-            topic=f"{user_name}_{DEF_STORE_DATABASE}", message=info
-        )
-        # self.database.store_user_info(user_name, info)
-        # print(f"Storing {user_name}'s info: {info}")
-        if data == "OK":
-            return "Info stored."
-        return "Error storing info."
 
     def wait_for_user(self):
         """
@@ -229,7 +225,7 @@ class Assistant:
             None
         """
         print("Waiting for user's input...")
-        self.running = False
+        self.stop_agent()
         return "Waiting for user's input..."
 
     def update_request(self, request: Request):
@@ -249,11 +245,12 @@ class Assistant:
             self.wait_user_message()
 
             # Send feedback
-            user_message = self.user_messages.get()
+            user_context_message = self.user_context_messages.get()
+            user_message = user_context_message.user_message
             self.chat.conversation.add_user_message(
                 message=user_message.message, user_name=user_message.user_name
             )
-            self.user_messages.task_done()
+            self.user_context_messages.task_done()
             request.update_status(
                 status=RequestStatus.IN_PROGRESS, feedback=user_message.message
             )
@@ -269,9 +266,12 @@ class Assistant:
                 user_name=f"{user_name}_system",
                 message=message,
             )
+            user_context_message = UserContextMessage(
+                user_message=user_message, context=self.context, thought=self.thought
+            )
             self.requests.pop(request.get_id())
             self.active_goal_handles.pop(request.get_id())
-            self.user_messages.put(user_message)
+            self.user_context_messages.put(user_context_message)
             print(colored(f"{user_name}_system: ", "green") + message)
         elif request.get_status() == RequestStatus.FAILURE:
             user_name, goal_handle = self.active_goal_handles[request.get_id()]
@@ -280,49 +280,46 @@ class Assistant:
                 user_name=f"{user_name}_system",
                 message=message,
             )
+            user_context_message = UserContextMessage(
+                user_message=user_message, context=self.context, thought=self.thought
+            )
+            # TODO: POP IT LATER!
             self.requests.pop(request.get_id())
             self.active_goal_handles.pop(request.get_id())
-            self.user_messages.put(user_message)
+            self.user_context_messages.put(user_context_message)
             print(colored(f"{user_name}_system: ", "red") + message)
 
         self.update_system()
 
     def run(self):
         while True:
-            while self.user_messages.empty():
+            while self.user_context_messages.empty():
                 sleep(0.1)
 
-            while not self.user_messages.empty():
+            while not self.user_context_messages.empty():
                 # Add user message to the chat
-                user_message = self.user_messages.get()
+                user_context_message = self.user_context_messages.get()
+                user_message = user_context_message.user_message
+                self.context = user_context_message.context
+                self.thought = user_context_message.thought
                 self.chat.conversation.add_user_message(
                     message=user_message.message, user_name=user_message.user_name
                 )
-                self.user_messages.task_done()
+                self.update_system()
+                self.user_context_messages.task_done()
 
-            self.running = True
-            while self.running:
-                tools_call = self.chat.call(functions=self.assistant_functions)
-                if tools_call is None or not tools_call:
-                    self.running = False
-                    print("Stopping assistant due to None call.")
-                elif isinstance(tools_call, str):
-                    self.talk(tools_call)
-                    self.running = False
-                else:
-                    self.tools_manager.execute_tools(
-                        tools_call=tools_call,
-                        functions=self.assistant_functions,
-                        chat=self.chat,
-                    )
+            print("RUNNING AGENT!")
+            message = self.run_agent()
+            if message is not None:
+                self.talk(message)
 
     def wait_user_message(self):
-        while self.user_messages == []:
+        while self.user_context_messages == []:
             sleep(0.1)
 
 
 def main():
-    assistant = Assistant(assistant_ip=DEF_ASSISTANT_IP)
+    assistant = Assistant(assistant_ip=Config().assistant_ip)
     assistant.run()
 
 

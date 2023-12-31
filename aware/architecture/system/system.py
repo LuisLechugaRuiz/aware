@@ -8,12 +8,7 @@ from aware.architecture.system.executor import Executor
 
 # from aware.architecture.system.tool_creator import ToolCreator
 from aware.utils.helpers import colored, get_local_ip
-from aware.architecture.helpers.tmp_ips import (
-    DEF_ASSISTANT_IP,
-    DEF_CLIENT_PORT,
-    DEF_SYSTEM_PORT,
-    DEF_ACTION_SERVER_PORT,
-)
+from aware.config.config import Config
 from aware.architecture.helpers.topics import DEF_REGISTRATION_SERVER
 from aware.utils.communication_protocols import Client
 from aware.utils.communication_protocols.actions.action_server import (
@@ -30,7 +25,6 @@ class System:
         self,
         user_name: str,
         assistant_ip: str,
-        system_port: int,
     ):
         self.system_ip = get_local_ip()
 
@@ -43,15 +37,14 @@ class System:
             user_name=user_name,
         )
         self.executor.register_tools()
-        # Communication - TODO: Centralize comms at assistant - connect to ActionServer Broker.
         self.system_action_server = ActionServer(
-            broker_address=f"tcp://{assistant_ip}:{DEF_ACTION_SERVER_PORT}",
+            broker_address=f"tcp://{assistant_ip}:{Config().action_server_port}",
             topic=f"{user_name}_system_action_server",  # TODO: USE USER ID
             callback=self.execute_request,
             action_class=Request,
             update_callback=self.update_request_callback,
         )
-        self.register_with_assistant(assistant_ip, system_port)
+        self.register_with_assistant(assistant_ip)
 
     def add_request(self, request: Request):
         # In case request already exists just update it.
@@ -115,10 +108,9 @@ class System:
     def register_with_assistant(
         self,
         assistant_ip: str,
-        system_port: int,
     ):
         print("REGISTERING WITH ASSISTANT")
-        client = Client(f"tcp://{assistant_ip}:{DEF_CLIENT_PORT}")
+        client = Client(f"tcp://{assistant_ip}:{Config().client_port}")
         # TODO: Create class and add uuid.
         user_info = {
             "user_name": self.user_name,
@@ -137,11 +129,8 @@ def main():
         "-a",
         "--assistant_ip",
         type=str,
-        default=DEF_ASSISTANT_IP,
+        default=Config().assistant_ip,
         help="Assistant IP",
-    )
-    parser.add_argument(
-        "-s", "--system_port", type=int, default=DEF_SYSTEM_PORT, help="System port"
     )
     args = parser.parse_args()
 
@@ -149,7 +138,6 @@ def main():
     system = System(
         user_name=args.name,
         assistant_ip=args.assistant_ip,
-        system_port=args.system_port,
     )
     while True:
         sleep(0.1)

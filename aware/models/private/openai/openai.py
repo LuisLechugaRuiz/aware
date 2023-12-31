@@ -9,23 +9,58 @@ from openai.types.chat import (
 )
 from dotenv import load_dotenv
 
+from aware.config.config import Config
 from aware.chat.conversation import Conversation
 from aware.models.model import Model
+from aware.models.private.openai.retry_handler import _OpenAIRetryHandler
+from aware.utils.logger.file_logger import FileLogger
 
 load_dotenv()
 
 
 class OpenAIModel(Model):
-    def __init__(self, model_name: str):
+    def __init__(
+        self, model_name: str, logger: FileLogger, api_key: Optional[str] = None
+    ):
         self.model_name = model_name
-        self.client = OpenAI()
+        self.logger = logger
+        if api_key is None:
+            api_key = Config().openai_api_key
+        self.client = OpenAI(api_key=api_key)
+
+        _retry_handler = _OpenAIRetryHandler(
+            logger=self.logger, num_retries=Config().openai_num_retries
+        )
+
+        self._get_response_with_retries = _retry_handler(self._get_response)
         super().__init__()
 
     def get_name(self) -> str:
         return self.model_name
 
-    # TODO: get temperature from cfg
     def get_response(
+        self,
+        conversation: Conversation,
+        functions: List[Dict[str, Any]] = [],
+        response_format: str = "text",  # or json_object.
+        temperature: float = 0.7,
+    ) -> ChatCompletionMessage:
+        try:
+            return self._get_response_with_retries(
+                conversation=conversation,
+                functions=functions,
+                response_format=response_format,
+                temperature=temperature,
+            )
+        # TODO: MANAGE THIS -> NOTIFIY TO USER OR SHUTDOWN SYSTEM TEMPORALLY, IN THE FUTURE CHANGE THE API PROVIDER.
+        except Exception as e:
+            self.logger.error(
+                f"Error getting response from OpenAI: {e} after {Config().openai_num_retries} retries."
+            )
+            raise e
+
+    # TODO: get temperature from cfg
+    def _get_response(
         self,
         conversation: Conversation,
         functions: List[Dict[str, Any]] = [],

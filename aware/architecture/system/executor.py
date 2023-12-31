@@ -6,7 +6,16 @@ from aware.chat.parser.pydantic_parser import PydanticParser
 from aware.chat.chat import Chat
 from aware.tools.tools_manager import ToolsManager
 from aware.utils.helpers import colored
+from aware.utils.logger.file_logger import FileLogger
+from aware.data.database.weaviate.weaviate import WeaviateDB
 
+
+# TODO: MIGRATE TO AGENT_THOUGHT_GENERATOR!
+from aware.config.config import Config
+from aware.utils.communication_protocols import (
+    Client,
+)
+from aware.architecture.helpers.topics import DEF_SEARCH_DATABASE
 
 MAX_ITERATIONS = 30  # TODO: Move to config.
 
@@ -17,24 +26,32 @@ class Execution:
         self.success: bool = success
 
 
-# TODO: Set MAX short term memory size and MAX conversation size!(Important to calculate number of tokens).
+# TODO: RENAME TO ORCHESTRATOR.
 class Executor:
     """Execute different tools to satisfy the user request."""
 
     def __init__(self, get_user_feedback: Callable, user_name: str):
         self.chat = Chat(
             module_name="executor",
+            logger=FileLogger("executor"),
             system_prompt_kwargs={"request": ""},
             user_name=user_name,
         )
-        self.tools_manager = ToolsManager()
+        self.weaviate_db = WeaviateDB()
+        self.tools_manager = ToolsManager(FileLogger("executor"))
         self.planner_functions = [
             self.find_tools,
             self.select_tool,
-            self.search_user_info,
+            self.search_user_info,  # TODO: THIS SHOULD WAIT FOR A SPECIFIC THOUGHT, SAME AS ASSISTANT ONE BUT FOR SYSTEM MEMORY.
             self.ask_user,
             self.set_task_completed,
         ]
+
+        self.user_name = user_name
+        self.search_user_info_client = Client(
+            address=f"tcp://{Config().assistant_ip}:{Config().client_port}",
+        )
+
         self.selected_tools: Dict[str, Callable] = {}
         self.get_user_feedback = get_user_feedback
         self.new_plan = None
@@ -70,18 +87,18 @@ class Executor:
             functions = self.planner_functions.copy()
             functions.extend(self.selected_tools.values())
 
-            tools_call = self.chat.call(functions=functions)
+            tool_calls = self.chat.call(functions=functions)
             try:
-                if tools_call is not None:
-                    if isinstance(tools_call, str):
-                        print(f"Tools call is a string: {tools_call}")
+                if tool_calls is not None:
+                    if isinstance(tool_calls, str):
+                        print(f"Tools call is a string: {tool_calls}")
                         return Execution(
-                            summary=f"Failed to execute tools as model returned a string with content: {tools_call}",
+                            summary=f"Failed to execute tools as model returned a string with content: {tool_calls}",
                             success=False,
                         )
                     else:
                         tools_result = self.tools_manager.execute_tools(
-                            tools_call=tools_call,
+                            tool_calls=tool_calls,
                             functions=functions,
                             chat=self.chat,
                         )
@@ -141,10 +158,9 @@ class Executor:
         """
         potential_tools: Dict[str, str] = {}
         for description in descriptions:
-            tool = self.chat.database.search_tool(description)
-            if tool is not None:
-                if tool["name"] not in potential_tools.keys():
-                    potential_tools[tool["name"]] = tool["description"]
+            tools = self.weaviate_db.search_tool(description)
+            for tool in tools:
+                potential_tools[tool.name] = tool.description
         if not potential_tools:
             return f"No tools found for approach: {potential_approach}"
         tools_str = "\n\n".join(
@@ -182,18 +198,21 @@ class Executor:
 
         return "Task completed."
 
-    def search_user_info(self, user_info: str):
+    # TODO: Move to thought generator.
+    def search_user_info(self, query: str):
         """
-        Search user info.
+        Search information about the user using a specific query.
 
         Args:
-            user_info (str): The user info to be searched.
+            query (str): The query to be used to search the user info.
 
         Returns:
             str: The user info.
         """
         # THIS MEANS THAT SYSTEM DB IS THE SAME AS USER DB, MODIFY IF WE CENTRALIZE USER DB (1 db for user and multiple systems connected).
-        data = self.chat.search_on_long_term_memory(user_info)
+        data = self.search_user_info_client.send(
+            topic=f"{self.user_name}_{DEF_SEARCH_DATABASE}", message=query
+        )
         if data is None:
             return "Information not found."
         return data
@@ -211,6 +230,6 @@ class Executor:
             tools.append(self.tools_manager.get_tool(tool_name))
         for tool in tools:
             function_schema = PydanticParser.get_function_schema(tool)["function"]
-            self.chat.database.store_tool(
+            self.weaviate_db.store_tool(
                 name=function_schema["name"], description=function_schema["description"]
             )

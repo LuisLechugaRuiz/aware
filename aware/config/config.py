@@ -26,22 +26,38 @@ class Config(metaclass=Singleton):
     """
 
     def __init__(self):
-        # KEYS
+        # OPENAI
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        self.openai_memory_api_key = os.getenv("OPENAI_MEMORY_API_KEY")
+        self.openai_num_retries = os.getenv("OPENAI_NUM_RETRIES", 3)
 
+        self.assistant_name = os.getenv("ASSISTANT_NAME", "Aware")
         # Memory
         self.max_conversation_tokens = 2000  # TODO: Define this value.
         self.conversation_warning_threshold = 0.8  # TODO: Define this value.
 
-        self.max_short_term_memory_tokens = 2000  # TODO: Define this value.
-        self.max_long_term_memory_tokens = 1000  # TODO: Define this value.
+        self.conversation_timeout_sec = 600
+        self.task_timeout_sec = 600
 
         # Weaviate
-        self.weaviate_url = os.getenv("WEAVIATE_URL", "http://weaviate")
+        # Only local for now.
         self.local_weaviate_url = os.getenv(
-            "LOCAL_WEAVIATE_URL", "http://localhost"
+            "LOCAL_WEAVIATE_URL", "localhost"
         )  # TODO: Remove after moving to cloud
-        self.weaviate_port = os.getenv("WEAVIATE_PORT", "9090")
+        self.weaviate_port = os.getenv("WEAVIATE_PORT", 9090)
+
+        self.weaviate_url = os.getenv("WEAVIATE_URL", "http://weaviate")
         self.weaviate_key = os.getenv("WEAVIATE_KEY")
 
-        # TODO: Add here IPs and ports.
+        # IPS
+        self.system_ip = os.getenv("SYSTEM_IP", "127.0.0.1")
+        self.assistant_ip = os.getenv("ASSISTANT_IP", "127.0.0.1")
+        self.user_ip = os.getenv("USER_IP", "127.0.0.1")
+
+        # Ports
+        self.sub_port = os.getenv("SUB_PORT", 50001)
+        self.pub_port = os.getenv("PUB_PORT", 50002)
+        self.client_port = os.getenv("CLIENT_PORT", 50003)
+        self.server_port = os.getenv("SERVER_PORT", 50004)
+        self.action_client_port = os.getenv("ACTION_CLIENT_PORT", 50005)
+        self.action_server_port = os.getenv("ACTION_SERVER_PORT", 50006)

@@ -7,6 +7,6 @@ zmq # User for the first version of our communication protocols
 google-auth-oauthlib
 google-api-python-client
 jinja2
-weaviate-client
+# weaviate-client==4.* # pip install --pre -U "weaviate-client==4.*" TODO: ADD ME AND REMOVE THE SUBMODULE WHEN WEAVIATE MERGES COMMIT
 tzlocal
 # python3-tk python3-dev for pywhatkit
