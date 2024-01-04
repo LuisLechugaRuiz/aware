@@ -8,5 +8,8 @@ dist/
 **/data/traces/*
 **/tools/private_data/*
 
+**/permanent_storage/logs/**
+**/permanent_storage/user_data/**
+
 # Ignore events for now.
 **/events/**
