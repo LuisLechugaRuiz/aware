@@ -9,7 +9,6 @@ import weaviate.classes as wvc
 
 from aware.config.config import Config
 from aware.data.database.weaviate.helpers import (
-    WeaviateCategory,
     WeaviateTool,
     WeaviateResult,
 )
@@ -36,7 +35,7 @@ class WeaviateDB(object):
             self.client = weaviate.connect_to_local(
                 host=Config().local_weaviate_url, port=Config().weaviate_port
             )
-        # self.client.schema.delete_all()
+        # self.client.collections.delete_all()  # TODO: START AGAIN
         schemas_path = os.path.join(Path(__file__).parent, "schemas", "schemas.json")
         self._create_schemas(schemas_path)
 
@@ -121,63 +120,15 @@ class WeaviateDB(object):
         )
         return WeaviateResult(data=user_uuid)
 
-    def search_category(
-        self,
-        description: str,
-        certainty=0.7,
-        limit=2,
-    ) -> List[WeaviateCategory]:
-        description_vector = self.get_ada_embedding(description)
-        category_collection = self.client.collections.get("Category")
-        category_objects = category_collection.query.near_vector(
-            near_vector=description_vector,
-            certainty=certainty,
-            limit=limit,
-        )
-        categories = [
-            WeaviateCategory(
-                name=category_object.properties["name"],
-                description=category_object.properties["description"],
-            )
-            for category_object in category_objects.objects
-        ]
-        return categories
-
-    def store_category(self, name: str, description: str) -> WeaviateResult:
-        """Store a category in the database in case it doesn't exist yet"""
-
-        try:
-            # Search if the category already exists
-            category_collection = self.client.collections.get("Category")
-            existing_categories = category_collection.query.fetch_objects(
-                filters=wvc.Filter("name").equal(name)
-            )
-            if len(existing_categories.objects) > 0:
-                # TODO: Return error here!! Is trying to save a category that already exists... we can add merge option.
-                return WeaviateResult(error="Category already exists!!!")
-
-            category_uuid = category_collection.data.insert(
-                properties={
-                    "name": name,
-                    "description": description,
-                },
-                vector=self.get_ada_embedding(description),
-            )
-            return WeaviateResult(data=category_uuid)
-        except Exception as err:
-            print(f"Unexpected error {err} when storing category")
-            return WeaviateResult(error=str(err))
-
     def search_info(
         self,
-        category_name: str,
         query: str,
         user_name: Optional[str] = None,
         num_relevant=2,
         certainty=0.7,
     ) -> WeaviateResult:
         try:
-            filters = wvc.Filter(["category", "Category", "name"]).equal(category_name)
+            filters = None
             if user_name is not None:
                 filters = filter & wvc.Filter(["user", "User", "name"]).equal(user_name)
 
@@ -199,24 +150,15 @@ class WeaviateDB(object):
 
     # TODO: Return a specific class with Data, errors.. to differentiatate between string and error
     def store_info(
-        self, user_name: str, category_name: str, data: str, potential_query: str
+        self, user_name: str, data: str, potential_query: str
     ) -> WeaviateResult:
         try:
-            category_collection = self.client.collections.get("Category")
-            category = category_collection.query.fetch_objects(
-                filters=wvc.Filter("name").equal(category_name)
-            )
-            if len(category.objects) == 0:
-                return WeaviateResult(error="Category does not exist!")
-
             user_collection = self.client.collections.get("User")
             user = user_collection.query.fetch_objects(
                 filters=wvc.Filter("name").equal(user_name)
             )
             if len(user.objects) == 0:
                 return WeaviateResult(error="User does not exist!")
-
-            category_uuid = category.objects[0].uuid
             user_uuid = user.objects[0].uuid
             info_collection = self.client.collections.get("Info")
             info_uuid = info_collection.data.insert(
@@ -225,7 +167,6 @@ class WeaviateDB(object):
                     "potential_query": potential_query,
                 },
                 references={
-                    "category": wvc.Reference.to(uuids=category_uuid),
                     "user": wvc.Reference.to(uuids=user_uuid),
                 },
                 vector=self.get_ada_embedding(potential_query),

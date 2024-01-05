@@ -54,7 +54,7 @@ class Assistant(Agent):
 
         # Communications
         self.proxy = Proxy(
-            ip=assistant_ip, xsub_port=Config().sub_port, xpub_port=Config().pub_port
+            ip=assistant_ip, sub_port=Config().sub_port, pub_port=Config().pub_port
         )
         self.broker = Broker(
             ip=assistant_ip,
@@ -283,9 +283,10 @@ class Assistant(Agent):
             user_context_message = UserContextMessage(
                 user_message=user_message, context=self.context, thought=self.thought
             )
+            # TODO: POP IT LATER!
             self.requests.pop(request.get_id())
             self.active_goal_handles.pop(request.get_id())
-            self.user_context_messages.put(user_message)
+            self.user_context_messages.put(user_context_message)
             print(colored(f"{user_name}_system: ", "red") + message)
 
         self.update_system()

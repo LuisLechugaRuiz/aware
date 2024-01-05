@@ -66,22 +66,16 @@ class Chat:
                 self.conversation.add_assistant_tool_message(
                     tool_calls, assistant_name=self.assistant_name
                 )
-                self.logger.info(
-                    f"--- CONVERSATION ---\n{self.conversation.get_conversation_string()}",
-                    should_print_local=False,
-                )
+                self.log_conversation()
                 return tool_calls
 
-        response = response.content
-        self.conversation.add_assistant_message(
-            response, assistant_name=self.assistant_name
-        )
-        print("DEBUG - ASSISTANT MESSAGE: ", response)
-        self.logger.info(
-            f"--- CONVERSATION ---\n{self.conversation.get_conversation_string()}",
-            should_print_local=False,
-        )
-        return response
+        return response.content
+
+    def clean_tool_calls(self, tool_calls: List[ChatCompletionMessageToolCall]):
+        """Clean the tool calls to replace any '.' in the name with ' _'."""
+        for tool_call in tool_calls:
+            tool_call.function.name = tool_call.function.name.replace(".", "_")
+        return tool_calls
 
     def edit_system_message(self, system_prompt_kwargs: Dict[str, Any]):
         """Edit the system message."""
@@ -130,8 +124,9 @@ class Chat:
         )
         return self.system
 
-    def clean_tool_calls(self, tool_calls: List[ChatCompletionMessageToolCall]):
-        """Clean the tool calls to replace any '.' in the name with ' _'."""
-        for tool_call in tool_calls:
-            tool_call.function.name = tool_call.function.name.replace(".", " _")
-        return tool_calls
+    def log_conversation(self):
+        """Log the conversation."""
+        self.logger.info(
+            f"--- CONVERSATION ---\n{self.conversation.get_conversation_string()}",
+            should_print_local=False,
+        )

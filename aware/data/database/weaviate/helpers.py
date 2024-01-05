@@ -3,12 +3,6 @@ from typing import Any, Optional
 
 
 @dataclass
-class WeaviateCategory:
-    name: str
-    description: str
-
-
-@dataclass
 class WeaviateTool:
     name: str
     description: str

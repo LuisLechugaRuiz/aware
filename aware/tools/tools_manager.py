@@ -58,7 +58,7 @@ class ToolsManager:
 
     def execute_tools(
         self,
-        tools_call: List[ChatCompletionMessageToolCall],
+        tool_calls: List[ChatCompletionMessageToolCall],
         functions: List[Callable],
         chat: Optional[Chat] = None,
     ) -> List[Tool]:
@@ -67,7 +67,7 @@ class ToolsManager:
             functions_dict[function.__name__] = function
 
         tools_result: List[Tool] = []
-        for tool_call in tools_call:
+        for tool_call in tool_calls:
             call_arguments_dict = {}
             try:
                 function_name = tool_call.function.name

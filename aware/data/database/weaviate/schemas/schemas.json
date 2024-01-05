@@ -1,17 +1,4 @@
 {
-    "Category": {
-        "description": "A category to classify data",
-        "properties": {
-            "name": {
-                "type": "text",
-                "description": "The category name"
-            },
-            "description": {
-                "type": "text",
-                "description": "The category description"
-            }
-        }
-    },
     "User": {
         "description": "A specific user",
         "properties": {
@@ -48,12 +35,8 @@
         }
     },
     "Info": {
-        "description": "Information from a certain category",
+        "description": "Information block",
         "properties": {
-            "category": {
-                "type": "Category",
-                "description": "The category of the information"
-            },
             "data": {
                 "type": "text",
                 "description": "The data"

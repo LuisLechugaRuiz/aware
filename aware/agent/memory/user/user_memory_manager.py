@@ -1,7 +1,14 @@
+import json
+from openai.types.chat.chat_completion_message_tool_call_param import (
+    ChatCompletionMessageToolCallParam,
+    Function,
+)
 import os
 from queue import Queue
 import threading
 from time import sleep
+from typing import List
+import uuid
 
 from aware.agent.memory.memory_manager import MemoryManager
 from aware.agent.memory.user.user_profile import UserProfile
@@ -38,8 +45,8 @@ class UserMemoryManager(MemoryManager):
         self.conversation_functions = [
             self.append_context,
             self.edit_context,
+            self.append_user_profile,
             self.edit_user_profile,
-            self.insert_user_profile,
             self.transmit_insight,
             self.wait_for_user,
         ]
@@ -47,6 +54,7 @@ class UserMemoryManager(MemoryManager):
         # TODO: use user_id.
         register = self.register_user()
         user_name = self.get_name()
+        self.assistant_name = f"{Config().assistant_name}_memory_manager"
         super().__init__(
             user_name=user_name,
             chat=Chat(
@@ -60,7 +68,7 @@ class UserMemoryManager(MemoryManager):
                     "conversation_warning_threshold": False,
                     "conversation_remaining_tokens": Config().max_conversation_tokens,
                 },
-                assistant_name=f"{Config().assistant_name}_memory_manager",
+                assistant_name=self.assistant_name,
                 api_key=Config().openai_memory_api_key,
             ),
             functions=self.conversation_functions,
@@ -122,11 +130,12 @@ class UserMemoryManager(MemoryManager):
         }
         self.chat.edit_system_message(system_prompt_kwargs=system_prompt_kwargs)
 
+    # TODO: ADJUST! WE CAN'T SAVE AN INTERACTION FROM USER_MEMORY_MANAGER AT CONVERSATION AS IT WILL BREAK LOGIC. SAVE CHAT AS THOUGHT!!
     def run_memory_agent(self):
         while True:
             # Empty the queue - Add user and assistant messages.
             is_assistant_message = False
-            # Wait for next user message.
+            # Wait for next user message. TODO: WAIT FOR USER AND THEN SYSTEM (TO ENABLE CHAT WHERE MULTIPLE USERS CAN INTERACT).
             while not is_assistant_message:
                 if not self.messages_queue.empty():
                     message = self.messages_queue.get()
@@ -150,10 +159,7 @@ class UserMemoryManager(MemoryManager):
                         self.conversation_timer.start()
 
                     self.messages_queue.task_done()
-            message = self.run_agent()
-            if message:
-                self.transmit_insight(message)
-                self.logger.info(f"Agent finished with message: {message}")
+            self.run_agent(default_tool_calls=self.create_default_tool_calls)
 
     def get_context(self):
         # TODO: Make this thread safe.
@@ -166,6 +172,19 @@ class UserMemoryManager(MemoryManager):
                 self.context = ""
 
         return self.context
+
+    def create_default_tool_calls(self, insight: str):
+        """Create a tool call as if the agent was calling transmit_insight when it answer by string to avoid appending it to conversation"""
+        tool_calls: List[ChatCompletionMessageToolCallParam] = [
+            ChatCompletionMessageToolCallParam(
+                id=uuid.uuid4(),
+                function=Function(
+                    arguments=json.dumps({"insight": insight}), name="transmit_insight"
+                ),
+                name="transmit_insight",
+            )
+        ]
+        return tool_calls
 
     # TODO: THIS CONVERSATION SHOULD BE CALLED ON CONVERSATION FINISHES OR AFTER X AMOUNT OF TOKENS TO STORE A PERMANENT SUMMARY (THE CONTEXT)
     def on_conversation_finished(self):
@@ -197,9 +216,9 @@ class UserMemoryManager(MemoryManager):
         """
         return self.user_profile.edit_user_profile(field, old_data, new_data)
 
-    def insert_user_profile(self, field: str, data: str):
+    def append_user_profile(self, field: str, data: str):
         """
-        Insert data into a specific field of the user profile.
+        Append data into a specific field of the user profile.
 
         Args:
             field (str): Field to edit.
@@ -259,7 +278,6 @@ class UserMemoryManager(MemoryManager):
         Args:
             insight (str): A strategic insight or piece of advice, phrased as if it's the assistant's own thought.
         """
-        print(f"Thought: {insight}")
         self.thought = insight
         self.stop_agent()  # TODO: Define if we should stop after thinking.
         return "Insight transmitted."

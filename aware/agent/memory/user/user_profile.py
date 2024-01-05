@@ -45,6 +45,8 @@ class UserProfile:
         profile_str = ""
         for category, info in self.profile.items():
             profile_str += (
-                f"\n{category}: {info['description']}\nData: {info['data']}\n"
+                f"Field: {category}\n"
+                + f"Description: {info['description']}\n"
+                + f"Data: {info['data'] if info['data'] else 'Not specified'}\n\n"
             )
-        return profile_str
+        return profile_str.strip()

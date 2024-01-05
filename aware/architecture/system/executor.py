@@ -76,18 +76,18 @@ class Executor:
             functions = self.planner_functions.copy()
             functions.extend(self.selected_tools.values())
 
-            tools_call = self.chat.call(functions=functions)
+            tool_calls = self.chat.call(functions=functions)
             try:
-                if tools_call is not None:
-                    if isinstance(tools_call, str):
-                        print(f"Tools call is a string: {tools_call}")
+                if tool_calls is not None:
+                    if isinstance(tool_calls, str):
+                        print(f"Tools call is a string: {tool_calls}")
                         return Execution(
-                            summary=f"Failed to execute tools as model returned a string with content: {tools_call}",
+                            summary=f"Failed to execute tools as model returned a string with content: {tool_calls}",
                             success=False,
                         )
                     else:
                         tools_result = self.tools_manager.execute_tools(
-                            tools_call=tools_call,
+                            tool_calls=tool_calls,
                             functions=functions,
                             chat=self.chat,
                         )
