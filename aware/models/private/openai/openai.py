@@ -19,10 +19,14 @@ load_dotenv()
 
 
 class OpenAIModel(Model):
-    def __init__(self, model_name: str, logger: FileLogger):
+    def __init__(
+        self, model_name: str, logger: FileLogger, api_key: Optional[str] = None
+    ):
         self.model_name = model_name
         self.logger = logger
-        self.client = OpenAI()
+        if api_key is None:
+            api_key = Config().openai_api_key
+        self.client = OpenAI(api_key=api_key)
 
         _retry_handler = _OpenAIRetryHandler(
             logger=self.logger, num_retries=Config().openai_num_retries

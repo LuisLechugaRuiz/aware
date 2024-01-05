@@ -147,7 +147,7 @@ class Executor:
         """
         potential_tools: Dict[str, str] = {}
         for description in descriptions:
-            tools = self.chat.database.search_tool(description)
+            tools = self.weaviate_db.search_tool(description)
             for tool in tools:
                 potential_tools[tool.name] = tool.description
         if not potential_tools:

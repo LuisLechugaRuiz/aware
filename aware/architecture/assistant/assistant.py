@@ -5,15 +5,6 @@ from time import sleep
 from queue import Queue
 
 from aware.agent.agent import Agent
-from aware.architecture.helpers.tmp_ips import (
-    DEF_ASSISTANT_IP,
-    DEF_PUB_PORT,
-    DEF_SUB_PORT,
-    DEF_CLIENT_PORT,
-    DEF_SERVER_PORT,
-    DEF_ACTION_CLIENT_PORT,
-    DEF_ACTION_SERVER_PORT,
-)
 from aware.architecture.helpers.topics import (
     DEF_ASSISTANT_MESSAGE,
     DEF_USER_MESSAGE,
@@ -63,30 +54,32 @@ class Assistant(Agent):
 
         # Communications
         self.proxy = Proxy(
-            ip=assistant_ip, xsub_port=DEF_SUB_PORT, xpub_port=DEF_PUB_PORT
+            ip=assistant_ip, xsub_port=Config().sub_port, xpub_port=Config().pub_port
         )
         self.broker = Broker(
-            ip=assistant_ip, client_port=DEF_CLIENT_PORT, server_port=DEF_SERVER_PORT
+            ip=assistant_ip,
+            client_port=Config().client_port,
+            server_port=Config().server_port,
         )
         self.action_broker = ActionBroker(
             ip=assistant_ip,
-            client_port=DEF_ACTION_CLIENT_PORT,
-            server_port=DEF_ACTION_SERVER_PORT,
+            client_port=Config().action_client_port,
+            server_port=Config().action_server_port,
         )
 
         self.assistant_message_publisher = Publisher(
-            address=f"tcp://{assistant_ip}:{DEF_SUB_PORT}",
+            address=f"tcp://{assistant_ip}:{Config().pub_port}",
             topic=DEF_ASSISTANT_MESSAGE,
         )
         self.users_message_subscriber = Subscriber(
-            address=f"tcp://{assistant_ip}:{DEF_PUB_PORT}",
+            address=f"tcp://{assistant_ip}:{Config().sub_port}",
             topic=DEF_USER_MESSAGE,
             callback=self.user_message_callback,
         )
 
         # Server to handle user registration
         self.registration_server = Server(
-            address=f"tcp://{assistant_ip}:{DEF_SERVER_PORT}",
+            address=f"tcp://{assistant_ip}:{Config().server_port}",
             topics=[DEF_REGISTRATION_SERVER],
             callback=self.handle_registration,
         )
@@ -119,13 +112,13 @@ class Assistant(Agent):
         # TODO: RECEIVE HERE!! THE USER UUID!
         user_info = json.loads(message)
         self.system_action_clients[user_info["user_name"]] = ActionClient(
-            broker_address=f"tcp://{self.assistant_ip}:{DEF_ACTION_CLIENT_PORT}",
+            broker_address=f"tcp://{self.assistant_ip}:{Config().action_client_port}",
             topic=f"{user_info['user_name']}_system_action_server",
             callback=self.update_request,
             action_class=Request,
         )
         self.database_clients[user_info["user_name"]] = Client(
-            address=f"tcp://{self.assistant_ip}:{DEF_CLIENT_PORT}",
+            address=f"tcp://{self.assistant_ip}:{Config().client_port}",
         )
         print(f"Registered user: {user_info['user_name']}")
         return "Registered Successfully"
@@ -162,7 +155,6 @@ class Assistant(Agent):
                 "thought": self.thought,
             }
         )
-        self.thought = ""  # Consume the thought? This way we don't have an old one that might not be valid anymore.
 
     def send_request(self, user_name: str, request: str):
         """
@@ -217,6 +209,7 @@ class Assistant(Agent):
             str
         """
         try:
+            print(f"Searching for {query} on {user_name}'s database")
             data = self.database_clients[user_name].send(
                 topic=f"{user_name}_{DEF_SEARCH_DATABASE}", message=query
             )
@@ -287,9 +280,12 @@ class Assistant(Agent):
                 user_name=f"{user_name}_system",
                 message=message,
             )
+            user_context_message = UserContextMessage(
+                user_message=user_message, context=self.context, thought=self.thought
+            )
             self.requests.pop(request.get_id())
             self.active_goal_handles.pop(request.get_id())
-            self.user_messages.put(user_message)
+            self.user_context_messages.put(user_message)
             print(colored(f"{user_name}_system: ", "red") + message)
 
         self.update_system()
@@ -322,7 +318,7 @@ class Assistant(Agent):
 
 
 def main():
-    assistant = Assistant(assistant_ip=DEF_ASSISTANT_IP)
+    assistant = Assistant(assistant_ip=Config().assistant_ip)
     assistant.run()
 
 

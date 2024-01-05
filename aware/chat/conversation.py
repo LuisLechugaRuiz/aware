@@ -93,17 +93,22 @@ class Conversation:
                     len(self.messages) > 2
                     and self.messages[1].get("role") == "assistant"
                     and "tool_calls" in self.messages[1]
-                    and self.messages[2].get("role") == "tool"
                 ):
-                    # Remove both 'assistant' with 'tool_calls' and the following 'tool' message.
+                    # Remove 'assistant' message with 'tool_calls'.
                     removed_message = self.messages.pop(1)  # Remove 'assistant' message
                     current_message_tokens -= count_message_tokens(
                         self.get_message_string(removed_message), self.model_name
                     )
-                    removed_tool_message = self.messages.pop(1)  # Remove 'tool' message
-                    current_message_tokens -= count_message_tokens(
-                        self.get_message_string(removed_tool_message), self.model_name
-                    )
+                    # Continue removing messages with the role 'tool'.
+                    while (
+                        len(self.messages) > 1
+                        and self.messages[1].get("role") == "tool"
+                    ):
+                        removed_tool_message = self.messages.pop(1)
+                        current_message_tokens -= count_message_tokens(
+                            self.get_message_string(removed_tool_message),
+                            self.model_name,
+                        )
                 else:
                     # Remove the oldest message if the above condition is not met.
                     removed_message = self.messages.pop(1)

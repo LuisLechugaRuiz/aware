@@ -2,17 +2,13 @@ import argparse
 import logging
 from typing import List
 
-from aware.agent.memory.user_memory_manager import UserMemoryManager
+from aware.agent.memory.user.user_memory_manager import UserMemoryManager
 from aware.architecture.helpers.topics import (
     DEF_ASSISTANT_MESSAGE,
     DEF_USER_MESSAGE,
 )
-from aware.architecture.helpers.tmp_ips import (
-    DEF_ASSISTANT_IP,
-    DEF_PUB_PORT,
-    DEF_SUB_PORT,
-)
 from aware.architecture.user.user_message import UserContextMessage, UserMessage
+from aware.config.config import Config
 from aware.utils.communication_protocols import Publisher, Subscriber
 
 
@@ -29,10 +25,10 @@ class User:
         self.user_memory_manager = UserMemoryManager()
         self.user_name = self.user_memory_manager.get_name()
         self.users_message_publisher = Publisher(
-            address=f"tcp://{assistant_ip}:{DEF_SUB_PORT}", topic=DEF_USER_MESSAGE
+            address=f"tcp://{assistant_ip}:{Config().pub_port}", topic=DEF_USER_MESSAGE
         )
         self.assistant_message_subscriber = Subscriber(
-            address=f"tcp://{assistant_ip}:{DEF_PUB_PORT}",
+            address=f"tcp://{assistant_ip}:{Config().sub_port}",
             topic=DEF_ASSISTANT_MESSAGE,
             callback=self.receive_assistant_message,
         )
@@ -67,7 +63,7 @@ def main():
 
     user = User(
         args.name,
-        assistant_ip=DEF_ASSISTANT_IP,
+        assistant_ip=Config().assistant_ip,
     )
 
     while True:

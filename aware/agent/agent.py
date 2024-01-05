@@ -22,6 +22,7 @@ class Agent:
         self.tools_manager = ToolsManager(logger)
         self.functions = functions
         self.logger = logger
+        self.running = False
 
     def run_agent(self) -> Optional[str]:
         """Run the agent and return the message sent by the LLM in case he returns a string."""

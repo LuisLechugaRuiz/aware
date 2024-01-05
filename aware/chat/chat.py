@@ -25,9 +25,10 @@ class Chat:
         system_prompt_kwargs: Dict[str, Any] = {},
         user_name: Optional[str] = None,
         assistant_name: Optional[str] = None,
+        api_key: Optional[str] = None,
     ):
         self.module_name = module_name
-        self.model = ModelsManager().create_model(self.module_name, logger)
+        self.model = ModelsManager().create_model(self.module_name, logger, api_key)
         self.user_name = user_name
         self.assistant_name = assistant_name
 
@@ -60,6 +61,7 @@ class Chat:
         if function_schemas:
             tool_calls = response.tool_calls
             if tool_calls is not None:
+                tool_calls = self.clean_tool_calls(response.tool_calls)
                 # In case we are sending tools we should save them in the traces as OpenAI doesn't include them on prompt.
                 self.conversation.add_assistant_tool_message(
                     tool_calls, assistant_name=self.assistant_name
@@ -127,3 +129,9 @@ class Chat:
             },
         )
         return self.system
+
+    def clean_tool_calls(self, tool_calls: List[ChatCompletionMessageToolCall]):
+        """Clean the tool calls to replace any '.' in the name with ' _'."""
+        for tool_call in tool_calls:
+            tool_call.function.name = tool_call.function.name.replace(".", " _")
+        return tool_calls

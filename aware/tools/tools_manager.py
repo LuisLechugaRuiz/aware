@@ -68,6 +68,7 @@ class ToolsManager:
 
         tools_result: List[Tool] = []
         for tool_call in tools_call:
+            call_arguments_dict = {}
             try:
                 function_name = tool_call.function.name
                 function = functions_dict[function_name]
@@ -76,7 +77,6 @@ class ToolsManager:
                 args = [param.name for param in signature.parameters.values()]
 
                 arguments = json.loads(tool_call.function.arguments)
-                call_arguments_dict = {}
 
                 for arg in args:
                     # Check if the argument has a default value
@@ -84,7 +84,7 @@ class ToolsManager:
                     arg_value = arguments.get(arg, None)
                     if arg_value is None and default_value is inspect.Parameter.empty:
                         raise Exception(
-                            f"Function {function_name} requires argument {arg} but it is not provided."
+                            f"Function {function_name} requires argument: '{arg}' but it is not provided."
                         )
                     # Use the provided value or the default value
                     call_arguments_dict[arg] = (

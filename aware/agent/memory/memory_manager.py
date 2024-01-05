@@ -50,20 +50,20 @@ class MemoryManager(Agent):
             return f"Error creating category: {category_object.error}"
         return "Category created."
 
-    def find_categories(self, description: str):
+    def find_categories(self, query: str):
         """
-        Find categories based on a specific description.
+        Find a category given a query
 
         Args:
-            description (str): Description of the kind of categories to search.
+            query (str): The query to be searched.
 
         Returns:
             str: Feedback message.
         """
-        self.logger.info(f"Searching categories with description {description}")
-        categories = self.weaviate_db.search_category(description)
+        self.logger.info(f"Searching categories with description {query}")
+        categories = self.weaviate_db.search_category(query)
         return (
-            "\n\n".join(
+            "\n".join(
                 [
                     f"- Category: {category.name}. Description: {category.description}"
                     for category in categories
@@ -88,6 +88,7 @@ class MemoryManager(Agent):
 
         self.logger.info(f"Searching data with category {category} and query {query}")
         datapoints = self.weaviate_db.search_info(category_name=category, query=query)
+        # TODO: IN CASE CATEGORY DOESN'T EXIST WE CAN SEARCH BY NAME AND PROVIDE THE MOST SIMILAR ONES!!
         return (
             "\n\n".join([f"- Data: {datapoint}" for datapoint in datapoints.data])
             or "No data found."

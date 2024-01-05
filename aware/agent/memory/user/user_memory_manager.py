@@ -1,21 +1,15 @@
 import os
-from pathlib import Path
 from queue import Queue
 import threading
 from time import sleep
 
 from aware.agent.memory.memory_manager import MemoryManager
-from aware.agent.memory.user_profile import UserProfile
+from aware.agent.memory.user.user_profile import UserProfile
 from aware.architecture.helpers.topics import (
     DEF_SEARCH_DATABASE,
 )
-from aware.architecture.helpers.tmp_ips import (
-    DEF_ASSISTANT_IP,
-    DEF_SERVER_PORT,
-)
 from aware.config.config import Config
 from aware.chat.chat import Chat
-from aware.chat.conversation import Conversation
 from aware.architecture.user.user_message import UserMessage
 from aware.utils.communication_protocols import Server
 from aware.utils.logger.file_logger import FileLogger
@@ -26,6 +20,7 @@ DEF_CONVERSATION_TIMEOUT = 500  # TODO: MOVE TO CONFIG
 DEF_DEFAULT_EMPTY_CONTEXT = "No context yet, please update it."
 
 
+# TODO: CHANGE THE LOGIC. INSTEAD OF WAITING FOR A THOUGHT THE AGENT SHOULD JUST PROVIDE A RESPONSE TO THE SEARCH.
 class UserMemoryManager(MemoryManager):
     def __init__(self):
         path = os.path.join(
@@ -40,15 +35,12 @@ class UserMemoryManager(MemoryManager):
         self.thought = ""
         self.context = DEF_DEFAULT_EMPTY_CONTEXT
 
-        # TODO: ADAPT FUNCTIONS - THIS AGENT WILL RUN TWO DIFFERENT EXECUTIONS:
-        # 1 - SAVE INFO FROM A CONVERSATION - MEANS UPDATING USER PROFILE IF NEEDED.
-        # 2 - SEARCH FOR INFO - MEANS RUNNING THE AGENT AND WAITING FOR THE RESPONSE - WILL BE CALLED BY THE ASSISTANT.
         self.conversation_functions = [
             self.append_context,
             self.edit_context,
             self.edit_user_profile,
             self.insert_user_profile,
-            self.think,
+            self.transmit_insight,
             self.wait_for_user,
         ]
 
@@ -69,6 +61,7 @@ class UserMemoryManager(MemoryManager):
                     "conversation_remaining_tokens": Config().max_conversation_tokens,
                 },
                 assistant_name=f"{Config().assistant_name}_memory_manager",
+                api_key=Config().openai_memory_api_key,
             ),
             functions=self.conversation_functions,
             logger=FileLogger("user_memory_manager", should_print=False),
@@ -76,14 +69,11 @@ class UserMemoryManager(MemoryManager):
         if register:
             self.create_user(name=user_name)
 
-        # TODO: Handle this properly, should we search for info at any category or run the agent?? !!
-        # ON NEW MESSAGE JUST ADD IT AS USER FOR OUR AGENT AND WAIT FOR THE RESPONSE!!!!
         self.search_user_info_server = Server(
-            address=f"tcp://{DEF_ASSISTANT_IP}:{DEF_SERVER_PORT}",
+            address=f"tcp://{Config().assistant_ip}:{Config().server_port}",
             topics=[f"{self.user_name}_{DEF_SEARCH_DATABASE}"],
-            callback=self.search_user_info,  # TODO: START AGENT AND WAIT FOR RESPONSE!!
+            callback=self.search_user_info,
         )
-        # TODO: Get by user_name?
 
     def get_name(self):
         return self.user_profile.get_name()
@@ -102,11 +92,21 @@ class UserMemoryManager(MemoryManager):
     def add_message(self, message: UserMessage):
         self.messages_queue.put(message)
 
-    def search_user_info(self, message: UserMessage):
-        # TODO: HERE WE SHOULD RUN THE AGENT ASKING HIM TO PROVIDE SPECIFIC INFO. APPEND NEW FUNCTION: ANSWER TO USER, SHOULD WE REMOVE THE DEFAULT ONES WHILE ON WAITING FOR ANSWER?
-        # ONCE THE AGENT CALLS THE RESPONSE_TO_USER WE JUST SEND THE ANSWER BACK AND GIVE BACK THE NORMAL TOOLS.
-        # THIS INVOLVES INTERRUPTING THE AGENT? OR SPAWNING A NEW ONE?
-        return "User info retrieval not implemented yet, next iteration you will receive data."
+    def search_user_info(self, query: str):
+        search_message = f"I want to find information about: {query}, please memory manager, provide me a thought."
+        self.chat.conversation.add_user_message(
+            search_message, user_name=Config().assistant_name
+        )
+
+        # WAIT FOR THOUGHT -> TODO: ADD THIS BETTER WITH TIMEOUT
+        if not self.running:
+            self.run_agent()
+        else:
+            old_thought = self.thought
+            while old_thought == self.thought:
+                sleep(0.1)
+
+        return f"Info found: {self.thought}"
 
     def update_system(self):
         """Override the default update system to add the user profile and context."""
@@ -152,6 +152,7 @@ class UserMemoryManager(MemoryManager):
                     self.messages_queue.task_done()
             message = self.run_agent()
             if message:
+                self.transmit_insight(message)
                 self.logger.info(f"Agent finished with message: {message}")
 
     def get_context(self):
@@ -170,9 +171,6 @@ class UserMemoryManager(MemoryManager):
     def on_conversation_finished(self):
         """
         Store the summary of the conversation in the database.
-
-        Returns:
-            str: Feedback message.
         """
         # print(
         #     "CONVERSATION FINISHED, NOW I SHOULD ASK THE LLM TO PROVIDE A POTENTIAL QUERY BEFORE SAVING!"
@@ -196,9 +194,6 @@ class UserMemoryManager(MemoryManager):
             field (str): Field to edit.
             old_data (str): Old data to be replaced.
             new_data (str): New data to replace the old data.
-
-        Returns:
-            str: Feedback message.
         """
         return self.user_profile.edit_user_profile(field, old_data, new_data)
 
@@ -209,21 +204,15 @@ class UserMemoryManager(MemoryManager):
         Args:
             field (str): Field to edit.
             data (str): Data to be inserted.
-
-        Returns:
-            str: Feedback message.
         """
         return self.user_profile.insert_user_profile(field, data)
 
     def wait_for_user(self):
         """
         Pauses operations, awaiting the next user input before proceeding.
-
-        Returns:
-            str: Feedback message.
         """
         self.stop_agent()
-        return "Stopped."
+        return "Waiting for user's input..."
 
     def search_conversation(self, query: str):
         """
@@ -231,9 +220,6 @@ class UserMemoryManager(MemoryManager):
 
         Args:
             query (str): Query to search for.
-
-        Returns:
-            str: Feedback message.
         """
         return self.weaviate_db.search_conversation(query)
 
@@ -244,9 +230,6 @@ class UserMemoryManager(MemoryManager):
         Args:
             old_data (str): Old data that should be replaced.
             new_data (str): New data to replace the old data.
-
-        Returns:
-            str: Feedback message.
         """
         # TODO: Make this thread safe.
         try:
@@ -261,9 +244,6 @@ class UserMemoryManager(MemoryManager):
 
         Args:
             data (str): Data to be appended.
-
-        Returns:
-            str: Feedback message.
         """
         if self.context == DEF_DEFAULT_EMPTY_CONTEXT:
             self.context = ""
@@ -271,14 +251,15 @@ class UserMemoryManager(MemoryManager):
         self.context += data
         return "Context appended."
 
-    def think(self, thought: str):
+    def transmit_insight(self, insight: str):
         """
-        Transmits a thought to the user, aiding in optimizing the user's performance.
+        Crafts a strategic insight in the first person, as if it's the assistant's own thought.
+        This insight is intended to optimize the assistant's performance in their next interaction with the user.
 
-        Returns:
-            str: Feedback message.
+        Args:
+            insight (str): A strategic insight or piece of advice, phrased as if it's the assistant's own thought.
         """
-        print(f"Thought: {thought}")
-        self.thought = thought
+        print(f"Thought: {insight}")
+        self.thought = insight
         self.stop_agent()  # TODO: Define if we should stop after thinking.
-        return "Thought transmitted."
+        return "Insight transmitted."

@@ -3,10 +3,8 @@ import argparse
 import curses
 import random
 
-from aware.architecture.helpers.tmp_ips import (
-    DEF_ASSISTANT_IP,
-)
 from aware.architecture.user.user import User
+from aware.config.config import Config
 
 
 class UserUI:
@@ -332,7 +330,7 @@ if __name__ == "__main__":
         "-a",
         "--assistant_ip",
         type=str,
-        default=DEF_ASSISTANT_IP,
+        default=Config().assistant_ip,
         help="Assistant IP",
     )
     args = parser.parse_args()

@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from aware.config import get_modules
 from aware.models.model import Model
@@ -24,7 +25,9 @@ class ModelsManager:
             self.models = {}
             self._initialized = True
 
-    def create_model(self, module_name: str, logger: FileLogger) -> "Model":
+    def create_model(
+        self, module_name: str, logger: FileLogger, api_key: Optional[str] = None
+    ) -> "Model":
         """Create a model for a given module depending on the type"""
 
         modules_config = get_modules()
@@ -33,7 +36,7 @@ class ModelsManager:
         model_name = model_config["name"]
 
         if model_type == "openai":
-            model = OpenAIModel(model_name=model_name, logger=logger)
+            model = OpenAIModel(model_name=model_name, logger=logger, api_key=api_key)
         elif model_type == "open_source":
             # 1. Check GPU, verify if we should unload any model - Iterate over self.models and unload if necessary.
 
