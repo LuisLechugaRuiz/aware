@@ -2,6 +2,7 @@ import argparse
 import logging
 from typing import List
 
+# TODO: USER NEW VERSION
 from aware.agent.memory.user.user_memory_manager import UserMemoryManager
 from aware.architecture.helpers.topics import (
     DEF_ASSISTANT_MESSAGE,
@@ -47,8 +48,8 @@ class User:
         user_message = UserMessage(user_name=self.user_name, message=message)
         user_context_message = UserContextMessage(
             user_message=user_message,
-            context=self.user_memory_manager.context,
-            thought=self.user_memory_manager.thought,
+            context=self.user_memory_manager.get_context(),
+            thought=self.user_memory_manager.get_thought(),
         )
         self.users_message_publisher.publish(user_context_message.to_json())
 

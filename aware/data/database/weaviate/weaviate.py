@@ -120,6 +120,15 @@ class WeaviateDB(object):
         )
         return WeaviateResult(data=user_uuid)
 
+    def user_exists(self, name: str) -> WeaviateResult:
+        user_collection = self.client.collections.get("User")
+        user_exists = user_collection.query.fetch_objects(
+            filters=wvc.Filter("name").equal(name)
+        )
+        if len(user_exists.objects) > 0:
+            return True
+        return False
+
     def search_info(
         self,
         query: str,
@@ -275,6 +284,7 @@ class WeaviateDB(object):
             print(f"Unexpected error {err} when storing conversation")
             return WeaviateResult(error=str(err))
 
+    # TODO: MOVE TO JSON AND REMOVE LAST CONVERSATION? WE DON'T NEED THIS ON A SEMANTIC DATABASE.
     def get_last_conversation_summary(self):
         try:
             last_conversation_collection = self.client.collections.get(

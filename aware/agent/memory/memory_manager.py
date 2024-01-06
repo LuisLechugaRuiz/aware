@@ -1,28 +1,17 @@
-from copy import copy
-from typing import Callable, Dict, List
+from typing import Dict, List
 
-from aware.agent.agent import Agent
-from aware.chat.chat import Chat
 from aware.data.database.weaviate.weaviate import WeaviateDB
 from aware.utils.logger.file_logger import FileLogger
 
 
-class MemoryManager(Agent):
-    """A class to manage the memory of the agent. It includes the main functions and can be extended by the inheriting class."""
+class MemoryManager:
+    """A class to manage the memory of the agent"""
 
-    def __init__(
-        self, user_name: str, chat: Chat, functions: List[Callable], logger: FileLogger
-    ):
+    def __init__(self, user_name: str, logger: FileLogger):
         self.user_name = user_name
+        self.logger = logger
         self.weaviate_db = WeaviateDB()
-
-        self.default_functions = [
-            self.search_data,
-            self.store_data,
-        ]
-        update_functions = copy(self.default_functions)
-        update_functions.extend(functions)
-        super().__init__(chat=chat, functions=update_functions, logger=logger)
+        self.register_user()
 
     def create_user(self, name: str):
         self.weaviate_db.create_user(name=name)
@@ -70,10 +59,14 @@ class MemoryManager(Agent):
             return f"Error storing data: {store_result.error}"
         return "Data stored."
 
-    def reset_agent_functions(self):
-        self.update_functions(functions=self.default_functions)
+    def register_user(self):
+        """
+        Registers the user in the Weaviate database.
 
-    def update_agent_functions(self, functions: List[Callable]):
-        updated_functions = copy(self.default_functions)
-        updated_functions.extend(functions)
-        self.update_functions(functions=updated_functions)
+        Returns:
+            str: Feedback message.
+        """
+        self.logger.info(f"Registering user {self.user_name}")
+        if not self.weaviate_db.user_exists(name=self.user_name):
+            self.logger.info(f"User {self.user_name} does not exist. Creating it.")
+            self.weaviate_db.create_user(name=self.user_name)

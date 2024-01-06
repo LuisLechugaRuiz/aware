@@ -27,19 +27,36 @@ DEF_CONVERSATION_TIMEOUT = 500  # TODO: MOVE TO CONFIG
 DEF_DEFAULT_EMPTY_CONTEXT = "No context yet, please update it."
 
 
-# TODO: CHANGE THE LOGIC. INSTEAD OF WAITING FOR A THOUGHT THE AGENT SHOULD JUST PROVIDE A RESPONSE TO THE SEARCH.
-class UserMemoryManager(MemoryManager):
+# Requires two processes:
+# 1. Update the context -> After every new assistant message.
+# 2. Update the thought -> After every new user message.
+
+
+class UserSearch(MemoryManager):
     def __init__(self):
         path = os.path.join(
             get_permanent_storage_path(), "user_data", "user_profile.json"
         )
         self.user_profile = UserProfile(file_path=path)
-
-        # TODO: WE NEED TWO QUEUES -> ONE FOR THOUGHT AND ANOTHER ONE FOR CONTEXT!!!
         self.messages_queue: Queue[UserMessage] = Queue()
 
-        self.run_thread = threading.Thread(target=self.run_memory_agent)
-        self.run_thread.start()
+        self.context_update_thread = threading.Thread(target=self.update_context)
+        self.context_update_thread.start()
+        # TODO: Both stops the agent, it should be a single call and stop.
+        self.context_update_functions = [
+            self.append_context,
+            self.edit_context,
+        ]
+
+        self.thought_generation_thread = threading.Thread(target=self.generate_thought)
+        self.thought_generation_thread.start()
+        self.thought_generation_functions = [
+            # TODO: Include manager search.
+            self.search
+            self.intermediate_thought,
+            self.final_thought,
+        ]
+
         self.conversation_timer = None
         self.thought = ""
         self.context = DEF_DEFAULT_EMPTY_CONTEXT
