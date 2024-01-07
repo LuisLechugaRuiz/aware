@@ -3,6 +3,7 @@ from openai.types.chat.chat_completion_message_tool_call_param import (
     ChatCompletionMessageToolCallParam,
     Function,
 )
+import threading
 from typing import List
 import uuid
 
@@ -12,8 +13,10 @@ from aware.chat.chat import Chat
 from aware.utils.logger.file_logger import FileLogger
 
 
-class ThoughtGeneration(Agent):
-    def __init__(self, chat: Chat, user_name: str, initial_thought: str):
+class ThoughtGenerator(Agent):
+    def __init__(
+        self, chat: Chat, user_name: str, initial_thought: str, logger: FileLogger
+    ):
         self.user_name = user_name
         self.functions = [
             self.intermediate_thought,
@@ -21,13 +24,13 @@ class ThoughtGeneration(Agent):
             self.search,
         ]
         self.thought = initial_thought
-        self.logger = FileLogger("thought_generation", should_print=False)
-        self.memory_manager = MemoryManager(user_name=user_name, logger=self.logger)
+        self.thought_lock = threading.Lock()
+        self.memory_manager = MemoryManager(user_name=user_name, logger=logger)
 
         super().__init__(
             chat=chat,
             functions=self.functions,
-            logger=self.logger,
+            logger=logger,
         )
 
     def search(self, queries: List[str]):
@@ -44,6 +47,8 @@ class ThoughtGeneration(Agent):
         Args:
             thought (str): The thought to be processed.
         """
+        with self.thought_lock:
+            self.thought = thought
         return "Intermediate thought saved."
 
     def final_thought(self, thought: str):
@@ -53,12 +58,14 @@ class ThoughtGeneration(Agent):
             thought (str): The thought to be processed.
         """
 
-        self.thought = thought
+        with self.thought_lock:
+            self.thought = thought
         self.stop_agent()
         return "Final thought saved, stopping agent."
 
     def get_thought(self):
-        return self.thought
+        with self.thought_lock:
+            return self.thought
 
     def create_default_tool_calls(self, thought: str):
         """Create a tool call as if the agent was calling final_thought when it answer by string to avoid appending it to conversation"""

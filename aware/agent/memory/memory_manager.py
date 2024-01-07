@@ -31,7 +31,8 @@ class MemoryManager:
         datapoints: Dict[str, List[str]] = {}
         for query in queries:
             results = self.weaviate_db.search_info(query=query).data
-            datapoints[query].append(results)
+            self.logger.info(f"Searching for query {query}, results: {results}")
+            datapoints[query] = results
         response = ""
         for query, data in datapoints.items():
             data_str = "\n".join(data)

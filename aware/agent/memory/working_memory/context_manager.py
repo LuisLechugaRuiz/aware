@@ -1,3 +1,5 @@
+import threading
+
 from aware.agent.agent import Agent
 from aware.chat.chat import Chat
 from aware.utils.logger.file_logger import FileLogger
@@ -5,15 +7,16 @@ from aware.utils.logger.file_logger import FileLogger
 DEF_DEFAULT_EMPTY_CONTEXT = "No context yet, please update it."
 
 
-class ContextUpdate(Agent):
-    def __init__(self, chat, initial_context: str):
+class ContextManager(Agent):
+    def __init__(self, chat: Chat, initial_context: str, logger: FileLogger):
         self.functions = [
             self.append_context,
             self.edit_context,
         ]
         self.context = initial_context
+        self.context_lock = threading.Lock()
 
-        super().__init__(chat=chat, functions=self.functions, logger=self.logger)
+        super().__init__(chat=chat, functions=self.functions, logger=logger)
 
     def append_context(self, data: str):
         """
@@ -22,10 +25,11 @@ class ContextUpdate(Agent):
         Args:
             data (str): Data to be appended.
         """
-        if self.context == DEF_DEFAULT_EMPTY_CONTEXT:
-            self.context = ""
-        # TODO: Make this thread safe.
-        self.context += data
+        with self.context_lock:
+            if self.context == DEF_DEFAULT_EMPTY_CONTEXT:
+                self.context = ""
+            # TODO: Make this thread safe.
+            self.context += data
         self.stop_agent()
         return "Context appended."
 
@@ -37,13 +41,14 @@ class ContextUpdate(Agent):
             old_data (str): Old data that should be replaced.
             new_data (str): New data to replace the old data.
         """
-        # TODO: Make this thread safe.
-        try:
-            self.context.replace(old_data, new_data)
-            self.stop_agent()
-            return "Context edited."
-        except Exception as e:
-            return f"Error while editing context: {e}"
+        with self.context_lock:
+            try:
+                self.context.replace(old_data, new_data)
+                self.stop_agent()
+                return "Context edited."
+            except Exception as e:
+                return f"Error while editing context: {e}"
 
     def get_context(self):
-        return self.context
+        with self.context_lock:
+            return self.context

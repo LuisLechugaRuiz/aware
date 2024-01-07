@@ -1,2 +1,2 @@
-from .context_update import ContextUpdate
-from .thought_generation import ThoughtGeneration
+from .context_manager import ContextManager
+from .thought_generator import ThoughtGenerator

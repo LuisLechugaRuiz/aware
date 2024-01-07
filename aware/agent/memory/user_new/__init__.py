@@ -1,2 +1,2 @@
-from .user_context_update import UserContextUpdate
-from .user_thought_generation import UserThoughtGeneration
+from .user_context_manager import UserContextManager
+from .user_thought_generator import UserThoughtGenerator

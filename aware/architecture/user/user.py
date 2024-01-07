@@ -4,6 +4,7 @@ from typing import List
 
 # TODO: USER NEW VERSION
 from aware.agent.memory.user.user_memory_manager import UserMemoryManager
+from aware.agent.memory.user_new.user_working_memory import UserWorkingMemory
 from aware.architecture.helpers.topics import (
     DEF_ASSISTANT_MESSAGE,
     DEF_USER_MESSAGE,
@@ -23,7 +24,7 @@ class User:
         self,
         assistant_ip: str,
     ):
-        self.user_memory_manager = UserMemoryManager()
+        self.user_memory_manager = UserWorkingMemory()
         self.user_name = self.user_memory_manager.get_name()
         self.users_message_publisher = Publisher(
             address=f"tcp://{assistant_ip}:{Config().pub_port}", topic=DEF_USER_MESSAGE
