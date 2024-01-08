@@ -1,0 +1,3 @@
+[submodule "weaviate-python-client"]
+	path = weaviate-python-client
+	url = https://github.com/weaviate/weaviate-python-client.git
