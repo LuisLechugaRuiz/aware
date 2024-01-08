@@ -10,13 +10,14 @@ from aware.utils.helpers import count_message_tokens
 class Conversation:
     """Conversation class to keep track of the messages and the current state of the conversation."""
 
-    def __init__(self, module_name: str, model_name: str):
+    def __init__(self, module_name: str, model_name: str, should_trim: bool = True):
         # Add RAG | Ensure we don't surpass max tokens | Save on RAG | Retrieve from RAG.
         super().__init__()
         self.model_name = model_name
 
         self.system_message = None
         self.messages = []
+        self.should_trim = should_trim
 
         # self.data_saver = DataSaver(module_name) -> TODO: Enable when addressing the tools.
 
@@ -77,49 +78,51 @@ class Conversation:
 
     # TODO: We can store removed messages on a conversation copy and "reflect" at the end, detecting if we need to save important information.
     def _add_message(self, message: Dict[str, str]):
-        current_message_tokens = self.get_current_tokens()
-        new_message_tokens = count_message_tokens(
-            self.get_message_string(message), self.model_name
-        )
-
         # Check if we need to trim the conversation.
-        while (
-            current_message_tokens + new_message_tokens
-        ) > Config().max_conversation_tokens:
-            # Trim the oldest user message, leaving the system message (first message) intact.
-            if len(self.messages) > 1:
-                # Check if the next message is a 'tool' message and the current one is 'assistant' with 'tool_calls'.
-                if (
-                    len(self.messages) > 2
-                    and self.messages[1].get("role") == "assistant"
-                    and "tool_calls" in self.messages[1]
-                ):
-                    # Remove 'assistant' message with 'tool_calls'.
-                    removed_message = self.messages.pop(1)  # Remove 'assistant' message
-                    current_message_tokens -= count_message_tokens(
-                        self.get_message_string(removed_message), self.model_name
-                    )
-                    # Continue removing messages with the role 'tool'.
-                    while (
-                        len(self.messages) > 1
-                        and self.messages[1].get("role") == "tool"
+        if self.should_trim:
+            current_message_tokens = self.get_current_tokens()
+            new_message_tokens = count_message_tokens(
+                self.get_message_string(message), self.model_name
+            )
+            while (
+                current_message_tokens + new_message_tokens
+            ) > Config().max_conversation_tokens:
+                # Trim the oldest user message, leaving the system message (first message) intact.
+                if len(self.messages) > 1:
+                    # Check if the next message is a 'tool' message and the current one is 'assistant' with 'tool_calls'.
+                    if (
+                        len(self.messages) > 2
+                        and self.messages[1].get("role") == "assistant"
+                        and "tool_calls" in self.messages[1]
                     ):
-                        removed_tool_message = self.messages.pop(1)
+                        # Remove 'assistant' message with 'tool_calls'.
+                        removed_message = self.messages.pop(
+                            1
+                        )  # Remove 'assistant' message
                         current_message_tokens -= count_message_tokens(
-                            self.get_message_string(removed_tool_message),
-                            self.model_name,
+                            self.get_message_string(removed_message), self.model_name
+                        )
+                        # Continue removing messages with the role 'tool'.
+                        while (
+                            len(self.messages) > 1
+                            and self.messages[1].get("role") == "tool"
+                        ):
+                            removed_tool_message = self.messages.pop(1)
+                            current_message_tokens -= count_message_tokens(
+                                self.get_message_string(removed_tool_message),
+                                self.model_name,
+                            )
+                    else:
+                        # Remove the oldest message if the above condition is not met.
+                        removed_message = self.messages.pop(1)
+                        current_message_tokens -= count_message_tokens(
+                            self.get_message_string(removed_message), self.model_name
                         )
                 else:
-                    # Remove the oldest message if the above condition is not met.
-                    removed_message = self.messages.pop(1)
-                    current_message_tokens -= count_message_tokens(
-                        self.get_message_string(removed_message), self.model_name
+                    # Break the loop if only the system message is left to prevent its removal.
+                    raise Exception(
+                        "Only system message left!!! Threshold is too small...."
                     )
-            else:
-                # Break the loop if only the system message is left to prevent its removal.
-                raise Exception(
-                    "Only system message left!!! Threshold is too small...."
-                )
 
         # Add the new message.
         self.messages.append(message)
@@ -127,10 +130,10 @@ class Conversation:
 
     def get_current_tokens(self):
         return count_message_tokens(
-            messages=self.get_conversation_string(), model_name=self.model_name
+            messages=self.to_string(), model_name=self.model_name
         )
 
-    def get_conversation_string(self, get_system_message: bool = True):
+    def to_string(self, get_system_message: bool = True):
         conversation_string = ""
         # print("DEBUG MESSAGES LENGTH: ", len(self.messages))
         # if not get_system_message:

@@ -36,8 +36,7 @@ class Config(metaclass=Singleton):
         self.max_conversation_tokens = 2000  # TODO: Define this value.
         self.conversation_warning_threshold = 0.8  # TODO: Define this value.
 
-        self.max_short_term_memory_tokens = 2000  # TODO: Define this value.
-        self.max_long_term_memory_tokens = 1000  # TODO: Define this value.
+        self.conversation_timeout_sec = 600
 
         # Weaviate
         # Only local for now.

@@ -6,7 +6,6 @@ from aware.chat.chat import Chat
 from aware.utils.logger.file_logger import FileLogger
 
 
-# TODO: DEFINE CONTEXT PROMPT
 class UserContextManager(ContextManager):
     def __init__(
         self,

@@ -127,6 +127,6 @@ class Chat:
     def log_conversation(self):
         """Log the conversation."""
         self.logger.info(
-            f"--- CONVERSATION ---\n{self.conversation.get_conversation_string()}",
+            f"--- CONVERSATION ---\n{self.conversation.to_string()}",
             should_print_local=False,
         )

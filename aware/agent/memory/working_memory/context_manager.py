@@ -42,12 +42,12 @@ class ContextManager(Agent):
             new_data (str): New data to replace the old data.
         """
         with self.context_lock:
-            try:
+            if old_data in self.context:
                 self.context.replace(old_data, new_data)
                 self.stop_agent()
                 return "Context edited."
-            except Exception as e:
-                return f"Error while editing context: {e}"
+            else:
+                return "Error: Old data not found in context, please verify that it exists and you want to replace it."
 
     def get_context(self):
         with self.context_lock:

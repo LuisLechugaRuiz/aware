@@ -47,8 +47,6 @@ class ThoughtGenerator(Agent):
         Args:
             thought (str): The thought to be processed.
         """
-        with self.thought_lock:
-            self.thought = thought
         return "Intermediate thought saved."
 
     def final_thought(self, thought: str):

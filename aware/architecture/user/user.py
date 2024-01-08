@@ -2,9 +2,7 @@ import argparse
 import logging
 from typing import List
 
-# TODO: USER NEW VERSION
-from aware.agent.memory.user.user_memory_manager import UserMemoryManager
-from aware.agent.memory.user_new.user_working_memory import UserWorkingMemory
+from aware.agent.memory.user.user_working_memory import UserWorkingMemory
 from aware.architecture.helpers.topics import (
     DEF_ASSISTANT_MESSAGE,
     DEF_USER_MESSAGE,
@@ -24,8 +22,8 @@ class User:
         self,
         assistant_ip: str,
     ):
-        self.user_memory_manager = UserWorkingMemory()
-        self.user_name = self.user_memory_manager.get_name()
+        self.user_working_memory = UserWorkingMemory()
+        self.user_name = self.user_working_memory.get_user_name()
         self.users_message_publisher = Publisher(
             address=f"tcp://{assistant_ip}:{Config().pub_port}", topic=DEF_USER_MESSAGE
         )
@@ -39,7 +37,7 @@ class User:
 
     def receive_assistant_message(self, message: str):
         user_message = UserMessage.from_json(message)
-        self.user_memory_manager.add_message(
+        self.user_working_memory.add_message(
             user_message
         )  # Only entry point to memory manager as assistant is the broker.
         self.incoming_messages.append(user_message)
@@ -49,8 +47,8 @@ class User:
         user_message = UserMessage(user_name=self.user_name, message=message)
         user_context_message = UserContextMessage(
             user_message=user_message,
-            context=self.user_memory_manager.get_context(),
-            thought=self.user_memory_manager.get_thought(),
+            context=self.user_working_memory.get_context(),
+            thought=self.user_working_memory.get_thought(),
         )
         self.users_message_publisher.publish(user_context_message.to_json())
 

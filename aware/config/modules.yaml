@@ -14,6 +14,10 @@ user_thought_generator:
   model:
     type: openai
     name: gpt-4-1106-preview
+user_data_storage_manager:
+  model:
+    type: openai
+    name: gpt-4-1106-preview
 # TODO: Fix creator based on latest improvements.
 tool_creator:
   model:

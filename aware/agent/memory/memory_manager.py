@@ -67,7 +67,6 @@ class MemoryManager:
         Returns:
             str: Feedback message.
         """
-        self.logger.info(f"Registering user {self.user_name}")
         if not self.weaviate_db.user_exists(name=self.user_name):
-            self.logger.info(f"User {self.user_name} does not exist. Creating it.")
+            self.logger.info(f"Registering user {self.user_name}")
             self.weaviate_db.create_user(name=self.user_name)
