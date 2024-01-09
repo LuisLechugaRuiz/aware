@@ -7,9 +7,16 @@ from aware.chat.chat import Chat
 from aware.tools.tools_manager import ToolsManager
 from aware.utils.helpers import colored
 from aware.utils.logger.file_logger import FileLogger
-
-
 from aware.data.database.weaviate.weaviate import WeaviateDB
+
+
+# TODO: MIGRATE TO AGENT_THOUGHT_GENERATOR!
+import json
+from aware.config.config import Config
+from aware.utils.communication_protocols import (
+    Client,
+)
+from aware.architecture.helpers.topics import DEF_SEARCH_DATABASE
 
 MAX_ITERATIONS = 30  # TODO: Move to config.
 
@@ -20,6 +27,7 @@ class Execution:
         self.success: bool = success
 
 
+# TODO: RENAME TO ORCHESTRATOR.
 class Executor:
     """Execute different tools to satisfy the user request."""
 
@@ -30,17 +38,21 @@ class Executor:
             system_prompt_kwargs={"request": ""},
             user_name=user_name,
         )
-        self.weaviate_db = (
-            WeaviateDB()
-        )  # TODO: REMOVE WHEN MIGRATING EXECUTOR TO AGENT.
+        self.weaviate_db = WeaviateDB()
         self.tools_manager = ToolsManager(FileLogger("executor"))
         self.planner_functions = [
             self.find_tools,
             self.select_tool,
-            self.search_user_info,
+            self.search_user_info,  # TODO: THIS SHOULD WAIT FOR A SPECIFIC THOUGHT, SAME AS ASSISTANT ONE BUT FOR SYSTEM MEMORY.
             self.ask_user,
             self.set_task_completed,
         ]
+
+        self.user_name = user_name
+        self.search_user_info_client = Client(
+            address=f"tcp://{Config().assistant_ip}:{Config().client_port}",
+        )
+
         self.selected_tools: Dict[str, Callable] = {}
         self.get_user_feedback = get_user_feedback
         self.new_plan = None
@@ -188,18 +200,20 @@ class Executor:
         return "Task completed."
 
     # TODO: Refactor use memory manager to retrieve this info.
-    def search_user_info(self, user_info: str):
+    def search_user_info(self, queries: List[str]):
         """
-        Search user info.
+        Search information about the user using the queries.
 
         Args:
-            user_info (str): The user info to be searched.
+            queries (List[str]): The queries to be searched.
 
         Returns:
             str: The user info.
         """
         # THIS MEANS THAT SYSTEM DB IS THE SAME AS USER DB, MODIFY IF WE CENTRALIZE USER DB (1 db for user and multiple systems connected).
-        data = self.weaviate_db.search_info(user_info)
+        data = self.search_user_info_client.send(
+            topic=f"{self.user_name}_{DEF_SEARCH_DATABASE}", message=json.dumps(queries)
+        )
         if data is None:
             return "Information not found."
         return data

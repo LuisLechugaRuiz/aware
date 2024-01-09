@@ -8,7 +8,7 @@ from aware.agent.agent import Agent
 from aware.architecture.helpers.topics import (
     DEF_ASSISTANT_MESSAGE,
     DEF_USER_MESSAGE,
-    DEF_SEARCH_DATABASE,
+    DEF_GET_THOUGHT,
     DEF_REGISTRATION_SERVER,
 )
 from aware.architecture.helpers.request import Request, RequestStatus
@@ -139,8 +139,8 @@ class Assistant(Agent):
             colored(f"User {user_message.user_name}: ", "red")
             + f"message: {user_message.message}"
         )
-        print("DEBUG - CONTEXT: ", message.context)
-        print("DEBUG - THOUGHT: ", message.thought)
+        print(colored(f"CONTEXT: {message.context}", "green"))
+        print(colored(f"THOUGHT: {message.thought}", "yellow"))
         self.user_context_messages.put(message)
 
         # Broadcast to all users
@@ -211,7 +211,7 @@ class Assistant(Agent):
         try:
             print(f"Searching for {query} on {user_name}'s database")
             data = self.database_clients[user_name].send(
-                topic=f"{user_name}_{DEF_SEARCH_DATABASE}", message=query
+                topic=f"{user_name}_{DEF_GET_THOUGHT}", message=query
             )
             return f"Search returned: {data}"
         except Exception as e:

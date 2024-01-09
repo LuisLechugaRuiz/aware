@@ -43,3 +43,4 @@ class DataStorageManager(Agent):
     def stop(self):
         """Stop saving info. Call this function after all relevant data has been stored."""
         self.stop_agent()
+        return "Stopped storing data."

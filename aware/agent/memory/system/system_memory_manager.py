@@ -11,6 +11,7 @@ from aware.utils.logger.file_logger import FileLogger
 DEF_DEFAULT_EMPTY_CONTEXT = "No context yet, please update it."
 
 
+# TODO: REMOVE AND OVERRIDE BY AGENT WORKING MEMORY.
 class SystemMemoryManager(MemoryManager):
     def __init__(self):
         # What do we want?
@@ -72,7 +73,6 @@ class SystemMemoryManager(MemoryManager):
         # ON NEW MESSAGE JUST ADD IT AS USER FOR OUR AGENT AND WAIT FOR THE RESPONSE!!!!
         self.search_user_info_client = Client(
             address=f"tcp://{Config().assistant_ip}:{Config().client_port}",
-            topics=[f"{self.user_name}_{DEF_SEARCH_DATABASE}"],
         )
 
     def update_system(self):
