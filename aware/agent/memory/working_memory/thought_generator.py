@@ -4,7 +4,7 @@ from openai.types.chat.chat_completion_message_tool_call_param import (
     Function,
 )
 import threading
-from typing import List
+from typing import Callable, List
 import uuid
 
 from aware.agent.agent import Agent
@@ -15,26 +15,34 @@ from aware.utils.logger.file_logger import FileLogger
 
 class ThoughtGenerator(Agent):
     def __init__(
-        self, chat: Chat, user_name: str, initial_thought: str, logger: FileLogger
+        self,
+        chat: Chat,
+        user_name: str,
+        initial_thought: str,
+        logger: FileLogger,
+        functions: List[Callable] = [],
     ):
         self.user_name = user_name
-        self.functions = [
-            self.intermediate_thought,
-            self.final_thought,
-            self.search,
-        ]
         self.thought = initial_thought
         self.thought_lock = threading.Lock()
         self.memory_manager = MemoryManager(user_name=user_name, logger=logger)
 
+        self.default_functions = [
+            self.intermediate_thought,
+            self.final_thought,
+            self.search,
+        ]
+        agent_functions = self.default_functions.copy()
+        agent_functions.extend(functions)
+
         super().__init__(
             chat=chat,
-            functions=self.functions,
+            functions=agent_functions,
             logger=logger,
         )
 
     def search(self, queries: List[str]):
-        """Search the query in the manager.
+        """Execute searches in the memory database for specific queries.
 
         Args:
             queries (List[str]): The queries to be searched.

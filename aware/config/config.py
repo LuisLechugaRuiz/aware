@@ -37,6 +37,7 @@ class Config(metaclass=Singleton):
         self.conversation_warning_threshold = 0.8  # TODO: Define this value.
 
         self.conversation_timeout_sec = 600
+        self.task_timeout_sec = 600
 
         # Weaviate
         # Only local for now.

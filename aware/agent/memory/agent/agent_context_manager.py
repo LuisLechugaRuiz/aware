@@ -13,22 +13,19 @@ from aware.utils.logger.file_logger import FileLogger
 class AgentContextManager(ContextManager):
     def __init__(
         self,
-        user_name: str,
         agent_name: str,
         initial_context: str,
     ):
-        self.logger = FileLogger("user_context_manager", should_print=False)
+        self.logger = FileLogger("agent_context_manager", should_print=False)
         chat = Chat(
-            module_name="system_context_manager",
+            module_name="agent_context_manager",
             logger=self.logger,
             system_prompt_kwargs={
-                "user_name": user_name,
                 "agent_name": agent_name,
                 "context": initial_context,
             },
         )
         self.messages_queue: Queue[UserMessage] = Queue()
-        self.user_name = user_name
         self.agent_name = agent_name
 
         super().__init__(chat=chat, initial_context=initial_context, logger=self.logger)
@@ -37,12 +34,11 @@ class AgentContextManager(ContextManager):
     def add_message(self, message: UserMessage):
         self.messages_queue.put(message)
 
-    def edit_system(self, user_profile: str, context: str):
+    def edit_system(self, context: str):
         """Override the default update system to add the user profile and context."""
 
         remaining_tokens, should_trigger_warning = self.chat.get_remaining_tokens()
         system_prompt_kwargs = {
-            "user_name": self.user_name,
             "agent_name": self.agent_name,
             "context": context,
             "conversation_warning_threshold": should_trigger_warning,
