@@ -1,8 +1,11 @@
 from queue import Queue
+from typing import Optional
 
+from aware.agent.memory.memory_manager import MemoryManager
 from aware.agent.memory.working_memory import ThoughtGenerator
 from aware.architecture.user.user_message import UserMessage
 from aware.chat.chat import Chat
+from aware.utils.json_manager import JSONManager
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -11,14 +14,16 @@ class UserThoughtGenerator(ThoughtGenerator):
         self,
         assistant_name: str,
         user_name: str,
-        initial_thought: str,
+        context: str,
         user_profile: str,
-        context,
+        memory_manager: MemoryManager,
+        logger: FileLogger,
+        json_manager: Optional[JSONManager] = None,
     ):
         self.assistant_name = assistant_name
         self.user_name = user_name
         self.messages_queue: Queue[UserMessage] = Queue()
-        self.logger = FileLogger("user_thought_generator", should_print=False)
+        self.logger = logger
         chat = Chat(
             module_name="user_thought_generator",
             logger=self.logger,
@@ -33,8 +38,9 @@ class UserThoughtGenerator(ThoughtGenerator):
         super().__init__(
             chat=chat,
             user_name=user_name,
-            initial_thought=initial_thought,
+            memory_manager=memory_manager,
             logger=self.logger,
+            json_manager=json_manager,
         )
 
     def add_message(self, message: UserMessage):
@@ -50,7 +56,7 @@ class UserThoughtGenerator(ThoughtGenerator):
         }
         self.chat.edit_system_message(system_prompt_kwargs=system_prompt_kwargs)
 
-    def step(self):
+    def step(self, default_execution: bool = False):
         """Run a single agent step to generate a new thought integrating new info from memory based on current conversation."""
 
         if not self.messages_queue.empty():
@@ -63,5 +69,7 @@ class UserThoughtGenerator(ThoughtGenerator):
                 )
                 is_user_message = message.user_name == self.user_name
                 self.messages_queue.task_done()
-            if is_user_message:
+            if default_execution:
+                self.run_agent()
+            elif is_user_message:
                 self.run_agent()

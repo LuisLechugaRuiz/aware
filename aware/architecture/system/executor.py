@@ -11,7 +11,6 @@ from aware.data.database.weaviate.weaviate import WeaviateDB
 
 
 # TODO: MIGRATE TO AGENT_THOUGHT_GENERATOR!
-import json
 from aware.config.config import Config
 from aware.utils.communication_protocols import (
     Client,
@@ -199,20 +198,20 @@ class Executor:
 
         return "Task completed."
 
-    # TODO: Refactor use memory manager to retrieve this info.
-    def search_user_info(self, queries: List[str]):
+    # TODO: Move to thought generator.
+    def search_user_info(self, query: str):
         """
-        Search information about the user using the queries.
+        Search information about the user using a specific query.
 
         Args:
-            queries (List[str]): The queries to be searched.
+            query (str): The query to be used to search the user info.
 
         Returns:
             str: The user info.
         """
         # THIS MEANS THAT SYSTEM DB IS THE SAME AS USER DB, MODIFY IF WE CENTRALIZE USER DB (1 db for user and multiple systems connected).
         data = self.search_user_info_client.send(
-            topic=f"{self.user_name}_{DEF_SEARCH_DATABASE}", message=json.dumps(queries)
+            topic=f"{self.user_name}_{DEF_SEARCH_DATABASE}", message=query
         )
         if data is None:
             return "Information not found."

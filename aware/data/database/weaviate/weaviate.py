@@ -30,8 +30,6 @@ class WeaviateDB(object):
             )
         else:
             # Run locally
-            print("Running on local Weaviate instance")
-            print("DEBUG PORT: ", Config().weaviate_port)
             self.client = weaviate.connect_to_local(
                 host=Config().local_weaviate_url, port=Config().weaviate_port
             )

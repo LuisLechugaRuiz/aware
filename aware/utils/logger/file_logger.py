@@ -49,22 +49,22 @@ class FileLogger(logging.Logger):
         if self.should_print and should_print_local:
             print(msg)
 
-    def debug(self, msg, *args, **kwargs):
+    def debug(self, msg, should_print_local=True, *args, **kwargs):
         super().debug(msg, *args, **kwargs)
-        if self.should_print:
+        if self.should_print and should_print_local:
             print(msg)
 
-    def warning(self, msg, *args, **kwargs):
+    def warning(self, msg, should_print_local=True, *args, **kwargs):
         super().warning(msg, *args, **kwargs)
-        if self.should_print:
+        if self.should_print and should_print_local:
             print(msg)
 
-    def error(self, msg, *args, **kwargs):
+    def error(self, msg, should_print_local=True, *args, **kwargs):
         super().error(msg, *args, **kwargs)
-        if self.should_print:
+        if self.should_print and should_print_local:
             print(msg)
 
-    def critical(self, msg, *args, **kwargs):
+    def critical(self, msg, should_print_local=True, *args, **kwargs):
         super().critical(msg, *args, **kwargs)
-        if self.should_print:
+        if self.should_print and should_print_local:
             print(msg)

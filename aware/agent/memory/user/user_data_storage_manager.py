@@ -3,21 +3,23 @@ import threading
 
 from aware.agent.memory.working_memory.data_storage_manager import DataStorageManager
 from aware.agent.memory.user.user_profile import UserProfile
+from aware.agent.memory.memory_manager import MemoryManager
 from aware.architecture.user.user_message import UserMessage
 from aware.chat.chat import Chat
 from aware.chat.conversation import Conversation
 from aware.config.config import Config
-from aware.permanent_storage.permanent_storage import get_permanent_storage_path
 from aware.utils.logger.file_logger import FileLogger
 
 
 class UserDataStorageManager(DataStorageManager):
-    def __init__(self, assistant_name: str):
-        path = os.path.join(
-            get_permanent_storage_path(), "user_data", "user_profile.json"
-        )
-        self.user_profile = UserProfile(file_path=path)
-        self.user_name = self.get_user_name()
+    def __init__(
+        self,
+        assistant_name: str,
+        user_profile: UserProfile,
+        memory_manager: MemoryManager,
+    ):
+        self.user_profile = user_profile
+        self.user_name = self.user_profile.get_name()
         self.assistant_name = assistant_name
         self.conversation = Conversation(
             module_name="user_data_storage_manager",
@@ -41,6 +43,7 @@ class UserDataStorageManager(DataStorageManager):
         super().__init__(
             chat=chat,
             user_name=self.user_name,
+            memory_manager=memory_manager,
             logger=self.logger,
             functions=[self.append_user_profile, self.edit_user_profile],
         )
@@ -103,10 +106,3 @@ class UserDataStorageManager(DataStorageManager):
         """Store the data from current conversation and restart it"""
         self.run_agent()
         self.conversation.restart()
-
-    def get_user_name(self):
-        user_name = self.user_profile.get_name()
-        if not user_name:
-            user_name = input("Please introduce your name: ")
-            self.user_profile.insert_user_profile("name", user_name)
-        return user_name

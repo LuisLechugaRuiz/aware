@@ -11,10 +11,10 @@ class DataStorageManager(Agent):
         self,
         chat: Chat,
         user_name: str,
+        memory_manager: MemoryManager,
         logger: FileLogger,
         functions: List[Callable] = [],
     ):
-        self.memory_manager = MemoryManager(user_name=user_name, logger=logger)
         self.default_functions = [
             self.store,
             self.stop,

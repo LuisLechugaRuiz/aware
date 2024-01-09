@@ -4,12 +4,13 @@ from openai.types.chat.chat_completion_message_tool_call_param import (
     Function,
 )
 import threading
-from typing import Callable, List
+from typing import Callable, List, Optional
 import uuid
 
 from aware.agent.agent import Agent
 from aware.agent.memory.memory_manager import MemoryManager
 from aware.chat.chat import Chat
+from aware.utils.json_manager import JSONManager
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -18,14 +19,20 @@ class ThoughtGenerator(Agent):
         self,
         chat: Chat,
         user_name: str,
-        initial_thought: str,
+        memory_manager: MemoryManager,
         logger: FileLogger,
+        json_manager: Optional[JSONManager] = None,
         functions: List[Callable] = [],
     ):
         self.user_name = user_name
-        self.thought = initial_thought
+        self.memory_manager = memory_manager
+
+        self.json_manager = json_manager
+        if self.json_manager is not None:
+            self.thought = self.json_manager.load_from_json()["thought"]
+        else:
+            self.thought = ""
         self.thought_lock = threading.Lock()
-        self.memory_manager = MemoryManager(user_name=user_name, logger=logger)
 
         self.default_functions = [
             self.intermediate_thought,
@@ -34,7 +41,6 @@ class ThoughtGenerator(Agent):
         ]
         agent_functions = self.default_functions.copy()
         agent_functions.extend(functions)
-
         super().__init__(
             chat=chat,
             functions=agent_functions,
@@ -55,6 +61,8 @@ class ThoughtGenerator(Agent):
         Args:
             thought (str): The thought to be processed.
         """
+        self.thought = thought
+        self.update_thought()
         return "Intermediate thought saved."
 
     def final_thought(self, thought: str):
@@ -66,6 +74,7 @@ class ThoughtGenerator(Agent):
 
         with self.thought_lock:
             self.thought = thought
+            self.update_thought()
         self.stop_agent()
         return "Final thought saved, stopping agent."
 
@@ -85,3 +94,9 @@ class ThoughtGenerator(Agent):
             )
         ]
         return tool_calls
+
+    def update_thought(self):
+        if self.json_manager is not None:
+            self.json_manager.update(
+                field="thought", data=self.thought, logger=self.logger
+            )

@@ -3,6 +3,7 @@ from queue import Queue
 from aware.agent.memory.working_memory import ContextManager
 from aware.architecture.user.user_message import UserMessage
 from aware.chat.chat import Chat
+from aware.utils.json_manager import JSONManager
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -12,7 +13,7 @@ class UserContextManager(ContextManager):
         assistant_name: str,
         user_name: str,
         user_profile: str,
-        initial_context: str,
+        json_manager: JSONManager,
     ):
         self.logger = FileLogger("user_context_manager", should_print=False)
         chat = Chat(
@@ -22,14 +23,14 @@ class UserContextManager(ContextManager):
                 "user_name": user_name,
                 "assistant_name": assistant_name,
                 "user_profile": user_profile,
-                "context": initial_context,
+                "context": "",
             },
         )
         self.messages_queue: Queue[UserMessage] = Queue()
         self.user_name = user_name
         self.assistant_name = assistant_name
 
-        super().__init__(chat=chat, initial_context=initial_context, logger=self.logger)
+        super().__init__(chat=chat, logger=self.logger, json_manager=json_manager)
 
     def add_message(self, message: UserMessage):
         self.messages_queue.put(message)

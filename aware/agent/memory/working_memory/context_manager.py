@@ -2,18 +2,25 @@ import threading
 
 from aware.agent.agent import Agent
 from aware.chat.chat import Chat
+from aware.utils.json_manager import JSONManager
 from aware.utils.logger.file_logger import FileLogger
 
 DEF_DEFAULT_EMPTY_CONTEXT = "No context yet, please update it."
 
 
 class ContextManager(Agent):
-    def __init__(self, chat: Chat, initial_context: str, logger: FileLogger):
+    def __init__(
+        self,
+        chat: Chat,
+        logger: FileLogger,
+        json_manager: JSONManager,
+    ):
         self.functions = [
             self.append_context,
             self.edit_context,
         ]
-        self.context = initial_context
+        self.json_manager = json_manager
+        self.context = self.json_manager.load_from_json()["context"]
         self.context_lock = threading.Lock()
 
         super().__init__(chat=chat, functions=self.functions, logger=logger)
@@ -28,8 +35,8 @@ class ContextManager(Agent):
         with self.context_lock:
             if self.context == DEF_DEFAULT_EMPTY_CONTEXT:
                 self.context = ""
-            # TODO: Make this thread safe.
             self.context += data
+            self.update_context()
         self.stop_agent()
         return "Context appended."
 
@@ -44,6 +51,7 @@ class ContextManager(Agent):
         with self.context_lock:
             if old_data in self.context:
                 self.context.replace(old_data, new_data)
+                self.update_context()
                 self.stop_agent()
                 return "Context edited."
             else:
@@ -52,3 +60,6 @@ class ContextManager(Agent):
     def get_context(self):
         with self.context_lock:
             return self.context
+
+    def update_context(self):
+        self.json_manager.update(field="context", data=self.context, logger=self.logger)

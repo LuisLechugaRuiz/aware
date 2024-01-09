@@ -17,8 +17,9 @@ class AgentThoughtGenerator(ThoughtGenerator):
         self,
         agent_name: str,
         user_name: str,
-        initial_thought: str,
-        initial_context: str,
+        context: str,
+        thought_path: str,
+        memory_manager: str,
     ):
         self.agent_name = agent_name
         self.messages_queue: Queue[UserMessage] = Queue()
@@ -28,7 +29,7 @@ class AgentThoughtGenerator(ThoughtGenerator):
             logger=self.logger,
             system_prompt_kwargs={
                 "agent_name": self.agent_name,
-                "context": initial_context,
+                "context": context,
             },
         )
         self.search_user_info_client = Client(
@@ -39,7 +40,8 @@ class AgentThoughtGenerator(ThoughtGenerator):
         super().__init__(
             chat=chat,
             user_name=agent_name,
-            initial_thought=initial_thought,
+            thought_path=thought_path,
+            memory_manager=memory_manager,
             logger=self.logger,
             functions=[self.search_user_info],
         )
