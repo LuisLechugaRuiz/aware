@@ -88,9 +88,8 @@ class Assistant(Agent):
             self.talk,
             self.send_request,
             self.search_user_info,
-            self.wait_for_user,
+            # self.wait_for_user, TODO: Should we enable it to wait? Sometimes it can trigger this without answering..
         ]
-        # self.tools_manager = ToolsManager()
         super().__init__(
             chat=Chat(
                 module_name="assistant",

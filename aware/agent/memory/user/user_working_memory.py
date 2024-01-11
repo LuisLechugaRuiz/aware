@@ -34,13 +34,6 @@ class UserWorkingMemory:
             logger=FileLogger("user_memory_manager", should_print=False),
         )
 
-        self.data_storage_manager = UserDataStorageManager(
-            assistant_name=self.assistant_name,
-            user_profile=self.user_profile,
-            memory_manager=self.memory_manager,
-            on_conversation_summary=self.on_conversation_summary,
-        )
-
         working_memory_path = os.path.join(
             get_permanent_storage_path(), "user_data", "working_memory.json"
         )
@@ -48,17 +41,16 @@ class UserWorkingMemory:
         self.context_manager = UserContextManager(
             assistant_name=self.assistant_name,
             user_name=self.user_name,
-            user_profile=self.get_user_profile_str(),
+            user_profile=self.user_profile.to_string(),
             json_manager=json_manager,
         )
         self.context_manager_thread = threading.Thread(target=self.update_context)
-        self.context_manager_thread.start()
 
         self.thought_generator = UserThoughtGenerator(
             assistant_name=self.assistant_name,
             user_name=self.user_name,
             context=self.get_context(),
-            user_profile=self.get_user_profile_str(),
+            user_profile=self.user_profile.to_string(),
             memory_manager=self.memory_manager,
             logger=FileLogger("user_thought_generator", should_print=False),
             json_manager=json_manager,
@@ -70,7 +62,13 @@ class UserWorkingMemory:
         self.pause_condition = threading.Condition()
         self.is_paused = False
 
-        self.thought_generator_thread.start()
+        self.data_storage_manager = UserDataStorageManager(
+            assistant_name=self.assistant_name,
+            user_profile=self.user_profile,
+            context=self.get_context(),
+            memory_manager=self.memory_manager,
+            on_conversation_summary=self.on_conversation_summary,
+        )
 
         self.get_thought_server = Server(
             address=f"tcp://{Config().assistant_ip}:{Config().server_port}",
@@ -82,6 +80,10 @@ class UserWorkingMemory:
             topics=[f"{self.user_name}_{DEF_SEARCH_DATABASE}"],
             callback=self.search_user_info,
         )
+
+        # Start threads
+        self.context_manager_thread.start()
+        self.thought_generator_thread.start()
 
     def add_message(self, message: UserMessage):
         self.context_manager.add_message(message)
@@ -177,4 +179,6 @@ class UserWorkingMemory:
             self.context_manager.edit_system(
                 user_profile=self.get_user_profile_str(), context=self.get_context()
             )
-            self.context_manager.step()
+            new_context = self.context_manager.step()
+            if new_context is not None:
+                self.data_storage_manager.update_context(new_context)

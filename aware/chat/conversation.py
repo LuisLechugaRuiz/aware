@@ -120,29 +120,29 @@ class Conversation:
                         )
                 else:
                     # Break the loop if only the system message is left to prevent its removal.
-                    raise Exception(
-                        "Only system message left!!! Threshold is too small...."
-                    )
+                    break
 
         # Add the new message.
         self.messages.append(message)
         # self.data_saver.add_message(message)
 
     def get_current_tokens(self):
+        """Get the current number of tokens in the conversation, excluding the system message."""
+
         return count_message_tokens(
-            messages=self.to_string(), model_name=self.model_name
+            messages=self.to_string(get_system_message=False),
+            model_name=self.model_name,
         )
 
     def to_string(self, get_system_message: bool = True):
-        conversation_string = ""
-        # print("DEBUG MESSAGES LENGTH: ", len(self.messages))
-        # if not get_system_message:
-        #     for message in self.messages[1:]:
-        #         conversation_string += self.get_message_string(message) + "\n"
-        #         return conversation_string
+        start_index = 0 if get_system_message else 1
 
-        for message in self.messages:
-            conversation_string += self.get_message_string(message) + "\n"
+        messages_to_convert = self.messages[start_index:]
+        conversation_lines = [
+            self.get_message_string(message) for message in messages_to_convert
+        ]
+
+        conversation_string = "\n".join(conversation_lines)
         return conversation_string
 
     # TODO: Check if this exactly the format that OpenAI uses internally.
@@ -192,8 +192,6 @@ class Conversation:
         return self.get_current_tokens() >= int(warning_tokens)
 
     def restart(self):
-        # Move to RAG and clear all messages unless system.
-        # Find system message
         self.messages = []
         self.add_system_message(self.system_message)
         # self.data_saver.start_new_conversation(self.system_message)

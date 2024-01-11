@@ -16,6 +16,7 @@ class UserDataStorageManager(DataStorageManager):
         self,
         assistant_name: str,
         user_profile: UserProfile,
+        context: str,
         memory_manager: MemoryManager,
         on_conversation_summary: Callable,
     ):
@@ -38,6 +39,7 @@ class UserDataStorageManager(DataStorageManager):
                 "user_name": self.user_name,
                 "assistant_name": assistant_name,
                 "user_profile": self.get_user_profile_str(),
+                "context": context,
                 "conversation": "",
             },
         )
@@ -49,6 +51,7 @@ class UserDataStorageManager(DataStorageManager):
             functions=[self.append_user_profile, self.edit_user_profile],
         )
         self.on_conversation_summary = on_conversation_summary
+        self.context = context
 
     def add_message(self, message: UserMessage):
         self.conversation.add_user_message(
@@ -110,9 +113,13 @@ class UserDataStorageManager(DataStorageManager):
             "user_name": self.user_name,
             "assistant_name": self.assistant_name,
             "user_profile": self.user_profile.to_string(),
+            "context": self.context,
             "conversation": self.conversation.to_string(),
         }
         self.chat.edit_system_message(system_prompt_kwargs=system_prompt_kwargs)
+
+    def update_context(self, context: str):
+        self.context = context
 
     def step(self):
         """Store the data from current conversation and restart it"""

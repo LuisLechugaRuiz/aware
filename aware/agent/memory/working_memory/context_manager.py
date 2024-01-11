@@ -69,7 +69,7 @@ class ContextManager(Agent):
     def initialize_context(self):
         context, date = self.json_manager.get_with_date(field="context")
         initial_template = f"From last iteration on {date} (Remove it all if not needed anymore using clear_context):\n"
-        self.context = f"{initial_template}:\n{context}"
+        self.context = f"{initial_template}{context}"
         return initial_template
 
     def summarize_context(self, summary: str):
@@ -81,5 +81,7 @@ class ContextManager(Agent):
         if self.initial_template:
             self.context = self.context.removeprefix(self.initial_template)
             self.initial_template = ""
-            self.update_functions()  # Remove clear_context from the functions list
+            self.update_functions(
+                self.functions
+            )  # Remove clear_context from the functions list
         self.json_manager.update(field="context", data=self.context, logger=self.logger)

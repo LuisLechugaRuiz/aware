@@ -47,13 +47,13 @@ class ThoughtGenerator(Agent):
             logger=logger,
         )
 
-    def search(self, queries: List[str]):
-        """Execute searches in the memory database for specific queries.
+    def search(self, questions: List[str]):
+        """Search for the answer to the questions in the memory.
 
         Args:
-            queries (List[str]): The queries to be searched.
+            questions (List[str]): The questions to be answered.
         """
-        return self.memory_manager.search_data(queries=queries)
+        return self.memory_manager.search_data(queries=questions)
 
     def intermediate_thought(self, thought: str):
         """Generate an intermediate thought that will be used to reason about the data.

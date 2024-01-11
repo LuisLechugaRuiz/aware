@@ -35,8 +35,10 @@ class MemoryManager:
             datapoints[query] = results
         response = ""
         for query, data in datapoints.items():
-            data_str = "\n".join(data)
-            response += f"- Query: {query}\n-Data: {data_str}\n"
+            data_str = ""
+            for index, datapoint in enumerate(data):
+                data_str += f"- Data {index}: {datapoint}\n"
+            response += f"- Query: {query}\n{data_str}"
         return response
 
     def store_data(self, data: str, potential_query: str):

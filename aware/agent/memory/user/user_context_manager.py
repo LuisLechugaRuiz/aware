@@ -64,3 +64,5 @@ class UserContextManager(ContextManager):
                 self.messages_queue.task_done()
             if is_assistant_message:
                 self.run_agent()
+                return self.get_context()
+        return None
