@@ -20,6 +20,14 @@ class JSONManager:
                 print(f"Error loading JSON from {self.file_path}: {e}")
                 return None
 
+    def get_with_date(self, field: str):
+        with self.lock:
+            json_data = self.load_from_json()
+            if json_data is not None:
+                return json_data.get(field, None), json_data.get("date", None)
+            else:
+                return None, None
+
     def update(self, field: str, data: str, logger: Optional[FileLogger] = None):
         with self.lock:
             json_data = self.load_from_json()

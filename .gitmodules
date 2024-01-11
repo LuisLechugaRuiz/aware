@@ -1,3 +1,6 @@
 [submodule "weaviate-python-client"]
 	path = weaviate-python-client
 	url = https://github.com/weaviate/weaviate-python-client.git
+[submodule "chatbot-ui"]
+	path = chatbot-ui
+	url = git@github.com:LuisLechugaRuiz/chatbot-ui.git

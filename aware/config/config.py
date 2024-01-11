@@ -61,3 +61,5 @@ class Config(metaclass=Singleton):
         self.server_port = os.getenv("SERVER_PORT", 50004)
         self.action_client_port = os.getenv("ACTION_CLIENT_PORT", 50005)
         self.action_server_port = os.getenv("ACTION_SERVER_PORT", 50006)
+
+        self.web_socket_port = os.getenv("WEB_SOCKET_PORT", 50010)

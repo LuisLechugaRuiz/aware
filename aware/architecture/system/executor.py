@@ -181,7 +181,6 @@ class Executor:
         """
         # Send message
         print(colored("System requires feedback: ", "red") + message)
-
         self.request.update_feedback(feedback=message)
         response = self.get_user_feedback(self.request)
         return f"User response: {response}"

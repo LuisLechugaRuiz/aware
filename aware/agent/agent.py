@@ -44,7 +44,7 @@ class Agent:
             # If response is None just stop the agent.
             if tool_calls is None or not tool_calls:
                 self.running = False
-                print("Stopping assistant due to None call.")
+                self.logger.error("Stopping assistant due to None call.")
                 return None
             # If response is string print it and stop the agent or execute default tools call to obtain a default call.
             elif isinstance(tool_calls, str):

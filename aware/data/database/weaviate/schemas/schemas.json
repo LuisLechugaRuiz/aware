@@ -25,15 +25,6 @@
             }
         }
     },
-    "LastConversation": {
-        "description": "The last conversation of a user",
-        "properties": {
-            "name": {
-                "type": "Conversation",
-                "description": "The last conversation"
-            }
-        }
-    },
     "Info": {
         "description": "Information block",
         "properties": {

@@ -38,6 +38,7 @@ class UserWorkingMemory:
             assistant_name=self.assistant_name,
             user_profile=self.user_profile,
             memory_manager=self.memory_manager,
+            on_conversation_summary=self.on_conversation_summary,
         )
 
         working_memory_path = os.path.join(
@@ -166,6 +167,10 @@ class UserWorkingMemory:
         )
         dispensable_thought_generator.step(default_execution=True)
         return f"Info found: {dispensable_thought_generator.get_thought()}"
+
+    def on_conversation_summary(self, summary: str, potential_query: str):
+        self.context_manager.summarize_context(summary)
+        self.memory_manager.store_conversation(summary, potential_query)
 
     def update_context(self):
         while True:

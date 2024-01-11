@@ -276,46 +276,7 @@ class WeaviateDB(object):
                 references={"User": wvc.Reference.to(uuids=user_uuid)},
                 vector=self.get_ada_embedding(potential_query),
             )
-            self.update_last_conversation_summary(conversation_uuid=conversation_uuid)
             return WeaviateResult(data=conversation_uuid)
         except Exception as err:
             print(f"Unexpected error {err} when storing conversation")
             return WeaviateResult(error=str(err))
-
-    # TODO: MOVE TO JSON AND REMOVE LAST CONVERSATION? WE DON'T NEED THIS ON A SEMANTIC DATABASE.
-    def get_last_conversation_summary(self):
-        try:
-            last_conversation_collection = self.client.collections.get(
-                "LastConversation"
-            )
-            conversation_objects = last_conversation_collection.query.fetch_objects()
-            if len(conversation_objects.objects) > 0:
-                # Get the referenced conversation
-                conversation_uuid = conversation_objects.objects[0].references[
-                    "Conversation"
-                ]
-                print("DEBUG conversation_uuid: ", conversation_uuid)
-                conversation_collection = self.client.collections.get("Conversation")
-                conversation_object = conversation_collection.query.fetch_object_by_id(
-                    uuid=conversation_uuid
-                )
-                summary = conversation_object.properties["summary"]
-                return WeaviateResult(data=summary)
-            return WeaviateResult(data="")
-        except Exception as err:
-            print(f"Unexpected error {err} when getting last conversation summary")
-            return WeaviateResult(error=str(err))
-
-    def update_last_conversation_summary(self, conversation_uuid: str):
-        conversation_collection = self.client.collections.get("LastConversation")
-        conversation_objects = conversation_collection.query.fetch_objects()
-        references = {"Conversation": wvc.Reference.to(uuids=conversation_uuid)}
-        if len(conversation_objects.objects) > 0:
-            old_conversation_uuid = conversation_objects.objects[0].uuid
-            # Update it
-            conversation_collection.data.update(
-                uuid=old_conversation_uuid,
-                references=references,
-            )
-        else:
-            conversation_collection.data.insert(references=references)

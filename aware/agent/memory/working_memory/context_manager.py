@@ -5,8 +5,6 @@ from aware.chat.chat import Chat
 from aware.utils.json_manager import JSONManager
 from aware.utils.logger.file_logger import FileLogger
 
-DEF_DEFAULT_EMPTY_CONTEXT = "No context yet, please update it."
-
 
 class ContextManager(Agent):
     def __init__(
@@ -19,11 +17,13 @@ class ContextManager(Agent):
             self.append_context,
             self.edit_context,
         ]
+        agent_initial_functions = self.functions.copy()
+        agent_initial_functions.append(self.clear_context)
         self.json_manager = json_manager
-        self.context = self.json_manager.load_from_json()["context"]
+        self.initial_template = self.initialize_context()
         self.context_lock = threading.Lock()
 
-        super().__init__(chat=chat, functions=self.functions, logger=logger)
+        super().__init__(chat=chat, functions=agent_initial_functions, logger=logger)
 
     def append_context(self, data: str):
         """
@@ -33,12 +33,17 @@ class ContextManager(Agent):
             data (str): Data to be appended.
         """
         with self.context_lock:
-            if self.context == DEF_DEFAULT_EMPTY_CONTEXT:
-                self.context = ""
             self.context += data
             self.update_context()
         self.stop_agent()
         return "Context appended."
+
+    def clear_context(self):
+        """
+        Clear the agent's context, setting it to an empty string.
+        """
+        with self.context_lock:
+            self.context = ""
 
     def edit_context(self, old_data: str, new_data: str):
         """
@@ -61,5 +66,20 @@ class ContextManager(Agent):
         with self.context_lock:
             return self.context
 
+    def initialize_context(self):
+        context, date = self.json_manager.get_with_date(field="context")
+        initial_template = f"From last iteration on {date} (Remove it all if not needed anymore using clear_context):\n"
+        self.context = f"{initial_template}:\n{context}"
+        return initial_template
+
+    def summarize_context(self, summary: str):
+        with self.context_lock:
+            self.context = summary
+            self.update_context()
+
     def update_context(self):
+        if self.initial_template:
+            self.context = self.context.removeprefix(self.initial_template)
+            self.initial_template = ""
+            self.update_functions()  # Remove clear_context from the functions list
         self.json_manager.update(field="context", data=self.context, logger=self.logger)

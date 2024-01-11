@@ -29,7 +29,7 @@ class ThoughtGenerator(Agent):
 
         self.json_manager = json_manager
         if self.json_manager is not None:
-            self.thought = self.json_manager.load_from_json()["thought"]
+            self.thought = self.initial_thought()
         else:
             self.thought = ""
         self.thought_lock = threading.Lock()
@@ -81,6 +81,10 @@ class ThoughtGenerator(Agent):
     def get_thought(self):
         with self.thought_lock:
             return self.thought
+
+    def initial_thought(self):
+        thought, date = self.json_manager.get_with_date(field="thought")
+        return f"From previous conversation on {date}:\nThought: {thought}"
 
     def create_default_tool_calls(self, thought: str):
         """Create a tool call as if the agent was calling final_thought when it answer by string to avoid appending it to conversation"""

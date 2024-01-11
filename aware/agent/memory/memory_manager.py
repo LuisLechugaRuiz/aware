@@ -60,6 +60,29 @@ class MemoryManager:
             return f"Error storing data: {store_result.error}"
         return "Data stored."
 
+    def store_conversation(self, summary: str, potential_query: str):
+        """
+        Stores a conversation summary in the Weaviate database with an associated potential query for future retrieval.
+
+        Args:
+            summary (str): The conversation summary to be stored.
+            potential_query (str): A related query for future data retrieval.
+
+        Returns:
+            str: Feedback message.
+        """
+        self.logger.info(
+            f"Storing conversation summary with potential query: {potential_query}"
+        )
+        store_result = self.weaviate_db.store_conversation(
+            user_name=self.user_name,
+            summary=summary,
+            potential_query=potential_query,
+        )
+        if store_result.error:
+            return f"Error storing data: {store_result.error}"
+        return "Data stored."
+
     def register_user(self):
         """
         Registers the user in the Weaviate database.

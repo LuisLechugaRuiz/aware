@@ -1,4 +1,5 @@
 import threading
+from typing import Callable
 
 from aware.agent.memory.working_memory.data_storage_manager import DataStorageManager
 from aware.agent.memory.user.user_profile import UserProfile
@@ -16,6 +17,7 @@ class UserDataStorageManager(DataStorageManager):
         assistant_name: str,
         user_profile: UserProfile,
         memory_manager: MemoryManager,
+        on_conversation_summary: Callable,
     ):
         self.user_profile = user_profile
         self.user_name = self.user_profile.get_name()
@@ -46,6 +48,7 @@ class UserDataStorageManager(DataStorageManager):
             logger=self.logger,
             functions=[self.append_user_profile, self.edit_user_profile],
         )
+        self.on_conversation_summary = on_conversation_summary
 
     def add_message(self, message: UserMessage):
         self.conversation.add_user_message(
@@ -87,6 +90,16 @@ class UserDataStorageManager(DataStorageManager):
             new_data (str): New data to replace the old data.
         """
         return self.user_profile.edit_user_profile(field, old_data, new_data)
+
+    def stop(self, conversation_summary: str, potential_query: str):
+        """Stop saving info. Call this function after all relevant data has been stored and provide a summary of the conversation.
+
+        Args:
+            conversation_summary (str): A summary of the conversation.
+            potential_query (str): A potential query that might be used to find this conversation.
+        """
+        self.on_conversation_summary(conversation_summary, potential_query)
+        return super().stop()
 
     def get_user_profile_str(self):
         return self.user_profile.to_string()

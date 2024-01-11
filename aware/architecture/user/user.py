@@ -1,5 +1,4 @@
-import argparse
-import logging
+import asyncio
 from typing import List
 
 from aware.agent.memory.user.user_working_memory import UserWorkingMemory
@@ -10,9 +9,8 @@ from aware.architecture.helpers.topics import (
 from aware.architecture.user.user_message import UserContextMessage, UserMessage
 from aware.config.config import Config
 from aware.utils.communication_protocols import Publisher, Subscriber
-
-
-LOG = logging.getLogger(__name__)
+from aware.utils.communication_protocols.websocket.server import WebSocketServer
+from aware.utils.logger.file_logger import FileLogger
 
 
 class User:
@@ -33,17 +31,26 @@ class User:
             callback=self.receive_assistant_message,
         )
         self.incoming_messages: List[UserMessage] = []
-        self.conversation_timer = None
+        self.logger = FileLogger("user", should_print=True)
+        self.ws_server = WebSocketServer(
+            host=Config().user_ip,
+            port=Config().web_socket_port,
+            callback=self.send_message,
+        )
 
     def receive_assistant_message(self, message: str):
         user_message = UserMessage.from_json(message)
         self.user_working_memory.add_message(
             user_message
         )  # Only entry point to memory manager as assistant is the broker.
-        self.incoming_messages.append(user_message)
+        if user_message.user_name != self.user_name:
+            assistant_message = user_message.message
+            self.logger.info(f"{Config().assistant_name}: {assistant_message}")
+            self.incoming_messages.append(user_message)
+            asyncio.run(self.ws_server.send_message(assistant_message))
 
-    # TODO: SEND ALSO USER CONTEXT PROVIDED BY MEMORY MANAGER.
-    def send_message(self, message: str):
+    async def send_message(self, message: str):
+        self.logger.info(f"{self.user_name}: {message}")
         user_message = UserMessage(user_name=self.user_name, message=message)
         user_context_message = UserContextMessage(
             user_message=user_message,
@@ -51,24 +58,18 @@ class User:
             thought=self.user_working_memory.get_thought(),
         )
         self.users_message_publisher.publish(user_context_message.to_json())
+        self.incoming_messages.append(user_message)
+
+    async def run(self):
+        await self.ws_server.run()
 
 
-# TODO: START USING THE RIGHT IP
-def main():
-    # TODO: Get user from local config and assistant from server config.
-    parser = argparse.ArgumentParser(description="User configuration script.")
-    parser.add_argument("-n", "--name", default="Luis", help="User name")
-
-    args = parser.parse_args()
-
+async def main():
     user = User(
-        args.name,
         assistant_ip=Config().assistant_ip,
     )
-
-    while True:
-        user.run()
+    await user.run()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
