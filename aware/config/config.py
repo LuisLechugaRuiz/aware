@@ -63,3 +63,14 @@ class Config(metaclass=Singleton):
         self.action_server_port = os.getenv("ACTION_SERVER_PORT", 50006)
 
         self.web_socket_port = os.getenv("WEB_SOCKET_PORT", 50010)
+
+        # SUPABASE
+        self.supabase_url = os.getenv("SUPABASE_URL", "http://127.0.0.1:54321")
+        self.supabase_key = os.getenv("SUPABASE_KEY")
+
+        # REDIS
+        self.redis_host = os.getenv("REDIS_HOST", "localhost")
+        self.redis_port = os.getenv("REDIS_PORT", 6379)
+
+        # MODEL
+        self.openai_model = os.getenv("OPENAI_MODEL", "gpt-4-1106-preview")

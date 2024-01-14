@@ -10,4 +10,5 @@ jinja2
 # weaviate-client==4.* # pip install --pre -U "weaviate-client==4.*" TODO: ADD ME AND REMOVE THE SUBMODULE WHEN WEAVIATE MERGES COMMIT
 tzlocal
 websockets
+celery
 # python3-tk python3-dev for pywhatkit

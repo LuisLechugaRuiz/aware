@@ -1,8 +1,6 @@
 from datetime import datetime
-import json
-from openai.types.chat import ChatCompletionMessageToolCallParam
 import tiktoken
-from typing import Any, List, Dict, Optional, Tuple
+from typing import Optional
 import tzlocal
 import socket
 
@@ -24,6 +22,17 @@ def get_current_date():
 
     # Format the datetime in a more readable format, including the timezone name
     return current_time_in_user_tz.strftime("%Y-%m-%d %H:%M:%S %Z%z")
+
+
+def get_current_date_iso8601():
+    # Automatically detect the local timezone
+    local_timezone = tzlocal.get_localzone()
+
+    # Current date and time in user's timezone
+    current_time_in_user_tz = datetime.now(local_timezone)
+
+    # Format the datetime in ISO 8601 format
+    return current_time_in_user_tz.isoformat()
 
 
 def get_local_ip():
