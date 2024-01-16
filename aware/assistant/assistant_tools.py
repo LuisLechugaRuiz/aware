@@ -17,9 +17,10 @@ class AssistantTools:
         Args:
             None
         """
-        print("Waiting for user's input...")
-        self.stop_agent()
-        return "Waiting for user's input..."
+        pass
+        # print("Waiting for user's input...")
+        # self.stop_agent()
+        # return "Waiting for user's input..."
 
     # TODO: FIX ME!
     def send_request(self, user_name: str, request: str):
@@ -33,13 +34,13 @@ class AssistantTools:
         Returns:
             None
         """
-
-        new_request = Request(request=request)
-        goal_handle = self.system_action_clients[user_name].send_goal(new_request)
-        self.active_goal_handles[new_request.get_id()] = (user_name, goal_handle)
-        self.update_request(new_request)
-        print(colored(f"Request: {request}", "yellow"))
-        return "Request sent to the system; the status will be updated soon."
+        pass
+        # new_request = Request(request=request)
+        # goal_handle = self.system_action_clients[user_name].send_goal(new_request)
+        # self.active_goal_handles[new_request.get_id()] = (user_name, goal_handle)
+        # self.update_request(new_request)
+        # print(colored(f"Request: {request}", "yellow"))
+        # return "Request sent to the system; the status will be updated soon."
 
     # NOT USED FOR NOW TO HAVE A GROUP COMMUNICATION - FOR NOW JUST BROADCASTING
     # def send_message_to_user(self, user_name: str, message: str):
@@ -55,13 +56,14 @@ class AssistantTools:
         Returns:
             str
         """
-        print(f'{colored("Assistant:", "blue")} {message}')
-        assistant_message = UserMessage(
-            user_name=Config().assistant_name, message=message
-        )
-        self.broadcast_message(assistant_message.to_json())
-        self.stop_agent()
-        return "Message sent."
+        pass
+        # print(f'{colored("Assistant:", "blue")} {message}')
+        # assistant_message = UserMessage(
+        #     user_name=Config().assistant_name, message=message
+        # )
+        # self.broadcast_message(assistant_message.to_json())
+        # self.stop_agent()
+        # return "Message sent."
 
     def search_user_info(self, user_name: str, query: str):
         """
@@ -74,11 +76,12 @@ class AssistantTools:
         Returns:
             str
         """
-        try:
-            print(f"Searching for {query} on {user_name}'s database")
-            data = self.database_clients[user_name].send(
-                topic=f"{user_name}_{DEF_GET_THOUGHT}", message=query
-            )
-            return f"Search returned: {data}"
-        except Exception as e:
-            return f"Error searching: {e}"
+        pass
+        # try:
+        #     print(f"Searching for {query} on {user_name}'s database")
+        #     data = self.database_clients[user_name].send(
+        #         topic=f"{user_name}_{DEF_GET_THOUGHT}", message=query
+        #     )
+        #     return f"Search returned: {data}"
+        # except Exception as e:
+        #     return f"Error searching: {e}"

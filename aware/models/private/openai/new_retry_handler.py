@@ -49,7 +49,7 @@ class _OpenAIRetryHandler:
         self._logger.debug(self._backoff_msg.format(backoff=backoff))
         sleep(backoff)
 
-    async def __call__(self, func: Callable[_P, _T]) -> Callable[_P, _T]:
+    def __call__(self, func: Callable[_P, _T]) -> Callable[_P, _T]:
         @functools.wraps(func)
         async def _wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _T:
             num_attempts = self._num_retries + 1  # +1 for the first attempt

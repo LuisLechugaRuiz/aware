@@ -1,7 +1,7 @@
 import json
 import abc
 
-from typing import List
+from typing import Any, Dict, List
 
 
 class JSONMessage(abc.ABC):
@@ -20,6 +20,10 @@ class JSONMessage(abc.ABC):
     def to_string(self):
         pass
 
+    @abc.abstractmethod
+    def to_openai_dict(self) -> Dict[str, Any]:
+        pass
+
 
 class UserMessage(JSONMessage):
     def __init__(self, name: str, content: str):
@@ -32,6 +36,9 @@ class UserMessage(JSONMessage):
 
     def to_dict(self):
         return {"name": self.name, "content": self.content}
+
+    def to_openai_dict(self):
+        return {"role": self.role, "name": self.name, "content": self.content}
 
 
 class AssistantMessage(JSONMessage):
@@ -46,6 +53,9 @@ class AssistantMessage(JSONMessage):
     def to_dict(self):
         return {"name": self.name, "content": self.content}
 
+    def to_openai_dict(self):
+        return {"role": self.role, "name": self.name, "content": self.content}
+
 
 class SystemMessage(JSONMessage):
     def __init__(self, content: str):
@@ -58,6 +68,9 @@ class SystemMessage(JSONMessage):
     def to_dict(self):
         return {"content": self.content}
 
+    def to_openai_dict(self):
+        return {"role": self.role, "content": self.content}
+
 
 class ToolResponseMessage(JSONMessage):
     def __init__(self, content: str, tool_call_id: str):
@@ -68,6 +81,13 @@ class ToolResponseMessage(JSONMessage):
     def to_string(self):
         return f"{self.role} (ID: {self.tool_call_id}): {self.content}"
 
+    def to_openai_dict(self):
+        return {
+            "role": self.role,
+            "content": self.content,
+            "tool_call_id": self.tool_call_id,
+        }
+
 
 class Function(JSONMessage):
     def __init__(self, arguments: str, name: str):
@@ -76,6 +96,12 @@ class Function(JSONMessage):
 
     def to_string(self):
         return f"{self.name}({self.arguments})"
+
+    def to_openai_dict(self):
+        return {
+            "arguments": self.arguments,
+            "name": self.name,
+        }
 
 
 class ToolCall(JSONMessage):
@@ -98,6 +124,13 @@ class ToolCall(JSONMessage):
     def to_string(self):
         return f"ToolCall({self.id}, {self.type}, {self.function.to_string()})"
 
+    def to_openai_dict(self):
+        return {
+            "id": self.id,
+            "type": self.type,
+            "function": self.function.to_dict(),
+        }
+
 
 class ToolCalls(JSONMessage):
     def __init__(self, name: str, tool_calls: List[ToolCall]):
@@ -105,7 +138,6 @@ class ToolCalls(JSONMessage):
         self.name = name
         self.tool_calls = tool_calls
 
-    # TODO: Clarify why to_dict and to_json are needed...
     def to_dict(self):
         data = {"name": self.name}
         data["tool_calls"] = self.tool_calls_to_dict()
@@ -116,6 +148,13 @@ class ToolCalls(JSONMessage):
 
     def to_string(self):
         return f"{self.role} ({self.name}): {json.dumps(self.tool_calls_to_dict())}"
+
+    def to_openai_dict(self):
+        return {
+            "role": self.role,
+            "name": self.name,
+            "tool_calls": self.tool_calls_to_dict(),
+        }
 
     @classmethod
     def from_json(cls, json_str):
@@ -145,3 +184,8 @@ class ChatMessage(JSONMessage):
         data = json.loads(json_str)
         data["message"] = json_message_class.from_json(json.dumps(data["message"]))
         return cls(**data)
+
+    def to_openai_dict(self):
+        return {
+            "message": self.message.to_openai_dict(),
+        }

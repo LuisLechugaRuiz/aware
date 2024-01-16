@@ -62,6 +62,10 @@ class ClientHandlers:
                 supabase_handler.set_working_memory(working_memory)
             # Store in Redis
             redis_handler.set_working_memory(working_memory)
+            # Store user profile in Redis
+            redis_handler.set_api_key(
+                user_id, user_profile["openai_api_key"]
+            )  # TODO: Get by model not only OpenAI
         else:
             self.logger.info("Working memory found in Redis")
 

@@ -23,9 +23,7 @@ class SupabaseHandler:
         }
         # Expand dictionary with json_message data
         invoke_options.update(json_message.to_dict())
-        response = self.client.functions.invoke(
-            "insert_new_message", {"body": invoke_options}
-        )
+        response = self.client.rpc("insert_new_message", invoke_options).execute().data
         data = response[0]
         return ChatMessage(
             message_id=data["id"],
@@ -35,9 +33,7 @@ class SupabaseHandler:
 
     def delete_message(self, message_id):
         invoke_options = {"p_message_id": message_id}
-        response = self.client.functions.invoke(
-            "soft_delete_message", {"body": invoke_options}
-        )
+        response = self.client.rpc("soft_delete_message", invoke_options).execute().data
         return response
 
     def get_user_data(self, user_id: str):
@@ -59,11 +55,11 @@ class SupabaseHandler:
         log = FileLogger("migration_tests")
         invoke_options = {"p_chat_id": chat_id}
         log.info("PRE INVOKE with id: " + chat_id)
-        ordered_messages = self.client.functions.invoke(
-            "get_active_messages",
-            invoke_options={"body": invoke_options, "responseType": "json"},
+        log.info("INFO: " + str({"body": invoke_options, "responseType": "json"}))
+        ordered_messages = (
+            self.client.rpc("get_active_messages", invoke_options).execute().data
         )
-        log.info("POST INVOKE")
+        log.info("POST INVOKE, response: " + str(ordered_messages))
         messages = []
         if ordered_messages:
             for row in ordered_messages:

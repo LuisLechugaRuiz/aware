@@ -14,8 +14,6 @@ from aware.models.model import Model
 from aware.models.private.openai.new_retry_handler import _OpenAIRetryHandler
 from aware.utils.logger.file_logger import FileLogger
 
-from aware.chat.new_conversation import Conversation
-
 load_dotenv()
 
 
@@ -23,6 +21,7 @@ class OpenAIModel(Model):
     def __init__(self, api_key: str, logger: FileLogger):
         self.model_name = Config().openai_model  # TODO: Enable other models.
         self.logger = logger
+        self.logger.info(f"OpenAI model: {self.model_name}, api_key: {api_key}")
         self.client = AsyncOpenAI(api_key=api_key)
 
         _retry_handler = _OpenAIRetryHandler(
@@ -37,13 +36,14 @@ class OpenAIModel(Model):
 
     async def get_response(
         self,
-        conversation: Conversation,
+        messages: Dict[str, Any],
         functions: List[Dict[str, Any]] = [],
         temperature: float = 0.7,
     ) -> ChatCompletionMessage:
         try:
+            self.logger.info("Calling OpenAI.")
             return await self._get_response_with_retries(
-                conversation=conversation.messages,
+                messages=messages,
                 functions=functions,
                 response_format="text",
                 temperature=temperature,
@@ -58,7 +58,7 @@ class OpenAIModel(Model):
     # TODO: get temperature from cfg
     async def _get_response(
         self,
-        conversation: Conversation,
+        messages: Dict[str, Any],
         functions: List[Dict[str, Any]] = [],
         response_format: str = "text",  # or json_object.
         temperature: float = 0.7,
@@ -69,14 +69,20 @@ class OpenAIModel(Model):
             tools_openai = NOT_GIVEN
 
         # TODO :Check if it is multimodal and use vision.
-        response = await self.client.chat.completions.create(
-            messages=conversation.messages,
-            model=self.model_name,
-            response_format={"type": response_format},
-            temperature=temperature,
-            tools=tools_openai,
-            # stream=False,  # TODO: Address SET TO TRUE for specific cases - USER.
-        )
+        self.logger.info("Calling OpenAI 2")
+        self.logger.info(f"Calling OpenAI 2 with messages: {messages}")
+        try:
+            response = await self.client.chat.completions.create(
+                messages=messages,
+                model=self.model_name,
+                response_format={"type": response_format},
+                temperature=temperature,
+                tools=tools_openai,
+                # stream=False,  # TODO: Address SET TO TRUE for specific cases - USER.
+            )
+        except Exception as e:
+            self.logger.error(f"Error getting response from OpenAI 2: {e}")
+        self.logger.info(f"Response from OpenAI 2: {response}")
         return response.choices[0].message
 
     def get_multi_modal_message(

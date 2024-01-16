@@ -13,6 +13,9 @@ from aware.chat.new_conversation_schemas import (
     ToolCalls,
 )
 from aware.chat.call_info import CallInfo
+from aware.utils.helpers import (
+    convert_timestamp_to_epoch,
+)
 
 
 class RedisHandler:
@@ -45,7 +48,9 @@ class RedisHandler:
 
         # Add the key to the sorted set with timestamp as the score
         conversation_key = f"conversation:{chat_id}"
-        self.client.zadd(conversation_key, {key: float(chat_message.timestamp)})
+        self.client.zadd(
+            conversation_key, {key: convert_timestamp_to_epoch(chat_message.timestamp)}
+        )
 
     def delete_message(self, chat_id: str, message_id: str):
         # The key for the specific message
@@ -111,16 +116,21 @@ class RedisHandler:
         )
         self.client.lpush("pending_call", call_info.call_id)
 
+    def get_api_key(self, user_id: str) -> Optional[str]:
+        return self.client.get(f"api_key:{user_id}")
+
     def get_call_info(self, call_id: str) -> CallInfo:
         data = CallInfo.from_json(self.client.get(f"call_info:{call_id}"))
-        data.set_conversation(self.get_conversation(data.conversation_id))
+        data.set_conversation(self.get_conversation(data.chat_id))
 
-        # TODO: On start we should save the info about the user at REDIS!!
-        data.set_api_key(self.client.get(f"api_key:{data.user_id}").decode())
+        data.set_api_key(self.get_api_key(data.user_id).decode())
         return data
 
     def get_pending_call(self) -> Optional[Tuple[str, str]]:
         return self.client.brpop("pending_call", timeout=10)
+
+    def set_api_key(self, user_id: str, api_key: str):
+        self.client.set(f"api_key:{user_id}", api_key)
 
     def store_response(self, call_id: str, response: str):
         self.client.set(f"response:{call_id}", response)

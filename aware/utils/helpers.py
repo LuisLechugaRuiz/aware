@@ -13,6 +13,21 @@ def colored(st, color: Optional[str], background=False):
     )
 
 
+def convert_timestamp_to_epoch(timestamp_str: str):
+    # Automatically detect the local timezone
+    local_timezone = tzlocal.get_localzone()
+
+    # Parse the timestamp string to a datetime object
+    datetime_obj = datetime.fromisoformat(timestamp_str)
+
+    # Ensure that the datetime object is in UTC
+    datetime_obj_utc = datetime_obj.astimezone(local_timezone)
+
+    # Convert the datetime object to Unix epoch time (number of seconds since January 1, 1970, UTC)
+    epoch_time = datetime_obj_utc.timestamp()
+    return epoch_time
+
+
 def get_current_date():
     # Automatically detect the local timezone
     local_timezone = tzlocal.get_localzone()
