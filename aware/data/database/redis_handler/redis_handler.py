@@ -4,6 +4,7 @@ from typing import List, Optional, Tuple
 
 from aware.agent.memory.new_working_memory import WorkingMemory
 from aware.chat.new_conversation_schemas import (
+    ChatMessage,
     JSONMessage,
     UserMessage,
     AssistantMessage,
@@ -21,23 +22,22 @@ class RedisHandler:
     def get_working_memory(self, user_id: str) -> Optional[WorkingMemory]:
         data = self.client.get(f"working_memory:{user_id}")
         if data:
-            return WorkingMemory.from_json(json.loads(data))
+            return WorkingMemory.from_json(data)
         return None
 
     def set_working_memory(self, working_memory: WorkingMemory):
         self.client.set(
             f"working_memory:{working_memory.user_id}",
-            json.dumps(working_memory.to_json()),
+            working_memory.to_json(),
         )
 
     def add_message(
         self,
         chat_id: str,
-        message_id: str,
-        timestamp: str,
-        message: JSONMessage,
+        chat_message: ChatMessage,
     ):
-        key = f"conversation:{chat_id}:message:{message_id}"
+        message = chat_message.message
+        key = f"conversation:{chat_id}:message:{chat_message.message_id}"
         message_data = json.dumps(
             {"type": type(message).__name__, "data": message.to_json()}
         )
@@ -45,7 +45,18 @@ class RedisHandler:
 
         # Add the key to the sorted set with timestamp as the score
         conversation_key = f"conversation:{chat_id}"
-        self.client.zadd(conversation_key, {key: float(timestamp)})
+        self.client.zadd(conversation_key, {key: float(chat_message.timestamp)})
+
+    def delete_message(self, chat_id: str, message_id: str):
+        # The key for the specific message
+        message_key = f"conversation:{chat_id}:message:{message_id}"
+
+        # Remove the hash storing the message details
+        self.client.delete(message_key)
+
+        # Remove the message reference from the sorted set
+        conversation_key = f"conversation:{chat_id}"
+        self.client.zrem(conversation_key, message_key)
 
     # TODO: Check if conversation exists, return None otherwise.
     def get_conversation(self, chat_id: str) -> List[JSONMessage]:
@@ -96,12 +107,12 @@ class RedisHandler:
     def add_call_info(self, call_info: CallInfo):
         self.client.set(
             f"call_info:{call_info.call_id}",
-            json.dumps(call_info.to_json()),
+            call_info.to_json(),
         )
         self.client.lpush("pending_call", call_info.call_id)
 
     def get_call_info(self, call_id: str) -> CallInfo:
-        data = CallInfo.from_json(json.loads(self.client.get(f"call_info:{call_id}")))
+        data = CallInfo.from_json(self.client.get(f"call_info:{call_id}"))
         data.set_conversation(self.get_conversation(data.conversation_id))
 
         # TODO: On start we should save the info about the user at REDIS!!

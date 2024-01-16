@@ -1,3 +1,4 @@
+import json
 from typing import Dict
 
 
@@ -18,18 +19,15 @@ class WorkingMemory:
         self.context = context
         self.updated_at = updated_at
 
+    def to_dict(self):
+        return self.__dict__.copy()
+
     def to_json(self):
-        return {
-            "user_id": self.user_id,
-            "user_name": self.user_name,
-            "chat_id": self.chat_id,
-            "thought": self.thought,
-            "context": self.context,
-            "updated_at": self.updated_at,
-        }
+        return json.dumps(self.__dict__)
 
     @classmethod
     def from_json(cls, data: Dict):
+        data = json.loads(data)
         return cls(
             user_id=data["user_id"],
             user_name=data["user_name"],
