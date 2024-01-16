@@ -6,7 +6,7 @@ from typing import List
 
 class JSONMessage(abc.ABC):
     def to_json(self):
-        return json.dumps(self.__dict__)
+        return json.dumps(self.to_dict())
 
     @classmethod
     def from_json(cls, json_str):
@@ -30,6 +30,9 @@ class UserMessage(JSONMessage):
     def to_string(self):
         return f"{self.role} ({self.name}): {self.content}"
 
+    def to_dict(self):
+        return {"name": self.name, "content": self.content}
+
 
 class AssistantMessage(JSONMessage):
     def __init__(self, name: str, content: str):
@@ -40,6 +43,9 @@ class AssistantMessage(JSONMessage):
     def to_string(self):
         return f"{self.role} ({self.name}): {self.content}"
 
+    def to_dict(self):
+        return {"name": self.name, "content": self.content}
+
 
 class SystemMessage(JSONMessage):
     def __init__(self, content: str):
@@ -48,6 +54,9 @@ class SystemMessage(JSONMessage):
 
     def to_string(self):
         return f"{self.role}: {self.content}"
+
+    def to_dict(self):
+        return {"content": self.content}
 
 
 class ToolResponseMessage(JSONMessage):
@@ -96,6 +105,7 @@ class ToolCalls(JSONMessage):
         self.name = name
         self.tool_calls = tool_calls
 
+    # TODO: Clarify why to_dict and to_json are needed...
     def to_dict(self):
         data = {"name": self.name}
         data["tool_calls"] = self.tool_calls_to_dict()
@@ -113,4 +123,25 @@ class ToolCalls(JSONMessage):
         data["tool_calls"] = [
             ToolCall.from_json(json.dumps(tc)) for tc in data["tool_calls"]
         ]
+        return cls(**data)
+
+
+class ChatMessage(JSONMessage):
+    def __init__(self, message_id: str, timestamp: str, message: JSONMessage):
+        self.message_id = message_id
+        self.timestamp = timestamp
+        self.message = message
+
+    def to_string(self):
+        return self.message.to_string()
+
+    def to_json(self):
+        data = super().to_dict()
+        data["message"] = self.message.to_dict()  # Convert nested JSONMessage object
+        return json.dumps(data)
+
+    @classmethod
+    def from_json(cls, json_str, json_message_class=JSONMessage):
+        data = json.loads(json_str)
+        data["message"] = json_message_class.from_json(json.dumps(data["message"]))
         return cls(**data)

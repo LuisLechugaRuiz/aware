@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 from aware.config.config import Config
 from aware.models.model import Model
-from aware.models.private.openai.retry_handler import _OpenAIRetryHandler
+from aware.models.private.openai.old_retry_handler import _OpenAIRetryHandler
 from aware.utils.logger.file_logger import FileLogger
 
 from aware.chat.new_conversation import Conversation

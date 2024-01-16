@@ -4,7 +4,7 @@ from aware.config.config import Config
 
 from aware.assistant.assistant_tools import AssistantTools
 from aware.agent.memory.new_working_memory import WorkingMemory
-from aware.chat.new_conversation_schemas import UserMessage
+from aware.chat.new_conversation_schemas import ChatMessage, UserMessage
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -18,7 +18,7 @@ class Assistant(Agent):
             user_id=working_memory.user_id,
             chat_id=working_memory.chat_id,
             system_prompt_kwargs={
-                "requests": self.get_requests(),
+                "requests": "",  # TODO: Implement get_requests
                 "context": working_memory.context,
                 "thought": working_memory.thought,
             },
@@ -26,18 +26,23 @@ class Assistant(Agent):
         )
         self.working_memory = working_memory
 
-    def on_user_message(self, user_name: str, message: str):
+    def on_user_message(self, chat_message: ChatMessage):
         """
         Callback function for when a user message is received.
 
         Args:
             user_name (str): The name of the user which sent the message.
             message (str): The message received.
+            message_id (str): The id of the message.
+            timestamp (str): The timestamp of the message.
 
         Returns:
             None
         """
-        self.chat.add_message(UserMessage(name=user_name, message=message))
+        log = FileLogger("migration_tests", should_print=True)
+        log.info("Assistant received message")
+
+        self.chat.add_existing_message(chat_message)
         self.chat.call(self.tools)
 
     # TODO: Implement me, fetch from database.

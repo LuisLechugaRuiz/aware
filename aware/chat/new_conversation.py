@@ -7,64 +7,99 @@ from aware.data.data_saver import DataSaver
 from aware.utils.helpers import count_message_tokens
 
 from aware.chat.new_conversation_schemas import (
+    ChatMessage,
     JSONMessage,
     ToolCalls,
     ToolResponseMessage,
 )
 from aware.data.database.client_handlers import ClientHandlers
+from aware.utils.logger.file_logger import FileLogger
 
 
 class Conversation:
     """Conversation class to keep track of the messages and the current state of the conversation."""
 
-    def __init__(self, chat_id: str):
+    def __init__(self, chat_id: str, user_id: str):
+        log = FileLogger("migration_tests", should_print=True)
+        log.info(
+            f"Starting new conversation for chat_id: {chat_id} and user_id: {user_id}"
+        )
+
+        self.chat_id = chat_id
+        self.user_id = user_id
+
         self.model_name = Config().openai_model  # TODO: Enable more models.
         self.redis_handler = ClientHandlers().get_redis_handler()
         self.supabase_handler = ClientHandlers().get_supabase_handler()
+        log.info("DEBUG 1")
         conversation_messages = self.redis_handler.get_conversation(chat_id)
         if not conversation_messages:
-            # TODO: Get from Supabase and fill Redis.
-            pass
+            log.info("DEBUG 2")
+            conversation_messages = self.supabase_handler.get_active_messages(chat_id)
+            log.info("DEBUG 3")
+            for message in conversation_messages:
+                self.redis_handler.add_message(chat_id, message)
+        log.info("DEBUG 4")
+        self.messages: List[ChatMessage] = conversation_messages
 
-        self.messages: List[JSONMessage] = conversation_messages
+    def add_existing_message(self, chat_message: ChatMessage):
+        self.trim_conversation(new_message=chat_message.message)
+        self.append_message(chat_message)
 
-    def on_new_message(self, message: JSONMessage):
+    def add_new_message(self, message: JSONMessage):
+        self.trim_conversation(new_message=message)
+        chat_message = self.supabase_handler.add_message(
+            self.chat_id, self.user_id, message
+        )
+        self.append_message(chat_message)
+
+    def append_message(self, chat_message: ChatMessage):
+        self.redis_handler.add_message(self.chat_id, chat_message)
+        self.messages.append(chat_message)
+        # self.data_saver.add_message(message)
+
+    def delete_oldest_message(self) -> ChatMessage:
+        removed_message = self.messages.pop(0)
+        message_id = removed_message.message_id
+
+        self.supabase_handler.delete_message(message_id)
+        self.redis_handler.delete_message(self.chat_id, message_id)
+
+        return removed_message
+
+    def trim_conversation(self, new_message: JSONMessage):
         current_message_tokens = self.get_current_tokens()
-        new_message_tokens = count_message_tokens(message.to_string(), self.model_name)
+        new_message_tokens = count_message_tokens(
+            new_message.to_string(), self.model_name
+        )
         while (
             current_message_tokens + new_message_tokens
         ) > Config().max_conversation_tokens:
             # Check if the next message is a 'tool' message and the current one is 'assistant' with 'tool_calls'.
             if len(self.messages) > 2 and isinstance(self.messages[0] == ToolCalls):
-                removed_message = self.messages.pop(0)  # Remove 'tool_calls' message.
-
-                # TODO: REMOVE MESSAGE FROM REDIS AND SET IT AS NO ACTIVE AT SUPABASE.
+                removed_message = (
+                    self.delete_oldest_message()
+                )  # Delete 'tool_calls' message.
 
                 current_message_tokens -= count_message_tokens(
                     removed_message.to_string(), self.model_name
                 )
-                # Remove all the 'tool_response' messages.
+                # Delete all the 'tool_response' messages.
                 while len(self.messages) > 1 and isinstance(
                     self.messages[1], ToolResponseMessage
                 ):
-                    removed_tool_message = self.messages.pop(0)
+                    removed_tool_message = self.delete_oldest_message()
                     current_message_tokens -= count_message_tokens(
                         removed_tool_message.to_string(),
                         self.model_name,
                     )
             else:
-                # Remove the oldest message if the above condition is not met.
-                removed_message = self.messages.pop(0)
-
-                # TODO: REMOVE MESSAGE FROM REDIS AND SET IT AS NO ACTIVE AT SUPABASE.
+                # Delete the oldest message if the above condition is not met.
+                removed_message = self.delete_oldest_message()
 
                 current_message_tokens -= count_message_tokens(
                     removed_message.to_string(), self.model_name
                 )
-        # TODO: ADD MESSAGE AT REDIS AND SUPABASE.
-        self.messages.append(message)
-
-        # self.data_saver.add_message(message)
 
     def get_current_tokens(self):
         """Get the current number of tokens in the conversation, excluding the system message."""
@@ -73,6 +108,15 @@ class Conversation:
             messages=self.to_string(get_system_message=False),
             model_name=self.model_name,
         )
+
+    def get_remaining_tokens(self):
+        return Config().max_conversation_tokens - self.get_current_tokens()
+
+    def should_trigger_warning(self):
+        warning_tokens = (
+            Config().max_conversation_tokens * Config().conversation_warning_threshold
+        )
+        return self.get_current_tokens() >= int(warning_tokens)
 
     def to_string(self, get_system_message: bool = True):
         start_index = 0 if get_system_message else 1
@@ -83,12 +127,3 @@ class Conversation:
             [message.to_string() for message in messages_to_convert]
         )
         return conversation_string
-
-    def get_remaining_tokens(self):
-        return Config().max_conversation_tokens - self.get_current_tokens()
-
-    def should_trigger_warning(self):
-        warning_tokens = (
-            Config().max_conversation_tokens * Config().conversation_warning_threshold
-        )
-        return self.get_current_tokens() >= int(warning_tokens)

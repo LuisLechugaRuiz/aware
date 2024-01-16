@@ -10,14 +10,13 @@ from aware.utils.helpers import get_current_date
 from aware.utils.logger.file_logger import FileLogger
 
 from aware.chat.new_conversation_schemas import (
-    ToolCalls,
     ToolResponseMessage,
     UserMessage,
 )
 from aware.chat.call_info import CallInfo
 from aware.data.database.client_handlers import ClientHandlers
 from aware.chat.new_conversation import Conversation
-from aware.chat.new_conversation_schemas import JSONMessage
+from aware.chat.new_conversation_schemas import ChatMessage, JSONMessage
 
 
 class Chat:
@@ -47,7 +46,7 @@ class Chat:
         self.system_message = self.get_system(
             system_instruction_message=system_instruction_message
         )
-        self.conversation = Conversation(chat_id)
+        self.conversation = Conversation(chat_id, user_id)
 
         # Redis handler
         self.redis_handler = ClientHandlers().get_redis_handler()
@@ -55,8 +54,11 @@ class Chat:
         # Logger
         self.logger = logger
 
-    def add_message(self, message: JSONMessage):
-        self.conversation.on_new_message(message)
+    def add_existing_message(self, chat_message: ChatMessage):
+        self.conversation.add_existing_message(chat_message)
+
+    def add_new_message(self, message: JSONMessage):
+        self.conversation.add_new_message(message)
 
     # TODO: Interact with REDIS - SUPABASE to save tool feedback
     # TODO: MOVE TO CONVERSATION. THIS SHOULD NOT BE ON CHAT AS CHAT WILL NOT WAIT.
@@ -76,20 +78,20 @@ class Chat:
 
         self.request_response(functions=function_schemas)
 
-        # TODO: MOVE THIS TO MANAGE THE RESPONSE!!
-        if function_schemas:
-            tool_calls = response.tool_calls
-            if tool_calls is not None:
-                tool_calls = self.clean_tool_calls(response.tool_calls)
-                tool_calls_message = ToolCalls(
-                    name=self.assistant_name, tool_calls=tool_calls
-                )
-                # In case we are sending tools we should save them in the traces as OpenAI doesn't include them on prompt.
-                self.conversation.on_new_message(tool_calls_message)
-                self.log_conversation()
-                return tool_calls
+        # # TODO: MOVE THIS TO MANAGE THE RESPONSE!!
+        # if function_schemas:
+        #     tool_calls = response.tool_calls
+        #     if tool_calls is not None:
+        #         tool_calls = self.clean_tool_calls(response.tool_calls)
+        #         tool_calls_message = ToolCalls(
+        #             name=self.assistant_name, tool_calls=tool_calls
+        #         )
+        #         # In case we are sending tools we should save them in the traces as OpenAI doesn't include them on prompt.
+        #         self.conversation.on_new_message(tool_calls_message)
+        #         self.log_conversation()
+        #         return tool_calls
 
-        return response.content
+        # return response.content
 
     # TODO: Move to tools manager!
     def clean_tool_calls(self, tool_calls: List[ChatCompletionMessageToolCall]):

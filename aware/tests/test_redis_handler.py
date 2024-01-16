@@ -4,6 +4,7 @@ from unittest.mock import Mock
 from redis import Redis
 from aware.data.database.redis_handler.redis_handler import RedisHandler
 from aware.chat.new_conversation_schemas import (
+    ChatMessage,
     UserMessage,
     AssistantMessage,
     SystemMessage,
@@ -79,7 +80,8 @@ class TestRedisHandler(unittest.TestCase):
         }  # The outer dictionary to be passed to hmset
 
         # Execute
-        self.redis_handler.add_message(chat_id, message_id, timestamp, message)
+        chat_message = ChatMessage(message_id, timestamp, message)
+        self.redis_handler.add_message(chat_id, chat_message)
 
         # Assert
         message_key = f"conversation:{chat_id}:message:{message_id}"
