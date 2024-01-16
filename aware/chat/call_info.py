@@ -2,7 +2,7 @@ import json
 from typing import List, Dict, Any
 
 
-from aware.chat.new_conversation_schemas import JSONMessage
+from aware.chat.new_conversation_schemas import JSONMessage, SystemMessage
 
 
 class CallInfo:
@@ -29,11 +29,23 @@ class CallInfo:
         data = json.loads(json_str)
         return cls(**data)
 
-    def to_json(self):
-        return json.dumps(self.__dict__)
+    def to_dict(self):
+        return {
+            "user_id": self.user_id,
+            "call_id": self.call_id,
+            "process_name": self.process_name,
+            "chat_id": self.chat_id,
+            "system_message": self.system_message,
+            "functions": self.functions,
+        }
 
-    def get_conversation(self):
-        return self.conversation
+    def to_json(self):
+        return json.dumps(self.to_dict())
+
+    def get_conversation_messages(self) -> Dict[str, Any]:
+        openai_messages = [SystemMessage(self.system_message).to_openai_dict()]
+        openai_messages += [message.to_openai_dict() for message in self.conversation]
+        return openai_messages
 
     def set_conversation(self, conversation: List[JSONMessage]):
         self.conversation = conversation

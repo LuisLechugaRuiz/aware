@@ -4,15 +4,15 @@ from aware.config.config import Config
 
 from aware.assistant.assistant_tools import AssistantTools
 from aware.agent.memory.new_working_memory import WorkingMemory
-from aware.chat.new_conversation_schemas import ChatMessage, UserMessage
+from aware.chat.new_conversation_schemas import ChatMessage
 from aware.utils.logger.file_logger import FileLogger
 
 
-class Assistant(Agent):
+class Assistant:
     """Your classical chatbot! But it can send requests to the system"""
 
     def __init__(self, working_memory: WorkingMemory):
-        self.tools = AssistantTools()
+        self.tools = AssistantTools().get_tools()
         self.chat = Chat(
             process_name="assistant",
             user_id=working_memory.user_id,

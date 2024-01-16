@@ -140,7 +140,7 @@ class Chat:
         )
         return self.system
 
-    def request_response(self, functions):
+    def request_response(self, functions: List[Dict[str, Any]]):
         call_info = CallInfo(
             user_id=self.user_id,
             call_id=str(uuid.uuid4()),
