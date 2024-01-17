@@ -71,6 +71,7 @@ class OpenAIModel(Model):
         # TODO :Check if it is multimodal and use vision.
         self.logger.info("Calling OpenAI 2")
         self.logger.info(f"Calling OpenAI 2 with messages: {messages}")
+        self.logger.info(f"Calling OpenAI 2 with functions: {tools_openai}")
         try:
             response = await self.client.chat.completions.create(
                 messages=messages,
@@ -80,6 +81,7 @@ class OpenAIModel(Model):
                 tools=tools_openai,
                 # stream=False,  # TODO: Address SET TO TRUE for specific cases - USER.
             )
+            self.logger.info(f"Response from OpenAI 1: {response}")
         except Exception as e:
             self.logger.error(f"Error getting response from OpenAI 2: {e}")
         self.logger.info(f"Response from OpenAI 2: {response}")

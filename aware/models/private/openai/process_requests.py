@@ -1,4 +1,5 @@
 import asyncio
+from queue import Queue
 
 from aware.data.database.client_handlers import ClientHandlers
 from aware.models.private.openai.new_openai import OpenAIModel
@@ -7,10 +8,10 @@ from aware.utils.logger.file_logger import FileLogger
 
 
 async def process_openai_call(call_id):
+    logger = FileLogger(name="migration_tests")
     redis_handlers = ClientHandlers().get_redis_handler()
     call_info = redis_handlers.get_call_info(call_id)
     # logger = FileLogger(name=call_info.process_name)
-    logger = FileLogger(name="migration_tests")
     logger.info("Getting response...")
     try:
         openai_model = OpenAIModel(api_key=call_info.get_api_key(), logger=logger)
@@ -40,12 +41,57 @@ async def get_pending_call_id():
 
 
 async def main():
-    while True:
-        call_id = await get_pending_call_id()
-        log = FileLogger(name="migration_tests")
-        log.info(f"Processing call_ids: {call_id}")
-        asyncio.create_task(process_openai_call(call_id))
-        await asyncio.sleep(1)  # TODO: Verify this.
+    task_queue = asyncio.Queue()
+    workers = []
+
+    async def worker():
+        while True:
+            call_id = await task_queue.get()
+            try:
+                await process_openai_call(call_id)
+            except Exception as e:
+                # handle exceptions
+                print(f"Error processing call {call_id}: {e}")
+            finally:
+                task_queue.task_done()
+
+    async def manage_workers():
+        while True:
+            # Adjust these numbers based on your system's capabilities and task characteristics
+            max_workers = 100
+            target_queue_size_per_worker = 10
+
+            # Scale workers based on queue size
+            desired_workers = min(
+                max_workers, max(1, task_queue.qsize() // target_queue_size_per_worker)
+            )
+            current_workers = len(workers)
+
+            if current_workers < desired_workers:
+                for _ in range(desired_workers - current_workers):
+                    new_worker = asyncio.create_task(worker())
+                    workers.append(new_worker)
+            elif current_workers > desired_workers:
+                for _ in range(current_workers - desired_workers):
+                    worker_to_cancel = workers.pop()
+                    worker_to_cancel.cancel()
+
+            await asyncio.sleep(5)  # Check periodically
+
+    async def enqueue_pending_calls():
+        while True:
+            call_id = await get_pending_call_id()
+            await task_queue.put(call_id)
+            await asyncio.sleep(0.1)  # Prevent tight loop, adjust as needed
+
+    worker_manager = asyncio.create_task(manage_workers())
+    enqueuer = asyncio.create_task(enqueue_pending_calls())
+
+    await asyncio.gather(worker_manager, enqueuer)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
 
 
 if __name__ == "__main__":
