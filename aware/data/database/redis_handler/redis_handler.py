@@ -116,21 +116,5 @@ class RedisHandler:
         )
         self.client.lpush("pending_call", call_info.call_id)
 
-    def get_api_key(self, user_id: str) -> Optional[str]:
-        return self.client.get(f"api_key:{user_id}")
-
-    def get_call_info(self, call_id: str) -> CallInfo:
-        data = CallInfo.from_json(self.client.get(f"call_info:{call_id}"))
-        data.set_conversation(self.get_conversation(data.chat_id))
-
-        data.set_api_key(self.get_api_key(data.user_id).decode())
-        return data
-
-    def get_pending_call(self) -> Optional[Tuple[str, str]]:
-        return self.client.brpop("pending_call", timeout=10)
-
     def set_api_key(self, user_id: str, api_key: str):
         self.client.set(f"api_key:{user_id}", api_key)
-
-    def store_response(self, call_id: str, response: str):
-        self.client.set(f"response:{call_id}", response)

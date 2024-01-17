@@ -1,4 +1,3 @@
-from aware.agent.agent import Agent
 from aware.chat.new_chat import Chat
 from aware.config.config import Config
 

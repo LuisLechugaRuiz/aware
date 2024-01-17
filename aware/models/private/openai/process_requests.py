@@ -1,21 +1,19 @@
 import asyncio
-from queue import Queue
 
 from aware.data.database.client_handlers import ClientHandlers
 from aware.models.private.openai.new_openai import OpenAIModel
-from aware.server.tasks import process_response
+from aware.assistant.tasks import process_response  # TODO: CHANGE BY SERVER
 from aware.utils.logger.file_logger import FileLogger
 
 
 async def process_openai_call(call_id):
     logger = FileLogger(name="migration_tests")
-    redis_handlers = ClientHandlers().get_redis_handler()
-    call_info = redis_handlers.get_call_info(call_id)
+    redis_handlers = ClientHandlers().get_async_redis_handler()
+    call_info = await redis_handlers.get_call_info(call_id)
     # logger = FileLogger(name=call_info.process_name)
     logger.info("Getting response...")
     try:
         openai_model = OpenAIModel(api_key=call_info.get_api_key(), logger=logger)
-        logger.info("DEBUG CREATED!")
         result = await openai_model.get_response(
             messages=call_info.get_conversation_messages(),
             functions=call_info.functions,
@@ -25,19 +23,19 @@ async def process_openai_call(call_id):
         logger.error(f"Error getting response from OpenAI: {e}")
         raise e
     # Store the result back in the database
-    redis_handlers.store_response(call_id, result.model_dump_json())
+    await redis_handlers.store_response(call_id, result.model_dump_json())
     # Initialize the celery task
-    process_response(response=result.model_dump_json(), call_info=call_info)
+    process_response.delay(result.model_dump_json(), call_info.to_json())
 
 
 async def get_pending_call_id():
     while True:
-        redis_handlers = ClientHandlers().get_redis_handler()
-        message = redis_handlers.get_pending_call()
+        redis_handlers = ClientHandlers().get_async_redis_handler()
+        message = await redis_handlers.get_pending_call()
 
         if message is not None:
             _, call_id = message
-            return call_id.decode()
+            return call_id
 
 
 async def main():
@@ -88,10 +86,6 @@ async def main():
     enqueuer = asyncio.create_task(enqueue_pending_calls())
 
     await asyncio.gather(worker_manager, enqueuer)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
 
 
 if __name__ == "__main__":

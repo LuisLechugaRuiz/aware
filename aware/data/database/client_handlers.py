@@ -1,4 +1,5 @@
 from supabase import create_client
+import aioredis
 import redis
 import threading
 
@@ -6,10 +7,12 @@ from aware.agent.memory.new_working_memory import WorkingMemory
 from aware.config.config import Config
 from aware.data.database.supabase_handler.supabase_handler import SupabaseHandler
 from aware.data.database.redis_handler.redis_handler import RedisHandler
+from aware.data.database.redis_handler.async_redis_handler import AsyncRedisHandler
 from aware.utils.logger.file_logger import FileLogger
 from aware.utils.helpers import get_current_date_iso8601
 
 
+# TODO: Should we split between both clients? (Async and sync) - Async doesn't need to know about supabase
 class ClientHandlers:
     _instance = None
     _lock = threading.Lock()
@@ -29,12 +32,19 @@ class ClientHandlers:
         self.supabase_handler = SupabaseHandler(self.supabase_client)
         self.redis_client = redis.Redis(host="localhost", port=6379, db=0)
         self.redis_handler = RedisHandler(self.redis_client)
+        self.async_redis_client = aioredis.from_url(
+            "redis://localhost", encoding="utf-8", decode_responses=True
+        )
+        self.async_redis_handler = AsyncRedisHandler(self.async_redis_client)
         self.logger = FileLogger("migration_client_handlers", should_print=True)
 
     def get_supabase_handler(self):
         return self._instance.supabase_handler
 
-    def get_redis_handler(self):
+    def get_async_redis_handler(self) -> AsyncRedisHandler:
+        return self._instance.async_redis_handler
+
+    def get_redis_handler(self) -> RedisHandler:
         return self._instance.redis_handler
 
     def get_working_memory(self, user_id: str, chat_id: str) -> WorkingMemory:
