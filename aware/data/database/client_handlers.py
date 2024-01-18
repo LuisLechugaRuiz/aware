@@ -4,6 +4,7 @@ import redis
 import threading
 
 from aware.agent.memory.new_working_memory import WorkingMemory
+from aware.chat.new_conversation_schemas import JSONMessage
 from aware.config.config import Config
 from aware.data.database.supabase_handler.supabase_handler import SupabaseHandler
 from aware.data.database.redis_handler.redis_handler import RedisHandler
@@ -37,6 +38,22 @@ class ClientHandlers:
         )
         self.async_redis_handler = AsyncRedisHandler(self.async_redis_client)
         self.logger = FileLogger("migration_client_handlers", should_print=True)
+
+    def add_message(
+        self, chat_id: str, user_id: str, process_name: str, json_message: JSONMessage
+    ):
+        redis_handlers = self.get_redis_handler()
+        supabase_handlers = self.get_supabase_handler()
+        self.logger.info("Adding to supa")
+        chat_message = supabase_handlers.add_message(
+            chat_id=chat_id,
+            user_id=user_id,
+            process_name=process_name,
+            json_message=json_message,
+        )
+        self.logger.info("Adding to redis")
+        redis_handlers.add_message(chat_id=chat_id, chat_message=chat_message)
+        return chat_message
 
     def get_supabase_handler(self):
         return self._instance.supabase_handler

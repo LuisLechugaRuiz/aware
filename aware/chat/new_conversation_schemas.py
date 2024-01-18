@@ -1,6 +1,9 @@
 import json
 import abc
-
+from openai.types.chat import ChatCompletionMessageToolCall
+from openai.types.chat.chat_completion_message_tool_call import (
+    Function as OpenAIFunction,
+)
 from typing import Any, Dict, List
 
 
@@ -88,6 +91,12 @@ class ToolResponseMessage(JSONMessage):
             "tool_call_id": self.tool_call_id,
         }
 
+    def to_dict(self):
+        return {
+            "content": self.content,
+            "tool_call_id": self.tool_call_id,
+        }
+
 
 class Function(JSONMessage):
     def __init__(self, arguments: str, name: str):
@@ -103,6 +112,13 @@ class Function(JSONMessage):
             "name": self.name,
         }
 
+    @classmethod
+    def from_openai(cls, function: OpenAIFunction):
+        return cls(
+            arguments=function.arguments,
+            name=function.name,
+        )
+
 
 class ToolCall(JSONMessage):
     def __init__(self, id: str, type: str, function: Function):
@@ -115,6 +131,14 @@ class ToolCall(JSONMessage):
         data = json.loads(json_str)
         data["function"] = Function(**data["function"])
         return cls(**data)
+
+    @classmethod
+    def from_openai(cls, tool_call: ChatCompletionMessageToolCall):
+        return cls(
+            id=tool_call.id,
+            type=tool_call.type,
+            function=Function.from_openai(tool_call.function),
+        )
 
     def to_dict(self):
         data = super().to_dict()
@@ -155,6 +179,13 @@ class ToolCalls(JSONMessage):
             "name": self.name,
             "tool_calls": self.tool_calls_to_dict(),
         }
+
+    @classmethod
+    def from_openai(
+        self, assistant_name: str, tool_calls: List[ChatCompletionMessageToolCall]
+    ):
+        new_tool_calls = [ToolCall.from_openai(tool_call) for tool_call in tool_calls]
+        return ToolCalls(name=assistant_name, tool_calls=new_tool_calls)
 
     @classmethod
     def from_json(cls, json_str):

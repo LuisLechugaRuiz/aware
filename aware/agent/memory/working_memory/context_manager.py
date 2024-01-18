@@ -1,6 +1,6 @@
 import threading
 
-from aware.agent.agent import Agent
+from aware.agent.old_agent import Agent
 from aware.chat.chat import Chat
 from aware.utils.json_manager import JSONManager
 from aware.utils.logger.file_logger import FileLogger

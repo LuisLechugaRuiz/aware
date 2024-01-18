@@ -51,8 +51,20 @@ def assistant_response(working_memory_json: str, chat_message_json: str):
 
     try:
         working_memory = WorkingMemory.from_json(working_memory_json)
+
+        # 1. Add to redis.
         chat_message = ChatMessage.from_json(chat_message_json, UserMessage)
+        redis_handler = ClientHandlers().redis_handler
+        redis_handler.add_message(working_memory.chat_id, chat_message)
+
+        # 2. Request assistant response.
         log.info("New user message")
-        Assistant(working_memory).on_user_message(chat_message=chat_message)
+        prompt_kwargs = Assistant.get_system_prompt_kwargs(
+            working_memory=working_memory
+        )
+        assistant = Assistant(
+            user_id=working_memory.user_id, chat_id=working_memory.chat_id
+        ).preprocess(prompt_kwargs)
+        assistant.on_user_message()
     except Exception as e:
         log.error(f"Error in assistant_response: {e}")

@@ -34,6 +34,8 @@ class Conversation:
         self.supabase_handler = ClientHandlers().get_supabase_handler()
         log.info("DEBUG 1")
         conversation_messages = self.redis_handler.get_conversation(chat_id)
+        for index, message in enumerate(conversation_messages):
+            log.info(f"REDIS MESSAGE {index}: {message.to_string()}")
         if not conversation_messages:
             log.info("DEBUG 2")
             conversation_messages = self.supabase_handler.get_active_messages(

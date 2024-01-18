@@ -1,4 +1,5 @@
-from agent.tools import Tools
+from aware.agent.tools import Tools
+from aware.agent.decorators import default_function
 
 
 class AssistantTools(Tools):
@@ -35,6 +36,7 @@ class AssistantTools(Tools):
     # def send_message_to_user(self, user_name: str, message: str):
     #     self.users[user_name].send_message(message)
 
+    @default_function
     def talk(self, message: str):
         """
         Use this tool as the only way to communicate with the user.
@@ -45,14 +47,8 @@ class AssistantTools(Tools):
         Returns:
             str
         """
-        pass
-        # print(f'{colored("Assistant:", "blue")} {message}')
-        # assistant_message = UserMessage(
-        #     user_name=Config().assistant_name, message=message
-        # )
-        # self.broadcast_message(assistant_message.to_json())
-        # self.stop_agent()
-        # return "Message sent."
+        # TODO: SEND USING SUPABASE-REALTIME TO ASSISTANT.
+        self.stop_agent()
 
     def search_user_info(self, user_name: str, query: str):
         """

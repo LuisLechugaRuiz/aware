@@ -1,6 +1,5 @@
 from aware.assistant.assistant_tools import AssistantTools
 from aware.agent.memory.new_working_memory import WorkingMemory
-from aware.chat.new_conversation_schemas import ChatMessage
 from aware.utils.logger.file_logger import FileLogger
 
 from aware.agent.process import Process
@@ -9,25 +8,23 @@ from aware.agent.process import Process
 class Assistant(Process):
     """Your classical chatbot! But it can send requests to the system"""
 
-    def __init__(self, working_memory: WorkingMemory):
-        user_id = working_memory.user_id
-        chat_id = working_memory.chat_id
-        self.context = working_memory.context
-        self.thought = working_memory.thought
-
+    def __init__(self, user_id: str, chat_id: str):
         super().__init__(
-            user_id,
-            chat_id,
-            AssistantTools(user_id, chat_id),
+            user_id=user_id,
+            chat_id=chat_id,
+            run_remote=False,
+            tools=AssistantTools(user_id, chat_id),
         )
 
-    def get_system_prompt_kwargs(self):
+    @classmethod
+    def get_system_prompt_kwargs(self, working_memory: WorkingMemory):
         return {
             "requests": "",  # Implementation for get_requests
-            "context": self.context,
-            "thought": self.thought,
+            "context": working_memory.context,
+            "thought": working_memory.thought,
         }
 
+    @classmethod
     def get_process_name(self):
         return "assistant"
 

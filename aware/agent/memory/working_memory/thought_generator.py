@@ -7,7 +7,7 @@ import threading
 from typing import Callable, List, Optional
 import uuid
 
-from aware.agent.agent import Agent
+from aware.agent.old_agent import Agent
 from aware.agent.memory.memory_manager import MemoryManager
 from aware.chat.chat import Chat
 from aware.utils.json_manager import JSONManager

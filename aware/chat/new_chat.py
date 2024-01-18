@@ -68,18 +68,6 @@ class Chat:
         tool_response_message = ToolResponseMessage(content=message, tool_call_id=id)
         self.conversation.on_new_message(tool_response_message)
 
-    def call(
-        self,
-        functions: List[Callable] = [],
-    ):
-        """Call the model to get a response."""
-        self.conversation.trim_conversation()
-
-        function_schemas = []
-        for function in functions:
-            # TODO: Can we save this already on Supabase so we don't need to convert it again?
-            function_schemas.append(PydanticParser.get_function_schema(function))
-
     # TODO: Remove - Each process should add this manually.
     def get_response(
         self,
@@ -120,14 +108,21 @@ class Chat:
         )
         return self.system
 
-    def request_response(self, functions: List[Dict[str, Any]]):
+    def request_response(self, functions: List[Callable]):
+        self.conversation.trim_conversation()
+
+        function_schemas = []
+        for function in functions:
+            # TODO: Can we save this already on Supabase so we don't need to convert it again?
+            function_schemas.append(PydanticParser.get_function_schema(function))
+
         call_info = CallInfo(
             user_id=self.user_id,
             call_id=str(uuid.uuid4()),
             process_name=self.process_name,
             chat_id=self.chat_id,
             system_message=self.system_message,
-            functions=functions,
+            functions=function_schemas,
         )
         self.redis_handler.add_call_info(call_info)
 
