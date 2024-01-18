@@ -46,7 +46,9 @@ class Chat:
         self.system_message = self.get_system(
             system_instruction_message=system_instruction_message
         )
-        self.conversation = Conversation(chat_id, user_id)
+        self.conversation = Conversation(
+            chat_id=chat_id, user_id=user_id, process_name=process_name
+        )
 
         # Redis handler
         self.redis_handler = ClientHandlers().get_redis_handler()
