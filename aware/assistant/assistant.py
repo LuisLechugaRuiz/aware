@@ -10,6 +10,7 @@ from aware.utils.logger.file_logger import FileLogger
 class Assistant:
     """Your classical chatbot! But it can send requests to the system"""
 
+    # TODO: We can abstract this to a base class for all agents - to always start chat on a specific way.
     def __init__(self, working_memory: WorkingMemory):
         self.tools = AssistantTools().get_tools()
         self.chat = Chat(

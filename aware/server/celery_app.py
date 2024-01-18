@@ -8,7 +8,7 @@ app.conf.update(
         "user.*": {"queue": "user_queue"},
         "assistant.*": {"queue": "assistant_queue"},
         "system.*": {"queue": "system_queue"},
-        "server.*": {"queue": "server_queue"},
     }
 )
 app.autodiscover_tasks(["aware.assistant"])
+app.autodiscover_tasks(["aware.system"])

@@ -19,7 +19,7 @@ from aware.utils.logger.file_logger import FileLogger
 class Conversation:
     """Conversation class to keep track of the messages and the current state of the conversation."""
 
-    def __init__(self, chat_id: str, user_id: str):
+    def __init__(self, chat_id: str, user_id: str, process_name: str):
         log = FileLogger("migration_tests", should_print=True)
         log.info(
             f"Starting new conversation for chat_id: {chat_id} and user_id: {user_id}"
@@ -27,6 +27,7 @@ class Conversation:
 
         self.chat_id = chat_id
         self.user_id = user_id
+        self.process_name = process_name
 
         self.model_name = Config().openai_model  # TODO: Enable more models.
         self.redis_handler = ClientHandlers().get_redis_handler()
@@ -35,7 +36,9 @@ class Conversation:
         conversation_messages = self.redis_handler.get_conversation(chat_id)
         if not conversation_messages:
             log.info("DEBUG 2")
-            conversation_messages = self.supabase_handler.get_active_messages(chat_id)
+            conversation_messages = self.supabase_handler.get_active_messages(
+                chat_id, process_name
+            )
             log.info("DEBUG 3")
             for message in conversation_messages:
                 self.redis_handler.add_message(chat_id, message)

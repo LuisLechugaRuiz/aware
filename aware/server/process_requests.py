@@ -2,7 +2,7 @@ import asyncio
 
 from aware.data.database.client_handlers import ClientHandlers
 from aware.models.private.openai.new_openai import OpenAIModel
-from aware.assistant.tasks import process_response  # TODO: CHANGE BY SERVER
+from aware.system.tasks import process_response
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -22,7 +22,7 @@ async def process_openai_call(call_id):
     except Exception as e:
         logger.error(f"Error getting response from OpenAI: {e}")
         raise e
-    # Store the result back in the database
+    # Store the result back in the database TODO: MOVE TO PROCESS_REQUEST TO DO THIS PROPERLY.
     await redis_handlers.store_response(call_id, result.model_dump_json())
     # Initialize the celery task
     process_response.delay(result.model_dump_json(), call_info.to_json())

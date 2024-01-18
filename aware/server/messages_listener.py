@@ -36,6 +36,7 @@ class MessagesListener:
             )
         )
 
+    # TODO: do we need to run asyncio here? I think supabase-py is doing that now.
     def start_listen_task(self):
         new_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(new_loop)
@@ -64,7 +65,7 @@ def main():
     message_listener = MessagesListener()
     message_listener.subscribe_to_channel(
         schema="public",
-        table_name="messages",
+        table_name="frontend_messages",
         event_type="INSERT",
         callback=message_listener.on_new_message,
     )

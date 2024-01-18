@@ -51,9 +51,9 @@ class SupabaseHandler:
             return None
         return data[0]
 
-    def get_active_messages(self, chat_id: str) -> List[ChatMessage]:
+    def get_active_messages(self, chat_id: str, process_name: str) -> List[ChatMessage]:
         log = FileLogger("migration_tests")
-        invoke_options = {"p_chat_id": chat_id}
+        invoke_options = {"p_chat_id": chat_id, "p_process_name": process_name}
         log.info("PRE INVOKE with id: " + chat_id)
         log.info("INFO: " + str({"body": invoke_options, "responseType": "json"}))
         ordered_messages = (
