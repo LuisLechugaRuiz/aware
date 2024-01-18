@@ -1,28 +1,17 @@
-class AssistantTools:
-    def __init__(self):
-        self.assistant_functions = [
+from agent.tools import Tools
+
+
+class AssistantTools(Tools):
+    def __init__(self, user_id: str, chat_id: str):
+        super().__init__(user_id, chat_id)
+
+    def get_tools(self):
+        return [
             self.talk,
             self.send_request,
             self.search_user_info,
-            # self.wait_for_user, TODO: Should we enable it to wait? Sometimes it can trigger this without answering..
         ]
 
-    def get_tools(self):
-        return self.assistant_functions
-
-    def wait_for_user(self):
-        """
-        Wait for user's input, use this function to stop execution until a new message is received.
-
-        Args:
-            None
-        """
-        pass
-        # print("Waiting for user's input...")
-        # self.stop_agent()
-        # return "Waiting for user's input..."
-
-    # TODO: FIX ME!
     def send_request(self, user_name: str, request: str):
         """
         Send a request to the system, make a very explicit request.
