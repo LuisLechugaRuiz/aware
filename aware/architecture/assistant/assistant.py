@@ -4,7 +4,7 @@ from typing import Dict, Tuple
 from time import sleep
 from queue import Queue
 
-from aware.agent.agent import Agent
+from aware.agent.old_agent import Agent
 from aware.architecture.helpers.topics import (
     DEF_ASSISTANT_MESSAGE,
     DEF_USER_MESSAGE,

@@ -28,6 +28,7 @@ class ParseResult(Generic[T]):
         self.error_message = error_message
 
 
+# TODO: Adapt and remove boiler plate -> Now we always use functions, no need for raw JSON anymore.
 class PydanticParser(Generic[T]):
     def __init__(self, model: Model):
         self.model = model

@@ -5,11 +5,13 @@ import inspect
 from pathlib import Path
 import os
 import warnings
-from typing import Callable, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 from openai.types.chat import ChatCompletionMessageToolCall
 
+from aware.agent.tools import FunctionCall
 from aware.architecture.helpers.tool import Tool
 from aware.chat.chat import Chat
+from aware.chat.new_conversation_schemas import ToolResponseMessage
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -62,20 +64,18 @@ class ToolsManager:
 
         return module_names
 
-    # TODO: refactor to remove the call here, we should just save the signature and send it to supabase.
-    def get_function_signatures(
+    def get_function_calls(
         self,
         tool_calls: List[ChatCompletionMessageToolCall],
         functions: List[Callable],
-        chat: Optional[Chat] = None,
-    ) -> List[Tool]:
+    ) -> List[FunctionCall]:
         tool_calls = self.clean_tool_calls(tool_calls)
 
         functions_dict = {}
         for function in functions:
             functions_dict[function.__name__] = function
 
-        tools_result: List[Tool] = []
+        function_calls: List[FunctionCall] = []
         for tool_call in tool_calls:
             call_arguments_dict = {}
             try:
@@ -99,8 +99,13 @@ class ToolsManager:
                     call_arguments_dict[arg] = (
                         arg_value if arg_value is not None else default_value
                     )
-                # TODO: DON'T EXECUTE!! SEND THE ARGS!
-                response = function(**call_arguments_dict)
+                function_calls.append(
+                    FunctionCall(
+                        name=function_name,
+                        call_id=tool_call.id,
+                        arguments=call_arguments_dict,
+                    )
+                )
                 args_string = "\n".join(
                     [f"{key}={value!r}" for key, value in call_arguments_dict.items()]
                 )
@@ -108,9 +113,39 @@ class ToolsManager:
                     f"Function: {function.__name__}\n{args_string}\nResponse: {response}"
                 )
             except Exception as e:
-                response = f"Error while executing function {function_name} with arguments {call_arguments_dict}. Error: {e}"
+                response = f"Error while retrieving signature for function {function_name} with arguments {call_arguments_dict}. Error: {e}"
                 self.logger.error(response)
-            if chat:
-                chat.add_tool_feedback(id=tool_call.id, message=response)
-            tools_result.append(Tool(name=function_name, feedback=response))
-        return tools_result
+        return function_calls
+
+    def execute_tools(
+        self, function_calls: List[FunctionCall], functions: List[Callable]
+    ) -> List[ToolResponseMessage]:
+        functions_dict = {}
+        for function in functions:
+            functions_dict[function.__name__] = function
+
+        tool_response_messages = []
+        for function_call in function_calls:
+            try:
+                function = functions_dict[function_call.name]
+                response = function(**function_call.arguments)
+                args_string = "\n".join(
+                    [
+                        f"{key}={value!r}"
+                        for key, value in function_call.arguments.items()
+                    ]
+                )
+                self.logger.info(
+                    f"Function: {function.__name__}\n{args_string}\nResponse: {response}"
+                )
+            except Exception as e:
+                response = f"Error while executing function {function_call.name} with arguments {function_call.arguments}. Error: {e}"
+                self.logger.error(response)
+            finally:
+                tool_response_messages.append(
+                    ToolResponseMessage(
+                        content=response, tool_call_id=function_call.call_id
+                    )
+                )
+
+        return tool_response_messages

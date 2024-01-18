@@ -13,18 +13,28 @@ class SupabaseHandler:
         self.client = client
 
     def add_message(
-        self, chat_id: str, user_id: str, json_message: JSONMessage
+        self, chat_id: str, user_id: str, process_name: str, json_message: JSONMessage
     ) -> ChatMessage:
+        logger = FileLogger("migration_tests")
         invoke_options = {
             "p_chat_id": chat_id,
             "p_user_id": user_id,
             "p_model": Config().openai_model,
-            "p_message_type": json_message.__name__,
+            "p_process_name": process_name,
+            "p_message_type": json_message.__class__.__name__,
+        }
+        # Add p_ to all the keys in json_message
+        json_message_dict = json_message.to_openai_dict()
+        json_message_dict = {
+            "p_" + key: value for key, value in json_message_dict.items()
         }
         # Expand dictionary with json_message data
-        invoke_options.update(json_message.to_dict())
+        invoke_options.update(json_message_dict)
+        logger.info("DEBUG - PRE CALL")
         response = self.client.rpc("insert_new_message", invoke_options).execute().data
+        logger.info(f"DEBUG - POST CALL: {response}")
         data = response[0]
+        logger.info("DEBUG - AFTER RESPONSE")
         return ChatMessage(
             message_id=data["id"],
             timestamp=data["created_at"],
@@ -86,6 +96,30 @@ class SupabaseHandler:
             context=data["context"],
             updated_at=data["updated_at"],
         )
+
+    def send_message_to_user(
+        self,
+        chat_id: str,
+        user_id: str,
+        process_name: str,
+        message_type: str,
+        role: str,
+        name: str,
+        content: str,
+    ):
+        invoke_options = {
+            "p_chat_id": chat_id,
+            "p_user_id": user_id,
+            "p_process_name": process_name,
+            "p_message_type": message_type,
+            "p_role": role,
+            "p_name": name,
+            "p_content": content,
+        }
+        response = (
+            self.client.rpc("send_message_to_user", invoke_options).execute().data
+        )
+        return response
 
     def set_working_memory(self, working_memory: WorkingMemory):
         user_id = working_memory.user_id

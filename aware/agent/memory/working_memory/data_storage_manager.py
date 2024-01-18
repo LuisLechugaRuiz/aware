@@ -1,4 +1,4 @@
-from aware.agent.agent import Agent
+from aware.agent.old_agent import Agent
 from typing import Callable, List
 
 from aware.agent.memory.memory_manager import MemoryManager
