@@ -45,21 +45,22 @@ class Conversation:
         log.info("DEBUG 4")
         self.messages: List[ChatMessage] = conversation_messages
 
-    def add_existing_message(self, chat_message: ChatMessage):
-        self.trim_conversation(new_message=chat_message.message)
-        self.append_message(chat_message)
+    # TODO: REMOVE! MESSAGES ON DATABASE SHOULD BE ALREADY APPENDED BEFORE!
+    # def add_existing_message(self, chat_message: ChatMessage):
+    #     self.trim_conversation(new_message=chat_message.message)
+    #     self.append_message(chat_message)
 
-    def add_new_message(self, message: JSONMessage):
-        self.trim_conversation(new_message=message)
-        chat_message = self.supabase_handler.add_message(
-            self.chat_id, self.user_id, message
-        )
-        self.append_message(chat_message)
+    # def add_new_message(self, message: JSONMessage):
+    #     self.trim_conversation(new_message=message)
+    #     chat_message = self.supabase_handler.add_message(
+    #         self.chat_id, self.user_id, message
+    #     )
+    #     self.append_message(chat_message)
 
-    def append_message(self, chat_message: ChatMessage):
-        self.redis_handler.add_message(self.chat_id, chat_message)
-        self.messages.append(chat_message)
-        # self.data_saver.add_message(message)
+    # def append_message(self, chat_message: ChatMessage):
+    #     self.redis_handler.add_message(self.chat_id, chat_message)
+    #     self.messages.append(chat_message)
+    #     # self.data_saver.add_message(message)
 
     def delete_oldest_message(self) -> ChatMessage:
         removed_message = self.messages.pop(0)
@@ -70,14 +71,9 @@ class Conversation:
 
         return removed_message
 
-    def trim_conversation(self, new_message: JSONMessage):
+    def trim_conversation(self):
         current_message_tokens = self.get_current_tokens()
-        new_message_tokens = count_message_tokens(
-            new_message.to_string(), self.model_name
-        )
-        while (
-            current_message_tokens + new_message_tokens
-        ) > Config().max_conversation_tokens:
+        while (current_message_tokens) > Config().max_conversation_tokens:
             # Check if the next message is a 'tool' message and the current one is 'assistant' with 'tool_calls'.
             if len(self.messages) > 2 and isinstance(self.messages[0] == ToolCalls):
                 removed_message = (

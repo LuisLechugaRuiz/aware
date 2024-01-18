@@ -21,6 +21,12 @@ class ToolsManager:
         self.logger = logger
         # Ideally the data retrieved after executing tool should be send online to our database (after filtering), for future fine-tuning, so we can improve the models and provide them back to the community.
 
+    def clean_tool_calls(self, tool_calls: List[ChatCompletionMessageToolCall]):
+        """Clean the tool calls to replace any '.' in the name with ' _'."""
+        for tool_call in tool_calls:
+            tool_call.function.name = tool_call.function.name.replace(".", "_")
+        return tool_calls
+
     def save_tool(self, function, name):
         path = os.path.join(self.tools_folder / f"{name}.py")
         with open(path, "w") as f:
@@ -56,12 +62,15 @@ class ToolsManager:
 
         return module_names
 
-    def execute_tools(
+    # TODO: refactor to remove the call here, we should just save the signature and send it to supabase.
+    def get_function_signatures(
         self,
         tool_calls: List[ChatCompletionMessageToolCall],
         functions: List[Callable],
         chat: Optional[Chat] = None,
     ) -> List[Tool]:
+        tool_calls = self.clean_tool_calls(tool_calls)
+
         functions_dict = {}
         for function in functions:
             functions_dict[function.__name__] = function
@@ -90,6 +99,7 @@ class ToolsManager:
                     call_arguments_dict[arg] = (
                         arg_value if arg_value is not None else default_value
                     )
+                # TODO: DON'T EXECUTE!! SEND THE ARGS!
                 response = function(**call_arguments_dict)
                 args_string = "\n".join(
                     [f"{key}={value!r}" for key, value in call_arguments_dict.items()]

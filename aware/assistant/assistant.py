@@ -1,49 +1,45 @@
-from aware.chat.new_chat import Chat
-from aware.config.config import Config
-
 from aware.assistant.assistant_tools import AssistantTools
 from aware.agent.memory.new_working_memory import WorkingMemory
 from aware.chat.new_conversation_schemas import ChatMessage
 from aware.utils.logger.file_logger import FileLogger
 
+from aware.agent.process import Process
 
-class Assistant:
+
+class Assistant(Process):
     """Your classical chatbot! But it can send requests to the system"""
 
-    # TODO: We can abstract this to a base class for all agents - to always start chat on a specific way.
     def __init__(self, working_memory: WorkingMemory):
-        self.tools = AssistantTools().get_tools()
-        self.chat = Chat(
-            process_name="assistant",
-            user_id=working_memory.user_id,
-            chat_id=working_memory.chat_id,
-            system_prompt_kwargs={
-                "requests": "",  # TODO: Implement get_requests
-                "context": working_memory.context,
-                "thought": working_memory.thought,
-            },
-            logger=FileLogger("assistant"),
-        )
-        self.working_memory = working_memory
+        user_id = working_memory.user_id
+        chat_id = working_memory.chat_id
+        self.context = working_memory.context
+        self.thought = working_memory.thought
 
-    def on_user_message(self, chat_message: ChatMessage):
+        super().__init__(
+            user_id,
+            chat_id,
+            AssistantTools(user_id, chat_id),
+        )
+
+    def get_system_prompt_kwargs(self):
+        return {
+            "requests": "",  # Implementation for get_requests
+            "context": self.context,
+            "thought": self.thought,
+        }
+
+    def get_process_name(self):
+        return "assistant"
+
+    def on_user_message(self):
         """
         Callback function for when a user message is received.
-
-        Args:
-            user_name (str): The name of the user which sent the message.
-            message (str): The message received.
-            message_id (str): The id of the message.
-            timestamp (str): The timestamp of the message.
-
         Returns:
             None
         """
         log = FileLogger("migration_tests", should_print=True)
         log.info("Assistant received message")
-
-        self.chat.add_existing_message(chat_message)
-        self.chat.call(self.tools)
+        self.request_response()
 
     # TODO: Implement me, fetch from database.
     # def get_requests(self):
@@ -117,10 +113,10 @@ class Assistant:
 
 
 # TODO: REMOVE!
-def main():
-    assistant = Assistant(assistant_ip=Config().assistant_ip)
-    assistant.run()
+# def main():
+#     assistant = Assistant(assistant_ip=Config().assistant_ip)
+#     assistant.run()
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()

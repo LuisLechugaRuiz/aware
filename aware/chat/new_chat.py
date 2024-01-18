@@ -16,7 +16,6 @@ from aware.chat.new_conversation_schemas import (
 from aware.chat.call_info import CallInfo
 from aware.data.database.client_handlers import ClientHandlers
 from aware.chat.new_conversation import Conversation
-from aware.chat.new_conversation_schemas import ChatMessage, JSONMessage
 
 
 class Chat:
@@ -56,11 +55,12 @@ class Chat:
         # Logger
         self.logger = logger
 
-    def add_existing_message(self, chat_message: ChatMessage):
-        self.conversation.add_existing_message(chat_message)
+    # TODO: REMOVE! Should not be on conversation
+    # def add_existing_message(self, chat_message: ChatMessage):
+    #     self.conversation.add_existing_message(chat_message)
 
-    def add_new_message(self, message: JSONMessage):
-        self.conversation.add_new_message(message)
+    # def add_new_message(self, message: JSONMessage):
+    #     self.conversation.add_new_message(message)
 
     # TODO: Interact with REDIS - SUPABASE to save tool feedback
     # TODO: MOVE TO CONVERSATION. THIS SHOULD NOT BE ON CHAT AS CHAT WILL NOT WAIT.
@@ -73,34 +73,12 @@ class Chat:
         functions: List[Callable] = [],
     ):
         """Call the model to get a response."""
+        self.conversation.trim_conversation()
+
         function_schemas = []
         for function in functions:
             # TODO: Can we save this already on Supabase so we don't need to convert it again?
             function_schemas.append(PydanticParser.get_function_schema(function))
-
-        self.request_response(functions=function_schemas)
-
-        # # TODO: MOVE THIS TO MANAGE THE RESPONSE!!
-        # if function_schemas:
-        #     tool_calls = response.tool_calls
-        #     if tool_calls is not None:
-        #         tool_calls = self.clean_tool_calls(response.tool_calls)
-        #         tool_calls_message = ToolCalls(
-        #             name=self.assistant_name, tool_calls=tool_calls
-        #         )
-        #         # In case we are sending tools we should save them in the traces as OpenAI doesn't include them on prompt.
-        #         self.conversation.on_new_message(tool_calls_message)
-        #         self.log_conversation()
-        #         return tool_calls
-
-        # return response.content
-
-    # TODO: Move to tools manager!
-    def clean_tool_calls(self, tool_calls: List[ChatCompletionMessageToolCall]):
-        """Clean the tool calls to replace any '.' in the name with ' _'."""
-        for tool_call in tool_calls:
-            tool_call.function.name = tool_call.function.name.replace(".", "_")
-        return tool_calls
 
     # TODO: Remove - Each process should add this manually.
     def get_response(
