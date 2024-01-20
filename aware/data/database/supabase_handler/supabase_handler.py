@@ -1,8 +1,8 @@
 from supabase import Client
-from typing import List, Optional
+from typing import List
 
-from aware.agent.memory.new_working_memory import WorkingMemory
 from aware.chat.new_conversation_schemas import ChatMessage, JSONMessage
+from aware.data.database.data import get_topics
 from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
 from aware.utils.logger.file_logger import FileLogger
@@ -19,7 +19,7 @@ class SupabaseHandler:
         invoke_options = {
             "p_chat_id": chat_id,
             "p_user_id": user_id,
-            "p_model": Config().openai_model,
+            "p_model": Config().aware_model,
             "p_process_name": process_name,
             "p_message_type": json_message.__class__.__name__,
         }
@@ -33,21 +33,50 @@ class SupabaseHandler:
         logger.info("DEBUG - PRE CALL")
         response = self.client.rpc("insert_new_message", invoke_options).execute().data
         logger.info(f"DEBUG - POST CALL: {response}")
-        data = response[0]
+        response = response[0]
         logger.info("DEBUG - AFTER RESPONSE")
         return ChatMessage(
-            message_id=data["id"],
-            timestamp=data["created_at"],
+            message_id=response["id"],
+            timestamp=response["created_at"],
             message=json_message,
         )
+
+    def create_topics(self, user_id: str):
+        logger = FileLogger("migration_tests")
+        topics_data = get_topics()
+        if topics_data is None:
+            logger.error("DEBUG - No topics data")
+            raise Exception("No topics data")
+        logger.info(f"DEBUG - Got topics data: {topics_data}")
+        for topic_name, topic_description in topics_data.items():
+            self.create_topic(user_id, topic_name, topic_description)
+            logger.info(f"DEBUG - Created topic {topic_name}")
+
+    def create_topic(self, user_id: str, topic_name: str, topic_description: str):
+        logger = FileLogger("migration_tests")
+        existing_topic = (
+            self.client.table("topics")
+            .select("*")
+            .eq("user_id", user_id)
+            .eq("name", topic_name)
+            .execute()
+        ).data
+        logger.info(f"DEBUG - Got existing topic: {existing_topic}")
+        if not existing_topic:
+            logger.info(f"DEBUG - Creating topic {topic_name}")
+            self.client.table("topics").insert(
+                {
+                    "user_id": user_id,
+                    "name": topic_name,
+                    "content": "",
+                    "description": topic_description,
+                }
+            ).execute()
 
     def delete_message(self, message_id):
         invoke_options = {"p_message_id": message_id}
         response = self.client.rpc("soft_delete_message", invoke_options).execute().data
         return response
-
-    def get_user_data(self, user_id: str):
-        return self.client.table("users").select("*").eq("id", user_id).execute().data
 
     def get_user_profile(self, user_id: str):
         data = (
@@ -77,25 +106,35 @@ class SupabaseHandler:
                 messages.append(MessagesFactory.create_message(row))
         return messages
 
-    def get_working_memory(self, user_id: str) -> Optional[WorkingMemory]:
+    def get_topic_content(self, user_id: str, name: str):
         data = (
-            self.client.table("working_memory")
+            self.client.table("topics")
             .select("*")
             .eq("user_id", user_id)
+            .eq("name", name)
             .execute()
             .data
         )
         if not data:
             return None
         data = data[0]
-        return WorkingMemory(
-            user_id=user_id,
-            chat_id=data["chat_id"],
-            user_name=data["user_name"],
-            thought=data["thought"],
-            context=data["context"],
-            updated_at=data["updated_at"],
+        return data["content"]
+
+    def set_topic_content(self, user_id: str, name: str, content: str):
+        data = (
+            self.client.table("topics")
+            .select("*")
+            .eq("user_id", user_id)
+            .eq("name", name)
+            .execute()
+            .data
         )
+        if not data:
+            raise Exception("Topic not found")
+        else:
+            self.client.table("topics").update({"content": content}).eq(
+                "user_id", user_id
+            ).eq("name", name).execute()
 
     def send_message_to_user(
         self,
@@ -107,9 +146,12 @@ class SupabaseHandler:
         name: str,
         content: str,
     ):
+        logger = FileLogger("migration_tests")
+        logger.info(f"DEBUG - Sending message to user {user_id}")
         invoke_options = {
             "p_chat_id": chat_id,
             "p_user_id": user_id,
+            "p_model": Config().aware_model,
             "p_process_name": process_name,
             "p_message_type": message_type,
             "p_role": role,
@@ -119,20 +161,16 @@ class SupabaseHandler:
         response = (
             self.client.rpc("send_message_to_user", invoke_options).execute().data
         )
+        logger.info(f"DEBUG - Response: {response}")
         return response
 
-    def set_working_memory(self, working_memory: WorkingMemory):
-        user_id = working_memory.user_id
-        existing_working_memory = (
-            self.client.table("working_memory")
-            .select("*")
-            .eq("user_id", user_id)
-            .execute()
-        )
-        working_memory_dict = working_memory.to_dict()
-        if existing_working_memory:
-            self.client.table("working_memory").insert(working_memory_dict).execute()
-        else:
-            self.client.table("working_memory").update(working_memory_dict).eq(
-                "user_id", user_id
-            ).execute()
+    def remove_frontend_message(self, message_id: str):
+        self.client.table("frontend_messages").delete().eq("id", message_id).execute()
+
+    def remove_new_user_notification(self, notification_id: str):
+        self.client.table("new_user_notification").delete().eq(
+            "id", notification_id
+        ).execute()
+
+    def update_user_profile(self, user_id: str, profile: dict):
+        self.client.table("profiles").update(profile).eq("user_id", user_id).execute()

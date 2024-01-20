@@ -13,7 +13,6 @@ from aware.chat.new_conversation_schemas import (
     ToolCalls,
     Function,
 )
-from aware.agent.memory.new_working_memory import WorkingMemory
 
 
 class TestRedisHandler(unittest.TestCase):
@@ -23,47 +22,6 @@ class TestRedisHandler(unittest.TestCase):
 
         # Create instance of RedisHandler with the mocked client
         self.redis_handler = RedisHandler(self.mock_redis_client)
-
-    def test_set_working_memory(self):
-        # Setup
-        working_memory = WorkingMemory(
-            user_id="user123",
-            chat_id="chat123",
-            user_name="test_user",
-            thought="test_thought",
-            context="test_context",
-            updated_at="2021-01-01T00:00:00.000Z",
-        )
-        expected_key = "working_memory:user123"
-        expected_value = json.dumps(working_memory.to_json())
-
-        # Execute
-        self.redis_handler.set_working_memory(working_memory)
-
-        # Assert
-        self.mock_redis_client.set.assert_called_with(expected_key, expected_value)
-
-    def test_get_working_memory(self):
-        # Setup
-        expected_key = "working_memory:user123"
-        returned_json = json.dumps(
-            {
-                "user_id": "user123",
-                "chat_id": "chat123",
-                "user_name": "test_user",
-                "thought": "test_thought",
-                "context": "test_context",
-                "updated_at": "2021-01-01T00:00:00.000Z",
-            }
-        )
-        self.mock_redis_client.get.return_value = returned_json
-
-        # Execute
-        result = self.redis_handler.get_working_memory("user123")
-
-        # Assert
-        self.mock_redis_client.get.assert_called_with(expected_key)
-        self.assertEqual(result.user_id, "user123")
 
     def test_add_message(self):
         # Setup

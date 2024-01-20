@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from openai.types.chat import ChatCompletionMessageToolCall
 
@@ -16,11 +16,11 @@ class Process(ABC):
     chat_id: str
     tools: Tools
     process_name: str
-    logger: FileLogger
-    system_prompt_kwargs: Dict[str, Any] = {}
+    # Preprocess
     chat: Optional[Chat] = None
-    tools_manager: Optional[ToolsManager] = None
     initialized_for_preprocessing: bool = False
+    # Postprocess
+    tools_manager: Optional[ToolsManager] = None
     initialized_for_postprocessing: bool = False
 
     def __init__(self, user_id: str, chat_id: str, run_remote: bool, tools: Tools):
@@ -31,14 +31,11 @@ class Process(ABC):
 
     def preprocess(
         self,
-        system_prompt_kwargs: Dict[str, Any],
     ):
-        self.system_prompt_kwargs = system_prompt_kwargs
         self.chat = Chat(
             process_name=self.get_process_name(),
             user_id=self.user_id,
             chat_id=self.chat_id,
-            system_prompt_kwargs=system_prompt_kwargs,
             logger=self.get_logger(),
         )
         self.initialized_for_preprocessing = True
@@ -53,11 +50,6 @@ class Process(ABC):
         self, content: str
     ) -> Optional[ChatCompletionMessageToolCall]:
         return self.tools.get_default_tool_call(content)
-
-    @classmethod
-    @abstractmethod
-    def get_system_prompt_kwargs(cls, *args, **kwargs) -> Dict[str, Any]:
-        pass
 
     @classmethod
     @abstractmethod

@@ -3,17 +3,15 @@ import aioredis
 import redis
 import threading
 
-from aware.agent.memory.new_working_memory import WorkingMemory
+from aware.agent.memory.user_data import UserData
 from aware.chat.new_conversation_schemas import JSONMessage
 from aware.config.config import Config
 from aware.data.database.supabase_handler.supabase_handler import SupabaseHandler
 from aware.data.database.redis_handler.redis_handler import RedisHandler
 from aware.data.database.redis_handler.async_redis_handler import AsyncRedisHandler
 from aware.utils.logger.file_logger import FileLogger
-from aware.utils.helpers import get_current_date_iso8601
 
 
-# TODO: Should we split between both clients? (Async and sync) - Async doesn't need to know about supabase
 class ClientHandlers:
     _instance = None
     _lock = threading.Lock()
@@ -64,36 +62,36 @@ class ClientHandlers:
     def get_redis_handler(self) -> RedisHandler:
         return self._instance.redis_handler
 
-    def get_working_memory(self, user_id: str, chat_id: str) -> WorkingMemory:
+    def get_user_data(self, user_id: str, chat_id: str) -> UserData:
         supabase_handler = self.get_supabase_handler()
         redis_handler = self.get_redis_handler()
-        working_memory = redis_handler.get_working_memory(user_id)
+        user_data = redis_handler.get_user_data(user_id)
 
-        if working_memory is None:
-            self.logger.info("Working memory not found in Redis")
-            # Fetch user data from Supabase
-            working_memory = supabase_handler.get_working_memory(user_id)
+        if user_data is None:
+            self.logger.info("User data not found in Redis")
+            # Fetch user profile from Supabase
             user_profile = supabase_handler.get_user_profile(user_id)
+            if not user_profile["has_topics"]:
+                try:
+                    self.logger.info("Creating topics")
+                    supabase_handler.create_topics(user_id)
+                    self.logger.info("Updating user profile")
+                    user_profile["has_topics"] = True
+                    supabase_handler.update_user_profile(user_id, user_profile)
+                except Exception as e:
+                    self.logger.error(f"Error while creating topics: {e}")
+
             if user_profile is None:
                 raise Exception("User profile not found")
-            if working_memory is None:
-                # Create empty working memory
-                working_memory = WorkingMemory(
-                    user_id=user_id,
-                    chat_id=chat_id,
-                    user_name=user_profile["display_name"],
-                    thought="",
-                    context="",
-                    updated_at=get_current_date_iso8601(),
-                )
-                supabase_handler.set_working_memory(working_memory)
+            user_data = UserData(
+                chat_id=chat_id,
+                user_id=user_id,
+                user_name=user_profile["display_name"],
+                api_key=user_profile["openai_api_key"],
+            )
             # Store in Redis
-            redis_handler.set_working_memory(working_memory)
-            # Store user profile in Redis
-            redis_handler.set_api_key(
-                user_id, user_profile["openai_api_key"]
-            )  # TODO: Get by model not only OpenAI
+            redis_handler.set_user_data(user_data)
         else:
-            self.logger.info("Working memory found in Redis")
+            self.logger.info("User data found in Redis")
 
-        return working_memory
+        return user_data

@@ -5,12 +5,10 @@ import inspect
 from pathlib import Path
 import os
 import warnings
-from typing import Any, Callable, Dict, List, Optional
+from typing import Callable, List
 from openai.types.chat import ChatCompletionMessageToolCall
 
 from aware.agent.tools import FunctionCall
-from aware.architecture.helpers.tool import Tool
-from aware.chat.chat import Chat
 from aware.chat.new_conversation_schemas import ToolResponseMessage
 from aware.utils.logger.file_logger import FileLogger
 
@@ -109,12 +107,11 @@ class ToolsManager:
                 args_string = "\n".join(
                     [f"{key}={value!r}" for key, value in call_arguments_dict.items()]
                 )
-                self.logger.info(
-                    f"Function: {function.__name__}\n{args_string}\nResponse: {response}"
-                )
+                self.logger.info(f"Function: {function.__name__}\n{args_string}")
             except Exception as e:
-                response = f"Error while retrieving signature for function {function_name} with arguments {call_arguments_dict}. Error: {e}"
-                self.logger.error(response)
+                self.logger.error(
+                    f"Error while retrieving signature for function {function_name} with arguments {call_arguments_dict}. Error: {e}"
+                )
         return function_calls
 
     def execute_tools(

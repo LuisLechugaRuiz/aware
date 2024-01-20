@@ -1,5 +1,4 @@
 from aware.assistant.assistant_tools import AssistantTools
-from aware.agent.memory.new_working_memory import WorkingMemory
 from aware.utils.logger.file_logger import FileLogger
 
 from aware.agent.process import Process
@@ -15,14 +14,6 @@ class Assistant(Process):
             run_remote=False,
             tools=AssistantTools(user_id, chat_id),
         )
-
-    @classmethod
-    def get_system_prompt_kwargs(self, working_memory: WorkingMemory):
-        return {
-            "requests": "",  # Implementation for get_requests
-            "context": working_memory.context,
-            "thought": working_memory.thought,
-        }
 
     @classmethod
     def get_process_name(self):

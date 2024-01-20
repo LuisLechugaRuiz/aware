@@ -1,5 +1,9 @@
 from aware.agent.tools import Tools
 from aware.agent.decorators import default_function
+from aware.chat.new_conversation_schemas import AssistantMessage
+from aware.config.config import Config
+from aware.data.database.client_handlers import ClientHandlers
+from aware.utils.logger.file_logger import FileLogger
 
 
 class AssistantTools(Tools):
@@ -47,8 +51,22 @@ class AssistantTools(Tools):
         Returns:
             str
         """
-        # TODO: SEND USING SUPABASE-REALTIME TO ASSISTANT.
+        logger = FileLogger("migration_tests")
+        assistant_message = AssistantMessage(
+            name=Config().assistant_name, content=message
+        )
+        logger.info(f"Sending message to user: {assistant_message.to_string()}")
+        ClientHandlers().get_supabase_handler().send_message_to_user(
+            chat_id=self.chat_id,
+            user_id=self.user_id,
+            process_name="assistant",
+            message_type=assistant_message.__class__.__name__,
+            role=assistant_message.role,
+            name=assistant_message.name,
+            content=assistant_message.content,
+        )
         self.stop_agent()
+        return "Message sent to the user."
 
     def search_user_info(self, user_name: str, query: str):
         """

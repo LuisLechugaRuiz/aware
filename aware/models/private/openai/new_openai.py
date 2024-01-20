@@ -68,17 +68,14 @@ class OpenAIModel(Model):
             tools_openai = NOT_GIVEN
 
         # TODO :Check if it is multimodal and use vision.
-        try:
-            response = await self.client.chat.completions.create(
-                messages=messages,
-                model=self.model_name,
-                response_format={"type": response_format},
-                temperature=temperature,
-                tools=tools_openai,
-                # stream=False,  # TODO: Address SET TO TRUE for specific cases - USER.
-            )
-        except Exception as e:
-            self.logger.error(f"Error getting response from OpenAI 2: {e}")
+        response = await self.client.chat.completions.create(
+            messages=messages,
+            model=self.model_name,
+            response_format={"type": response_format},
+            temperature=temperature,
+            tools=tools_openai,
+            # stream=False,  # TODO: Address SET TO TRUE for specific cases - USER.
+        )
         return response.choices[0].message
 
     def get_multi_modal_message(

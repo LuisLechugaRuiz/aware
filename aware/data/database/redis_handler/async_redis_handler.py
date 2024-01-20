@@ -2,6 +2,7 @@ import json
 from aioredis import Redis
 from typing import List, Optional, Tuple
 
+from aware.agent.memory.user_data import UserData
 from aware.chat.new_conversation_schemas import (
     JSONMessage,
     UserMessage,
@@ -64,7 +65,10 @@ class AsyncRedisHandler:
             raise ValueError(f"Unknown message type: {message_type}")
 
     async def get_api_key(self, user_id: str) -> Optional[str]:
-        return await self.client.get(f"api_key:{user_id}")
+        user_data = await self.get_user_data(user_id)
+        if user_data:
+            return user_data.api_key
+        return None
 
     async def get_call_info(self, call_id: str) -> CallInfo:
         data = CallInfo.from_json(await self.client.get(f"call_info:{call_id}"))
@@ -72,6 +76,12 @@ class AsyncRedisHandler:
 
         data.set_api_key(await self.get_api_key(data.user_id))
         return data
+
+    async def get_user_data(self, user_id: str) -> Optional[UserData]:
+        data = await self.client.get(f"user_data:{user_id}")
+        if data:
+            return UserData.from_json(data)
+        return None
 
     async def get_pending_call(self) -> Optional[Tuple[str, str]]:
         return await self.client.brpop("pending_call", timeout=10)

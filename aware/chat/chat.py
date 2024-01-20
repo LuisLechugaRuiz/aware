@@ -7,7 +7,7 @@ from openai.types.chat import (
 from aware.chat.conversation import Conversation
 from aware.chat.parser.pydantic_parser import PydanticParser
 from aware.models.models_manager import ModelsManager
-from aware.prompts.load import load_prompt
+from aware.prompts.load import load_prompt_from_args
 from aware.utils.helpers import get_current_date
 from aware.utils.logger.file_logger import FileLogger
 
@@ -112,7 +112,7 @@ class Chat:
     def load_prompt(
         self, prompt_name: str, path: Optional[str] = None, args: Dict[str, Any] = {}
     ):
-        return load_prompt(prompt_name, path=path, **args)
+        return load_prompt_from_args(prompt_name, **args)
 
     def update_system(self):
         self.system = self.load_prompt(

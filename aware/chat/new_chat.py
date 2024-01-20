@@ -5,7 +5,7 @@ from openai.types.chat import (
 import uuid
 
 from aware.chat.parser.pydantic_parser import PydanticParser
-from aware.prompts.load import load_prompt
+from aware.prompts.load import load_prompt_from_args, load_prompt_from_database
 from aware.utils.helpers import get_current_date
 from aware.utils.logger.file_logger import FileLogger
 
@@ -26,21 +26,16 @@ class Chat:
         process_name: str,
         user_id: str,
         chat_id: str,
-        system_prompt_kwargs: Dict[str, Any],
         logger: FileLogger,
-        user_name: Optional[str] = None,
-        assistant_name: Optional[str] = None,
     ):
         self.process_name = process_name
         self.user_id = user_id
         self.chat_id = chat_id
 
-        self.user_name = user_name
-        self.assistant_name = assistant_name
-
         # Init conversation
-        system_instruction_message = self.load_prompt(
-            "system", self.process_name, system_prompt_kwargs
+        system_instruction_message = load_prompt_from_database(
+            self.process_name,
+            user_id,
         )
         self.system_message = self.get_system(
             system_instruction_message=system_instruction_message
@@ -93,13 +88,8 @@ class Chat:
             self.conversation.should_trigger_warning(),
         )
 
-    def load_prompt(
-        self, prompt_name: str, path: Optional[str] = None, args: Dict[str, Any] = {}
-    ):
-        return load_prompt(prompt_name, path=path, **args)
-
     def get_system(self, system_instruction_message: str):
-        self.system = self.load_prompt(
+        self.system = load_prompt_from_args(
             "system_meta",
             args={
                 "date": get_current_date(),
