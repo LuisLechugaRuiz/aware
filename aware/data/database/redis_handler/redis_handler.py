@@ -2,7 +2,7 @@ import json
 from redis import Redis
 from typing import List, Optional, Tuple
 
-from aware.agent.memory.new_working_memory import WorkingMemory
+from aware.agent.memory.user_data import UserData
 from aware.chat.new_conversation_schemas import (
     ChatMessage,
     JSONMessage,
@@ -22,17 +22,12 @@ class RedisHandler:
     def __init__(self, client: Redis):
         self.client = client
 
-    def get_working_memory(self, user_id: str) -> Optional[WorkingMemory]:
-        data = self.client.get(f"working_memory:{user_id}")
-        if data:
-            return WorkingMemory.from_json(data)
-        return None
-
-    def set_working_memory(self, working_memory: WorkingMemory):
+    def add_call_info(self, call_info: CallInfo):
         self.client.set(
-            f"working_memory:{working_memory.user_id}",
-            working_memory.to_json(),
+            f"call_info:{call_info.call_id}",
+            call_info.to_json(),
         )
+        self.client.lpush("pending_call", call_info.call_id)
 
     def add_message(
         self,
@@ -80,6 +75,18 @@ class RedisHandler:
 
         return messages
 
+    def get_user_data(self, user_id: str) -> Optional[UserData]:
+        data = self.client.get(f"user_data:{user_id}")
+        if data:
+            return UserData.from_json(data)
+        return None
+
+    def set_user_data(self, user_data: UserData):
+        self.client.set(
+            f"user_data:{user_data.user_id}",
+            user_data.to_json(),
+        )
+
     # def get_message(self, conversation_id: str, message_id: str):
     #     key = f"conversation:{conversation_id}:message:{message_id}"
     #     message_data = self.client.hgetall(key)
@@ -108,13 +115,3 @@ class RedisHandler:
             return message_class.from_json(message_json_str)
         else:
             raise ValueError(f"Unknown message type: {message_type}")
-
-    def add_call_info(self, call_info: CallInfo):
-        self.client.set(
-            f"call_info:{call_info.call_id}",
-            call_info.to_json(),
-        )
-        self.client.lpush("pending_call", call_info.call_id)
-
-    def set_api_key(self, user_id: str, api_key: str):
-        self.client.set(f"api_key:{user_id}", api_key)

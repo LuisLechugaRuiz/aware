@@ -1,6 +1,4 @@
-import json
-from typing import Any, Dict, List
-from openai.types.chat import ChatCompletionMessageToolCallParam
+from typing import List
 
 from aware.config.config import Config
 from aware.data.data_saver import DataSaver
@@ -8,7 +6,6 @@ from aware.utils.helpers import count_message_tokens
 
 from aware.chat.new_conversation_schemas import (
     ChatMessage,
-    JSONMessage,
     ToolCalls,
     ToolResponseMessage,
 )
@@ -32,37 +29,16 @@ class Conversation:
         self.model_name = Config().openai_model  # TODO: Enable more models.
         self.redis_handler = ClientHandlers().get_redis_handler()
         self.supabase_handler = ClientHandlers().get_supabase_handler()
-        log.info("DEBUG 1")
         conversation_messages = self.redis_handler.get_conversation(chat_id)
         for index, message in enumerate(conversation_messages):
             log.info(f"REDIS MESSAGE {index}: {message.to_string()}")
         if not conversation_messages:
-            log.info("DEBUG 2")
             conversation_messages = self.supabase_handler.get_active_messages(
                 chat_id, process_name
             )
-            log.info("DEBUG 3")
             for message in conversation_messages:
                 self.redis_handler.add_message(chat_id, message)
-        log.info("DEBUG 4")
         self.messages: List[ChatMessage] = conversation_messages
-
-    # TODO: REMOVE! MESSAGES ON DATABASE SHOULD BE ALREADY APPENDED BEFORE!
-    # def add_existing_message(self, chat_message: ChatMessage):
-    #     self.trim_conversation(new_message=chat_message.message)
-    #     self.append_message(chat_message)
-
-    # def add_new_message(self, message: JSONMessage):
-    #     self.trim_conversation(new_message=message)
-    #     chat_message = self.supabase_handler.add_message(
-    #         self.chat_id, self.user_id, message
-    #     )
-    #     self.append_message(chat_message)
-
-    # def append_message(self, chat_message: ChatMessage):
-    #     self.redis_handler.add_message(self.chat_id, chat_message)
-    #     self.messages.append(chat_message)
-    #     # self.data_saver.add_message(message)
 
     def delete_oldest_message(self) -> ChatMessage:
         removed_message = self.messages.pop(0)

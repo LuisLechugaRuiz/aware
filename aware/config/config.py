@@ -28,7 +28,6 @@ class Config(metaclass=Singleton):
     def __init__(self):
         # OPENAI
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
-        self.openai_memory_api_key = os.getenv("OPENAI_MEMORY_API_KEY")
         self.openai_num_retries = os.getenv("OPENAI_NUM_RETRIES", 3)
 
         self.assistant_name = os.getenv("ASSISTANT_NAME", "Aware")
@@ -74,3 +73,4 @@ class Config(metaclass=Singleton):
 
         # MODEL
         self.openai_model = os.getenv("OPENAI_MODEL", "gpt-4-1106-preview")
+        self.aware_model = os.getenv("AWARE_MODEL", "aware-1.0")

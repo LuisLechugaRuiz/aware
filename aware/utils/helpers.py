@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 import tiktoken
 from typing import Optional
 import tzlocal
@@ -17,8 +18,14 @@ def convert_timestamp_to_epoch(timestamp_str: str):
     # Automatically detect the local timezone
     local_timezone = tzlocal.get_localzone()
 
+    # Normalize the timestamp string to ensure it has exactly six digits for microseconds
+    # This regex handles both truncating and padding the fractional part
+    timestamp_str_normalized = re.sub(
+        r"(\.\d{1,6})\d*", lambda x: x.group(1).ljust(7, "0"), timestamp_str
+    )
+
     # Parse the timestamp string to a datetime object
-    datetime_obj = datetime.fromisoformat(timestamp_str)
+    datetime_obj = datetime.fromisoformat(timestamp_str_normalized)
 
     # Ensure that the datetime object is in UTC
     datetime_obj_utc = datetime_obj.astimezone(local_timezone)

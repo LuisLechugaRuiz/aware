@@ -72,7 +72,15 @@ def process_model_response(response_str: str, call_info_str: str):
                 pass
             else:
                 logger.info("Executing function calls")
-                process.execute_tools(function_calls)
+                tools_response = process.execute_tools(function_calls)
+                for tool_response in tools_response:
+                    ClientHandlers().add_message(
+                        chat_id=call_info.chat_id,
+                        user_id=call_info.user_id,
+                        process_name=call_info.process_name,
+                        json_message=tool_response,
+                    )
+
     except Exception as e:
         logger.error(f"Error in process_response: {e}")
 

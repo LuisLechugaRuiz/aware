@@ -1,12 +1,13 @@
 import asyncio
+from realtime.connection import Socket
 from typing import Callable, List
 import threading
 from typing import Optional
-from realtime.connection import Socket
 
 
 from aware.assistant.tasks import handle_new_message
 from aware.config.config import Config
+from aware.data.database.client_handlers import ClientHandlers
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -25,16 +26,17 @@ class MessagesListener:
         )
         self.listen_task: Optional[threading.Thread] = None
 
-    def subscribe_to_channel(
-        self, schema: str, table_name: str, event_type: str, callback: Callable
-    ):
-        self.channels.append(
-            Channel(
-                topic=f"realtime:{schema}:{table_name}",
-                event_type=event_type,
-                callback=callback,
-            )
-        )
+    def on_new_message(self, payload):
+        # Trigger Celery task
+        logger = FileLogger(name="migration_tests")
+        try:
+            data = payload["record"]
+            logger.info(f"Handling new message: {data}")
+            handle_new_message.delay(data)
+            supabase_handler = ClientHandlers().get_supabase_handler()
+            supabase_handler.remove_frontend_message(data["id"])
+        except Exception as e:
+            logger.error(f"Error handling new message: {e}")
 
     # TODO: do we need to run asyncio here? I think supabase-py is doing that now.
     def start_listen_task(self):
@@ -54,11 +56,16 @@ class MessagesListener:
             self.listen_task = threading.Thread(target=self.start_listen_task)
             self.listen_task.start()
 
-    def on_new_message(self, msg):
-        # Trigger Celery task
-        logger = FileLogger(name="migration_tests")
-        logger.info(f"Handling new message: {msg}")
-        handle_new_message.delay(msg)
+    def subscribe_to_channel(
+        self, schema: str, table_name: str, event_type: str, callback: Callable
+    ):
+        self.channels.append(
+            Channel(
+                topic=f"realtime:{schema}:{table_name}",
+                event_type=event_type,
+                callback=callback,
+            )
+        )
 
 
 def main():
