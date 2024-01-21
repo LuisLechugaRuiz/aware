@@ -2,8 +2,8 @@ import json
 from redis import Redis
 from typing import List, Optional, Tuple
 
-from aware.agent.memory.user_data import UserData
-from aware.chat.new_conversation_schemas import (
+from aware.memory.user.user_data import UserData
+from aware.chat.conversation_schemas import (
     ChatMessage,
     JSONMessage,
     UserMessage,
@@ -32,35 +32,36 @@ class RedisHandler:
     def add_message(
         self,
         chat_id: str,
+        process_name: str,
         chat_message: ChatMessage,
     ):
         message = chat_message.message
-        key = f"conversation:{chat_id}:message:{chat_message.message_id}"
+        key = f"conversation:{chat_id}:{process_name}:message:{chat_message.message_id}"
         message_data = json.dumps(
             {"type": type(message).__name__, "data": message.to_json()}
         )
         self.client.hmset(key, {"data": message_data})
 
         # Add the key to the sorted set with timestamp as the score
-        conversation_key = f"conversation:{chat_id}"
+        conversation_key = f"conversation:{chat_id}:{process_name}"
         self.client.zadd(
             conversation_key, {key: convert_timestamp_to_epoch(chat_message.timestamp)}
         )
 
-    def delete_message(self, chat_id: str, message_id: str):
+    def delete_message(self, chat_id: str, message_id: str, process_name: str):
         # The key for the specific message
-        message_key = f"conversation:{chat_id}:message:{message_id}"
+        message_key = f"conversation:{chat_id}:{process_name}:message:{message_id}"
 
         # Remove the hash storing the message details
         self.client.delete(message_key)
 
         # Remove the message reference from the sorted set
-        conversation_key = f"conversation:{chat_id}"
+        conversation_key = f"conversation:{chat_id}:{process_name}"
         self.client.zrem(conversation_key, message_key)
 
     # TODO: Check if conversation exists, return None otherwise.
-    def get_conversation(self, chat_id: str) -> List[JSONMessage]:
-        conversation_key = f"conversation:{chat_id}"
+    def get_conversation(self, chat_id: str, process_name: str) -> List[JSONMessage]:
+        conversation_key = f"conversation:{chat_id}:{process_name}"
 
         # Retrieve all message keys from the sorted set, ordered by timestamp
         message_keys = self.client.zrange(conversation_key, 0, -1)

@@ -3,12 +3,13 @@ import aioredis
 import redis
 import threading
 
-from aware.agent.memory.user_data import UserData
-from aware.chat.new_conversation_schemas import JSONMessage
+from aware.memory.user.user_data import UserData
+from aware.chat.conversation_schemas import JSONMessage
 from aware.config.config import Config
 from aware.data.database.supabase_handler.supabase_handler import SupabaseHandler
 from aware.data.database.redis_handler.redis_handler import RedisHandler
 from aware.data.database.redis_handler.async_redis_handler import AsyncRedisHandler
+from aware.memory.memory_manager import MemoryManager
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -34,6 +35,8 @@ class ClientHandlers:
         self.async_redis_client = aioredis.from_url(
             "redis://localhost", encoding="utf-8", decode_responses=True
         )
+        # self.redis_client.flushall()
+        # self.async_redis_client.flushall()
         self.async_redis_handler = AsyncRedisHandler(self.async_redis_client)
         self.logger = FileLogger("migration_client_handlers", should_print=True)
 
@@ -50,7 +53,9 @@ class ClientHandlers:
             json_message=json_message,
         )
         self.logger.info("Adding to redis")
-        redis_handlers.add_message(chat_id=chat_id, chat_message=chat_message)
+        redis_handlers.add_message(
+            chat_id=chat_id, chat_message=chat_message, process_name=process_name
+        )
         return chat_message
 
     def get_supabase_handler(self):
@@ -70,24 +75,42 @@ class ClientHandlers:
         if user_data is None:
             self.logger.info("User data not found in Redis")
             # Fetch user profile from Supabase
-            user_profile = supabase_handler.get_user_profile(user_id)
-            if not user_profile["has_topics"]:
+            ui_profile = supabase_handler.get_ui_profile(user_id)
+            if not ui_profile["has_topics"]:
                 try:
                     self.logger.info("Creating topics")
+                    # Create user on Weaviate
+                    try:
+                        memory_manager = MemoryManager(
+                            user_id=user_id, logger=self.logger
+                        )
+                        result = memory_manager.create_user(
+                            user_id=user_id, user_name=ui_profile["display_name"]
+                        )
+                    except Exception as e:
+                        self.logger.error(f"Error while creating weaviate user: {e}")
+                    if result.error:
+                        self.logger.info(
+                            f"DEBUG - error creating weaviate user result: {result.error}"
+                        )
+                    else:
+                        self.logger.info(
+                            f"DEBUG - success creating weaviate user result: {result.data}"
+                        )
                     supabase_handler.create_topics(user_id)
                     self.logger.info("Updating user profile")
-                    user_profile["has_topics"] = True
-                    supabase_handler.update_user_profile(user_id, user_profile)
+                    ui_profile["has_topics"] = True
+                    supabase_handler.update_user_profile(user_id, ui_profile)
                 except Exception as e:
                     self.logger.error(f"Error while creating topics: {e}")
 
-            if user_profile is None:
+            if ui_profile is None:
                 raise Exception("User profile not found")
             user_data = UserData(
                 chat_id=chat_id,
                 user_id=user_id,
-                user_name=user_profile["display_name"],
-                api_key=user_profile["openai_api_key"],
+                user_name=ui_profile["display_name"],
+                api_key=ui_profile["openai_api_key"],
             )
             # Store in Redis
             redis_handler.set_user_data(user_data)

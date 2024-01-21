@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
-
 from openai.types.chat import ChatCompletionMessageToolCall
+from typing import Dict, List, Optional
 
 from aware.agent.tools import FunctionCall, Tools
 from aware.agent.decorators import on_preprocess, on_postprocess
-from aware.chat.new_chat import Chat
-from aware.chat.new_conversation_schemas import ToolResponseMessage
+from aware.chat.chat import Chat
+from aware.chat.conversation_schemas import ToolResponseMessage
 from aware.tools.tools_manager import ToolsManager
 from aware.utils.logger.file_logger import FileLogger
 
@@ -23,20 +22,35 @@ class Process(ABC):
     tools_manager: Optional[ToolsManager] = None
     initialized_for_postprocessing: bool = False
 
-    def __init__(self, user_id: str, chat_id: str, run_remote: bool, tools: Tools):
+    def __init__(
+        self,
+        user_id: str,
+        chat_id: str,
+        agent_name: str,
+        run_remote: bool,
+        tools: Tools,
+        module_name: str = "system",
+    ):
         self.user_id = user_id
         self.chat_id = chat_id
+        self.agent_name = agent_name
+
         self.run_remote = run_remote
         self.tools = tools
+        self.module_name = module_name
 
     def preprocess(
         self,
+        extra_kwargs: Optional[Dict[str, str]] = None,
     ):
         self.chat = Chat(
             process_name=self.get_process_name(),
             user_id=self.user_id,
             chat_id=self.chat_id,
+            module_name=self.module_name,
+            agent_name=self.agent_name,
             logger=self.get_logger(),
+            extra_kwargs=extra_kwargs,
         )
         self.initialized_for_preprocessing = True
         return self

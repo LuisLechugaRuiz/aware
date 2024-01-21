@@ -1,7 +1,7 @@
 from supabase import Client
 from typing import List
 
-from aware.chat.new_conversation_schemas import ChatMessage, JSONMessage
+from aware.chat.conversation_schemas import ChatMessage, JSONMessage
 from aware.data.database.data import get_topics
 from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
@@ -80,7 +80,7 @@ class SupabaseHandler:
 
     def get_user_profile(self, user_id: str):
         data = (
-            self.client.table("profiles")
+            self.client.table("user_profiles")
             .select("*")
             .eq("user_id", user_id)
             .execute()
@@ -119,6 +119,18 @@ class SupabaseHandler:
             return None
         data = data[0]
         return data["content"]
+
+    def get_ui_profile(self, user_id: str):
+        data = (
+            self.client.table("profiles")
+            .select("*")
+            .eq("user_id", user_id)
+            .execute()
+            .data
+        )
+        if not data:
+            return None
+        return data[0]
 
     def set_topic_content(self, user_id: str, name: str, content: str):
         data = (

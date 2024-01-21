@@ -3,7 +3,7 @@ import json
 from unittest.mock import Mock
 from redis import Redis
 from aware.data.database.redis_handler.redis_handler import RedisHandler
-from aware.chat.new_conversation_schemas import (
+from aware.chat.conversation_schemas import (
     ChatMessage,
     UserMessage,
     AssistantMessage,
@@ -13,6 +13,7 @@ from aware.chat.new_conversation_schemas import (
     ToolCalls,
     Function,
 )
+from aware.utils.helpers import convert_timestamp_to_epoch
 
 
 class TestRedisHandler(unittest.TestCase):
@@ -27,7 +28,7 @@ class TestRedisHandler(unittest.TestCase):
         # Setup
         chat_id = "conv1"
         message_id = "msg1"
-        timestamp = "1234567890"
+        timestamp = "2024-01-21T01:15:17.041211+00:00"
         message = UserMessage(name="Alice", content="Hello")
 
         # Prepare the expected data format
@@ -47,7 +48,8 @@ class TestRedisHandler(unittest.TestCase):
             message_key, expected_message_data
         )
         self.mock_redis_client.zadd.assert_called_with(
-            f"conversation:{chat_id}", {message_key: float(timestamp)}
+            f"conversation:{chat_id}",
+            {message_key: convert_timestamp_to_epoch(timestamp)},
         )
 
     def test_get_conversation(self):

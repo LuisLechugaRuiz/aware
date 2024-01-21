@@ -14,7 +14,7 @@ from aware.models.model import Model
 from aware.models.private.openai.old_retry_handler import _OpenAIRetryHandler
 from aware.utils.logger.file_logger import FileLogger
 
-from aware.chat.new_conversation import Conversation
+from aware.chat.conversation import Conversation
 
 load_dotenv()
 

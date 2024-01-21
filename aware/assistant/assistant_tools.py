@@ -1,6 +1,6 @@
 from aware.agent.tools import Tools
 from aware.agent.decorators import default_function
-from aware.chat.new_conversation_schemas import AssistantMessage
+from aware.chat.conversation_schemas import AssistantMessage
 from aware.config.config import Config
 from aware.data.database.client_handlers import ClientHandlers
 from aware.utils.logger.file_logger import FileLogger
@@ -79,7 +79,7 @@ class AssistantTools(Tools):
         Returns:
             str
         """
-        pass
+        return "Not implemented yet."
         # try:
         #     print(f"Searching for {query} on {user_name}'s database")
         #     data = self.database_clients[user_name].send(

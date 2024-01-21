@@ -1,4 +1,5 @@
 from aware.assistant.assistant_tools import AssistantTools
+from aware.config.config import Config
 from aware.utils.logger.file_logger import FileLogger
 
 from aware.agent.process import Process
@@ -11,14 +12,17 @@ class Assistant(Process):
         super().__init__(
             user_id=user_id,
             chat_id=chat_id,
+            agent_name=Config().assistant_name,  # TODO: get from supabase.
             run_remote=False,
             tools=AssistantTools(user_id, chat_id),
+            module_name="assistant",
         )
 
     @classmethod
     def get_process_name(self):
         return "assistant"
 
+    # TODO: REMOVE AS IT SHOULD RUN BY EVENT!
     def on_user_message(self):
         """
         Callback function for when a user message is received.

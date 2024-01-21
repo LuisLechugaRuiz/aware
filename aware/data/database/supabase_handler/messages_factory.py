@@ -1,6 +1,6 @@
 import json
 
-from aware.chat.new_conversation_schemas import (
+from aware.chat.conversation_schemas import (
     ChatMessage,
     UserMessage,
     AssistantMessage,

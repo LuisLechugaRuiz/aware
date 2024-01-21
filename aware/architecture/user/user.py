@@ -1,7 +1,7 @@
 import asyncio
 from typing import List
 
-from aware.agent.memory.user.user_working_memory import UserWorkingMemory
+from aware.memory.user.user_working_memory import UserWorkingMemory
 from aware.architecture.helpers.topics import (
     DEF_ASSISTANT_MESSAGE,
     DEF_USER_MESSAGE,
