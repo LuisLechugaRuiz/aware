@@ -2,7 +2,7 @@ import json
 from openai import OpenAI
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 import weaviate
 import weaviate.classes as wvc
@@ -103,41 +103,37 @@ class WeaviateDB(object):
                 references=references,
             )
 
-    # TODO: FILTER BY UUID.
-    def create_user(self, name: str) -> WeaviateResult:
-        user_collection = self.client.collections.get("User")
-        existing_users = user_collection.query.fetch_objects(
-            filters=wvc.Filter("name").equal(name)
-        )
-        if len(existing_users.objects) > 0:
-            return WeaviateResult(error="User already exists!!!")
-        user_uuid = user_collection.data.insert(
-            properties={
-                "name": name,
-            }
-        )
-        return WeaviateResult(data=user_uuid)
+    def create_user(self, user_id: str, user_name: str) -> WeaviateResult:
+        try:
+            if self.user_exists(user_id):
+                return WeaviateResult(error="User already exists!!!")
+            user_collection = self.client.collections.get("User")
+            user_uuid = user_collection.data.insert(
+                properties={
+                    "name": user_name,
+                },
+                uuid=user_id,
+            )
+            return WeaviateResult(data=user_uuid)
+        except Exception as err:
+            return WeaviateResult(error=str(err))
 
-    def user_exists(self, name: str) -> WeaviateResult:
+    def user_exists(self, user_id: str) -> WeaviateResult:
         user_collection = self.client.collections.get("User")
-        user_exists = user_collection.query.fetch_objects(
-            filters=wvc.Filter("name").equal(name)
-        )
-        if len(user_exists.objects) > 0:
-            return True
-        return False
+        existing_users = user_collection.query.fetch_object_by_id(user_id)
+        if existing_users is None:
+            return False
+        return True
 
     def search_info(
         self,
         query: str,
-        user_name: Optional[str] = None,
+        user_id: str,
         num_relevant=2,
         certainty=0.7,
     ) -> WeaviateResult:
         try:
-            filters = None
-            if user_name is not None:
-                filters = filter & wvc.Filter(["user", "User", "name"]).equal(user_name)
+            filters = wvc.Filter.by_ref("user").by_id().equal(user_id)
 
             query_vector = self.get_ada_embedding(query)
             info_collection = self.client.collections.get("Info")
@@ -157,16 +153,13 @@ class WeaviateDB(object):
 
     # TODO: Return a specific class with Data, errors.. to differentiatate between string and error
     def store_info(
-        self, user_name: str, data: str, potential_query: str
+        self, user_id: str, data: str, potential_query: str
     ) -> WeaviateResult:
         try:
             user_collection = self.client.collections.get("User")
-            user = user_collection.query.fetch_objects(
-                filters=wvc.Filter("name").equal(user_name)
-            )
-            if len(user.objects) == 0:
+            user = user_collection.query.fetch_object_by_id(user_id)
+            if user is None:
                 return WeaviateResult(error="User does not exist!")
-            user_uuid = user.objects[0].uuid
             info_collection = self.client.collections.get("Info")
             info_uuid = info_collection.data.insert(
                 properties={
@@ -174,7 +167,7 @@ class WeaviateDB(object):
                     "potential_query": potential_query,
                 },
                 references={
-                    "user": wvc.Reference.to(uuids=user_uuid),
+                    "user": wvc.Reference.to(uuids=user_id),
                 },
                 vector=self.get_ada_embedding(potential_query),
             )
@@ -232,12 +225,10 @@ class WeaviateDB(object):
 
     # TODO: Allow multiple users, references can be inserted as: https://weaviate.io/developers/weaviate/manage-data/cross-references#add-multiple-one-to-many-cross-references
     def search_conversation(
-        self, query: str, user_name: Optional[str] = None, certainty=0.7, num_relevant=2
+        self, query: str, user_id: str, certainty=0.7, num_relevant=2
     ):
         try:
-            filters = None
-            if user_name is not None:
-                filters = wvc.Filter(["user", "User", "name"]).equal(user_name)
+            filters = wvc.Filter.by_ref("users").by_id().equal(user_id)
 
             query_vector = self.get_ada_embedding(query)
             conversation_collection = self.client.collections.get("Conversation")
@@ -256,16 +247,8 @@ class WeaviateDB(object):
             print(f"Unexpected error {err} when searching conversation")
             return WeaviateResult(error=str(err))
 
-    def store_conversation(self, user_name: str, summary: str, potential_query: str):
+    def store_conversation(self, user_id: str, summary: str, potential_query: str):
         try:
-            user_collection = self.client.collections.get("User")
-            user_uuid = (
-                user_collection.query.fetch_objects(
-                    filters=wvc.Filter("name").equal(user_name)
-                )
-                .objects[0]
-                .uuid
-            )
             # Store the conversation
             conversation_collection = self.client.collections.get("Conversation")
             conversation_uuid = conversation_collection.data.insert(
@@ -273,7 +256,7 @@ class WeaviateDB(object):
                     "summary": summary,
                     "potential_query": potential_query,
                 },
-                references={"User": wvc.Reference.to(uuids=user_uuid)},
+                references={"User": wvc.Reference.to(uuids=user_id)},
                 vector=self.get_ada_embedding(potential_query),
             )
             return WeaviateResult(data=conversation_uuid)

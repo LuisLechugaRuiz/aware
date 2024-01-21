@@ -1,18 +1,14 @@
-from typing import Any, Callable, Dict, List, Optional, Tuple
-from logging import getLogger
-from openai.types.chat import (
-    ChatCompletionMessageToolCall,
-)
+from typing import Callable, Dict, List, Optional, Tuple
+import uuid
 
+from aware.chat.call_info import CallInfo
 from aware.chat.conversation import Conversation
+from aware.chat.conversation_schemas import SystemMessage
 from aware.chat.parser.pydantic_parser import PydanticParser
-from aware.models.models_manager import ModelsManager
-from aware.prompts.load import load_prompt_from_args
+from aware.data.database.client_handlers import ClientHandlers
+from aware.prompts.load import load_prompt_from_args, load_prompt_from_database
 from aware.utils.helpers import get_current_date
 from aware.utils.logger.file_logger import FileLogger
-
-# TODO: Create our own logger.
-LOG = getLogger(__name__)
 
 
 class Chat:
@@ -20,88 +16,40 @@ class Chat:
 
     def __init__(
         self,
+        process_name: str,
+        user_id: str,
+        chat_id: str,
         module_name: str,
+        agent_name: str,
         logger: FileLogger,
-        system_prompt_kwargs: Dict[str, Any] = {},
-        user_name: Optional[str] = None,
-        assistant_name: Optional[str] = None,
-        api_key: Optional[str] = None,
+        extra_kwargs: Optional[Dict[str, str]] = None,
     ):
+        self.process_name = process_name
+        self.user_id = user_id
+        self.chat_id = chat_id
         self.module_name = module_name
-        self.model = ModelsManager().create_model(self.module_name, logger, api_key)
-        self.user_name = user_name
-        self.assistant_name = assistant_name
+        self.agent_name = agent_name
 
-        # Init conversation
-        self.conversation = Conversation(module_name, self.model.get_name())
-        self.system_instruction_message = self.load_prompt(
-            "system", self.module_name, system_prompt_kwargs
+        system_instruction_message = load_prompt_from_database(
+            self.process_name,
+            user_id,
+            self.module_name,
+            extra_kwargs,
         )
-        system_message = self.update_system()
-        self.conversation.add_system_message(system_message)
+        self.system_message = self.get_system(
+            system_instruction_message=system_instruction_message
+        )
+        self.conversation = Conversation(
+            chat_id=chat_id, user_id=user_id, process_name=process_name
+        )
+        self.redis_handler = ClientHandlers().get_redis_handler()
+
         self.logger = logger
-
-    def add_tool_feedback(self, id: str, message: str):
-        self.conversation.add_tool_message(id=id, message=message)
-
-    def call(
-        self,
-        functions: List[Callable] = [],
-    ):
-        """Call the model to get a response."""
-        self.update_system()
-
-        function_schemas = []
-        for function in functions:
-            function_schemas.append(PydanticParser.get_function_schema(function))
-        response = self.model.get_response(
-            conversation=self.conversation,
-            functions=function_schemas,
-        )
-        if function_schemas:
-            tool_calls = response.tool_calls
-            if tool_calls is not None:
-                tool_calls = self.clean_tool_calls(response.tool_calls)
-                # In case we are sending tools we should save them in the traces as OpenAI doesn't include them on prompt.
-                self.conversation.add_assistant_tool_message(
-                    tool_calls, assistant_name=self.assistant_name
-                )
-                self.log_conversation()
-                return tool_calls
-
-        return response.content
-
-    def clean_tool_calls(self, tool_calls: List[ChatCompletionMessageToolCall]):
-        """Clean the tool calls to replace any '.' in the name with ' _'."""
-        for tool_call in tool_calls:
-            tool_call.function.name = tool_call.function.name.replace(".", "_")
-        return tool_calls
-
-    def edit_system_message(self, system_prompt_kwargs: Dict[str, Any]):
-        """Edit the system message."""
-        self.system_instruction_message = self.load_prompt(
-            "system", self.module_name, system_prompt_kwargs
-        )
-        system = self.update_system()
-        self.conversation.edit_system_message(system)
-
-    def get_response(
-        self,
-        prompt_kwargs: Dict[str, Any],
-        functions: List[Callable] = [],
-        user_name: Optional[str] = None,
-        assistant_name: Optional[str] = None,
-    ) -> str | List[ChatCompletionMessageToolCall]:
-        """Get a reponse from the model, can be a single string or a list of tool call."""
-        # Add user message
-        prompt = self.load_prompt("user", self.module_name, prompt_kwargs)
-        self.conversation.add_user_message(prompt, user_name)
-
-        return self.call(functions, assistant_name=assistant_name)
 
     def get_conversation(self):
         return self.conversation
 
+    # TODO: Check how to this efficiently.
     def get_remaining_tokens(self) -> Tuple[int, bool]:
         """Returns the remaining tokens of the conversation and if it should trigger a warning."""
         return (
@@ -109,24 +57,42 @@ class Chat:
             self.conversation.should_trigger_warning(),
         )
 
-    def load_prompt(
-        self, prompt_name: str, path: Optional[str] = None, args: Dict[str, Any] = {}
-    ):
-        return load_prompt_from_args(prompt_name, **args)
-
-    def update_system(self):
-        self.system = self.load_prompt(
-            "system_meta",
+    def get_system(self, system_instruction_message: str):
+        self.system = load_prompt_from_args(
+            "meta",
             args={
                 "date": get_current_date(),
-                "instruction": self.system_instruction_message,
+                "instruction": system_instruction_message,
             },
         )
         return self.system
 
+    def request_response(self, functions: List[Callable]):
+        self.conversation.trim_conversation()
+
+        function_schemas = []
+        for function in functions:
+            # TODO: Can we save this already on Supabase so we don't need to convert it again?
+            function_schemas.append(PydanticParser.get_function_schema(function))
+
+        call_info = CallInfo(
+            user_id=self.user_id,
+            call_id=str(uuid.uuid4()),
+            chat_id=self.chat_id,
+            process_name=self.process_name,
+            agent_name=self.agent_name,
+            system_message=self.system_message,
+            functions=function_schemas,
+        )
+        self.redis_handler.add_call_info(call_info)
+        self.log_conversation()
+
+    # TODO: SHOULD BE USED TO STORE ALL TRACES!!
     def log_conversation(self):
         """Log the conversation."""
+        system_message_str = SystemMessage(self.system_message).to_string()
+        conversation = f"{system_message_str}\n{self.conversation.to_string()}"
         self.logger.info(
-            f"--- CONVERSATION ---\n{self.conversation.to_string()}",
+            f"--- CONVERSATION ---\n{conversation}",
             should_print_local=False,
         )

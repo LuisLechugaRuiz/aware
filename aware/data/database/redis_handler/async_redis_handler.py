@@ -2,8 +2,8 @@ import json
 from aioredis import Redis
 from typing import List, Optional, Tuple
 
-from aware.agent.memory.user_data import UserData
-from aware.chat.new_conversation_schemas import (
+from aware.memory.user.user_data import UserData
+from aware.chat.conversation_schemas import (
     JSONMessage,
     UserMessage,
     AssistantMessage,

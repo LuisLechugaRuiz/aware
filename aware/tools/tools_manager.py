@@ -9,7 +9,7 @@ from typing import Callable, List
 from openai.types.chat import ChatCompletionMessageToolCall
 
 from aware.agent.tools import FunctionCall
-from aware.chat.new_conversation_schemas import ToolResponseMessage
+from aware.chat.conversation_schemas import ToolResponseMessage
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -107,7 +107,7 @@ class ToolsManager:
                 args_string = "\n".join(
                     [f"{key}={value!r}" for key, value in call_arguments_dict.items()]
                 )
-                self.logger.info(f"Function: {function.__name__}\n{args_string}")
+                # self.logger.info(f"Function: {function.__name__}\n{args_string}")
             except Exception as e:
                 self.logger.error(
                     f"Error while retrieving signature for function {function_name} with arguments {call_arguments_dict}. Error: {e}"

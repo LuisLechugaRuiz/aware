@@ -1,0 +1,30 @@
+Current date: {{ date }}
+- Reflect this date in your responses where relevant.
+
+{{ identity }}
+
+{{ task }}
+
+Thought: {{ thought }}
+- Utilize this thought from your memory system to guide your actions and responses.
+
+Context: {{ context }}
+- This is the background you need for the task. Incorporate this context in your processing.
+
+{% if event -%}
+Event: {{ event }}
+- Analyze and respond to this event. After processing, ensure to clear this event with the clear_event function.
+{% endif -%}
+
+{% if request -%}
+Request: {{ request }}
+- This is a high-priority request. Address it promptly and mark it as completed with the set_request_completed function after handling.
+{% endif -%}
+
+{% if variables -%}
+Variables:
+- These are additional details from other processes. Utilize them as needed to enhance your task performance.
+{% for variable in variables -%}
+  - {{ variable.0 }}: {{ variable.1 }}
+{% endfor -%}
+{% endif -%}

@@ -2,9 +2,10 @@ from openai.types.chat import ChatCompletionMessage
 
 from aware.agent.process import Process
 from aware.assistant.assistant import Assistant
+from aware.assistant.user.user_thought_generator import UserThoughtGenerator
 from aware.data.database.client_handlers import ClientHandlers
 from aware.chat.call_info import CallInfo
-from aware.chat.new_conversation_schemas import AssistantMessage, ToolCalls
+from aware.chat.conversation_schemas import AssistantMessage, ToolCalls
 from aware.config.config import Config
 from aware.server.celery_app import app as celery_app
 from aware.utils.logger.file_logger import FileLogger
@@ -18,9 +19,6 @@ def process_model_response(response_str: str, call_info_str: str):
     # we need to check if have tool_calls at the processes
     logger = FileLogger("migration_tests")
     logger.info(f"Task process_response started with message: {response_str}")
-
-    # TODO: Get assistant name from specific user.
-    assistant_name = Config().assistant_name
 
     try:
         # 1. Get process.
@@ -38,19 +36,19 @@ def process_model_response(response_str: str, call_info_str: str):
         tool_calls = openai_response.tool_calls
         if tool_calls is not None:
             new_message = ToolCalls.from_openai(
-                assistant_name=Config().assistant_name,
+                assistant_name=call_info.agent_name,
                 tool_calls=openai_response.tool_calls,
             )
         else:
             tool_calls = [process.get_default_tool_call(openai_response.content)]
             if tool_calls is not None:
                 new_message = ToolCalls.from_openai(
-                    assistant_name=assistant_name,
+                    assistant_name=call_info.agent_name,
                     tool_calls=tool_calls,
                 )
             else:
                 new_message = AssistantMessage(
-                    name=assistant_name, content=openai_response.content
+                    name=call_info.agent_name, content=openai_response.content
                 )
                 process.stop_agent()
 
@@ -85,14 +83,15 @@ def process_model_response(response_str: str, call_info_str: str):
         logger.error(f"Error in process_response: {e}")
 
 
+# TODO: Split into Assistant - System.
 def get_process(process_name: str, user_id: str, chat_id: str) -> Process:
     if (
         process_name == Assistant.get_process_name()
     ):  # Then add to Supabase and send to user:
         return Assistant(user_id=user_id, chat_id=chat_id)
-    elif process_name == "thought_generator":
+    elif process_name == UserThoughtGenerator.get_process_name():
         # Then run thought generator processing.
-        pass
+        return UserThoughtGenerator(user_id=user_id, chat_id=chat_id)
     elif "context_manager":
         # Then run context manager processing.
         pass
