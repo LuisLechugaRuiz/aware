@@ -2,11 +2,15 @@ from openai.types.chat import ChatCompletionMessage
 
 from aware.agent.process import Process
 from aware.assistant.assistant import Assistant
-from aware.assistant.user.user_thought_generator import UserThoughtGenerator
+from aware.assistant.user.data_storage.user_data_storage_manager import (
+    UserDataStorageManager,
+)
+from aware.assistant.user.thought_generator.user_thought_generator import (
+    UserThoughtGenerator,
+)
 from aware.data.database.client_handlers import ClientHandlers
 from aware.chat.call_info import CallInfo
 from aware.chat.conversation_schemas import AssistantMessage, ToolCalls
-from aware.config.config import Config
 from aware.server.celery_app import app as celery_app
 from aware.utils.logger.file_logger import FileLogger
 
@@ -92,11 +96,12 @@ def get_process(process_name: str, user_id: str, chat_id: str) -> Process:
     elif process_name == UserThoughtGenerator.get_process_name():
         # Then run thought generator processing.
         return UserThoughtGenerator(user_id=user_id, chat_id=chat_id)
+    # TODO: Implement me.
     elif "context_manager":
         # Then run context manager processing.
         pass
-    elif "data_storage_manager":  # Then add to Supabase and
-        pass
+    elif process_name == UserDataStorageManager.get_process_name():
+        return UserDataStorageManager(user_id=user_id, chat_id=chat_id)
     elif "system":
         pass
     else:

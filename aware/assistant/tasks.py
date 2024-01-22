@@ -1,8 +1,14 @@
 from typing import Any, Dict
 
 from aware.assistant.assistant import Assistant
-from aware.assistant.user.user_thought_generator import UserThoughtGenerator
+from aware.assistant.user.data_storage.user_data_storage_manager import (
+    UserDataStorageManager,
+)
+from aware.assistant.user.thought_generator.user_thought_generator import (
+    UserThoughtGenerator,
+)
 from aware.chat.conversation_schemas import ChatMessage, UserMessage
+from aware.chat.conversation import Conversation
 from aware.config.config import Config
 from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.user.user_data import UserData
@@ -109,3 +115,39 @@ def thought_generator(
         log.info("Thought generated")
     except Exception as e:
         log.error(f"Error in generating thought: {e}")
+
+
+# TODO: Trigger after conversation trim to don't loose info
+@celery_app.task(name="assistant.store_data")
+def data_storage_manager(user_data_json: str, user_profile_json: str):
+    log = FileLogger("migration_tests", should_print=True)
+
+    try:
+        log.info("Saving data")
+        user_data = UserData.from_json(user_data_json)
+
+        # use assistant conversation as kwarg.
+        assistant_conversation = Conversation(
+            chat_id=user_data.chat_id,
+            user_id=user_data.user_id,
+            process_name=Assistant.get_process_name(),
+        )
+
+        user_profile = UserProfile.from_json(user_data.user_id, user_profile_json)
+
+        user_data_storage_manager = UserDataStorageManager(
+            user_id=user_data.user_id,
+            chat_id=user_data.chat_id,
+        ).preprocess(
+            extra_kwargs={
+                "assistant_name": Config().assistant_name,
+                "user_name": user_data.user_name,
+                "user_profile": user_profile.to_string(),
+                "assistant_conversation": assistant_conversation.to_string(),
+            }
+        )
+        # TODO: remove and trigger by event.
+        user_data_storage_manager.on_conversation_trim()
+        log.info("Data saved")
+    except Exception as e:
+        log.error(f"Error saving data: {e}")
