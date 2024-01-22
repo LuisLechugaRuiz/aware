@@ -1,5 +1,5 @@
 from supabase import Client
-from typing import List
+from typing import Any, Dict, List
 
 from aware.chat.conversation_schemas import ChatMessage, JSONMessage
 from aware.data.database.data import get_topics
@@ -132,21 +132,13 @@ class SupabaseHandler:
             return None
         return data[0]
 
-    def set_topic_content(self, user_id: str, name: str, content: str):
-        data = (
-            self.client.table("topics")
-            .select("*")
-            .eq("user_id", user_id)
-            .eq("name", name)
-            .execute()
-            .data
-        )
-        if not data:
-            raise Exception("Topic not found")
-        else:
-            self.client.table("topics").update({"content": content}).eq(
-                "user_id", user_id
-            ).eq("name", name).execute()
+    def remove_frontend_message(self, message_id: str):
+        self.client.table("frontend_messages").delete().eq("id", message_id).execute()
+
+    def remove_new_user_notification(self, notification_id: str):
+        self.client.table("new_user_notification").delete().eq(
+            "id", notification_id
+        ).execute()
 
     def send_message_to_user(
         self,
@@ -176,13 +168,26 @@ class SupabaseHandler:
         logger.info(f"DEBUG - Response: {response}")
         return response
 
-    def remove_frontend_message(self, message_id: str):
-        self.client.table("frontend_messages").delete().eq("id", message_id).execute()
+    def set_topic_content(self, user_id: str, name: str, content: str):
+        data = (
+            self.client.table("topics")
+            .select("*")
+            .eq("user_id", user_id)
+            .eq("name", name)
+            .execute()
+            .data
+        )
+        if not data:
+            raise Exception("Topic not found")
+        else:
+            self.client.table("topics").update({"content": content}).eq(
+                "user_id", user_id
+            ).eq("name", name).execute()
 
-    def remove_new_user_notification(self, notification_id: str):
-        self.client.table("new_user_notification").delete().eq(
-            "id", notification_id
+    def update_user_profile(self, user_id: str, profile: Dict[str, Any]):
+        self.client.table("user_profiles").update(profile).eq(
+            "user_id", user_id
         ).execute()
 
-    def update_user_profile(self, user_id: str, profile: dict):
+    def update_user_ui_profile(self, user_id: str, profile: Dict[str, Any]):
         self.client.table("profiles").update(profile).eq("user_id", user_id).execute()

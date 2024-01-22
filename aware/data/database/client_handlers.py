@@ -100,7 +100,7 @@ class ClientHandlers:
                     supabase_handler.create_topics(user_id)
                     self.logger.info("Updating user profile")
                     ui_profile["has_topics"] = True
-                    supabase_handler.update_user_profile(user_id, ui_profile)
+                    supabase_handler.update_user_ui_profile(user_id, ui_profile)
                 except Exception as e:
                     self.logger.error(f"Error while creating topics: {e}")
 
