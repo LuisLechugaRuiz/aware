@@ -2,6 +2,9 @@ from openai.types.chat import ChatCompletionMessage
 
 from aware.agent.process import Process
 from aware.assistant.assistant import Assistant
+from aware.assistant.user.context_manager.user_context_manager import (
+    UserContextManager,
+)
 from aware.assistant.user.data_storage.user_data_storage_manager import (
     UserDataStorageManager,
 )
@@ -89,19 +92,15 @@ def process_model_response(response_str: str, call_info_str: str):
 
 # TODO: Split into Assistant - System.
 def get_process(process_name: str, user_id: str, chat_id: str) -> Process:
-    if (
-        process_name == Assistant.get_process_name()
-    ):  # Then add to Supabase and send to user:
+    if process_name == Assistant.get_process_name():
         return Assistant(user_id=user_id, chat_id=chat_id)
     elif process_name == UserThoughtGenerator.get_process_name():
-        # Then run thought generator processing.
         return UserThoughtGenerator(user_id=user_id, chat_id=chat_id)
-    # TODO: Implement me.
-    elif "context_manager":
-        # Then run context manager processing.
-        pass
+    elif process_name == UserContextManager.get_process_name():
+        return UserContextManager(user_id=user_id, chat_id=chat_id)
     elif process_name == UserDataStorageManager.get_process_name():
         return UserDataStorageManager(user_id=user_id, chat_id=chat_id)
+    # TODO: Implement me and split.
     elif "system":
         pass
     else:
