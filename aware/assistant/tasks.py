@@ -1,6 +1,9 @@
 from typing import Any, Dict
 
 from aware.assistant.assistant import Assistant
+from aware.assistant.user.context_manager.user_context_manager import (
+    UserContextManager,
+)
 from aware.assistant.user.data_storage.user_data_storage_manager import (
     UserDataStorageManager,
 )
@@ -148,6 +151,32 @@ def data_storage_manager(user_data_json: str, user_profile_json: str):
         )
         # TODO: remove and trigger by event.
         user_data_storage_manager.on_conversation_trim()
+        log.info("Data saved")
+    except Exception as e:
+        log.error(f"Error saving data: {e}")
+
+
+@celery_app.task(name="assistant.get_context")
+def context_manager(user_data_json: str, user_profile_json: str):
+    log = FileLogger("migration_tests", should_print=True)
+
+    try:
+        log.info("Context manager")
+        user_data = UserData.from_json(user_data_json)
+        user_profile = UserProfile.from_json(user_data.user_id, user_profile_json)
+
+        user_context_manager = UserContextManager(
+            user_id=user_data.user_id,
+            chat_id=user_data.chat_id,
+        ).preprocess(
+            extra_kwargs={
+                "assistant_name": Config().assistant_name,
+                "user_name": user_data.user_name,
+                "user_profile": user_profile.to_string(),
+            }
+        )
+        # TODO: remove and trigger by event.
+        user_context_manager.on_new_message()
         log.info("Data saved")
     except Exception as e:
         log.error(f"Error saving data: {e}")

@@ -6,8 +6,6 @@ from aware.system.data_storage_manager.data_storage_manager_tools import (
 
 class DataStorageManager(Process):
     def __init__(self, chat_id: str, user_id: str):
-        self.chat_id = chat_id
-        self.user_id = user_id
         super().__init__(
             user_id=user_id,
             chat_id=chat_id,
