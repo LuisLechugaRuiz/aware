@@ -1,6 +1,5 @@
 from aware.assistant.assistant_tools import AssistantTools
 from aware.config.config import Config
-from aware.utils.logger.file_logger import FileLogger
 
 from aware.agent.process import Process
 
@@ -21,17 +20,6 @@ class Assistant(Process):
     @classmethod
     def get_process_name(self):
         return "assistant"
-
-    # TODO: REMOVE AS IT SHOULD RUN BY EVENT!
-    def on_user_message(self):
-        """
-        Callback function for when a user message is received.
-        Returns:
-            None
-        """
-        log = FileLogger("migration_tests", should_print=True)
-        log.info("Assistant received message")
-        self.request_response()
 
     # TODO: Implement me, fetch from database.
     # def get_requests(self):
