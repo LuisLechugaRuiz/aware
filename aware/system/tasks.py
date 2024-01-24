@@ -85,6 +85,8 @@ def process_model_response(response_str: str, call_info_str: str):
                         process_name=call_info.process_name,
                         json_message=tool_response,
                     )
+        # TODO: Check if we need to retrigger the process.
+        # if is_active then request_response().
 
     except Exception as e:
         logger.error(f"Error in process_response: {e}")
@@ -100,7 +102,7 @@ def get_process(process_name: str, user_id: str, chat_id: str) -> Process:
         return UserContextManager(user_id=user_id, chat_id=chat_id)
     elif process_name == UserDataStorageManager.get_process_name():
         return UserDataStorageManager(user_id=user_id, chat_id=chat_id)
-    # TODO: Implement me and split.
+    # TODO: Implement me after splitting Assistant - System.
     elif "system":
         pass
     else:

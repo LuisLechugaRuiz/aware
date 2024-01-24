@@ -19,14 +19,3 @@ class UserThoughtGenerator(Process):
     @classmethod
     def get_process_name(self):
         return "user_thought_generator"
-
-    # TODO: REMOVE AS IT SHOULD RUN BY EVENT!
-    def on_user_message(self):
-        """
-        Callback function for when a user message is received.
-        Returns:
-            None
-        """
-        log = FileLogger("migration_tests", should_print=True)
-        log.info("Assistant received message")
-        self.request_response()

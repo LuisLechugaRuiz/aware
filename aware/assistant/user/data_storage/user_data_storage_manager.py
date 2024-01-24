@@ -19,14 +19,3 @@ class UserDataStorageManager(Process):
     @classmethod
     def get_process_name(self):
         return "user_data_storage_manager"
-
-    # TODO: REMOVE AS IT SHOULD RUN BY EVENT!
-    def on_conversation_trim(self):
-        """
-        Callback function for when a user message is received.
-        Returns:
-            None
-        """
-        log = FileLogger("migration_tests", should_print=True)
-        log.info("Assistant received message")
-        self.request_response()

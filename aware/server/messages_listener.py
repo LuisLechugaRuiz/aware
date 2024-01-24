@@ -5,7 +5,7 @@ import threading
 from typing import Optional
 
 
-from aware.assistant.tasks import handle_new_message
+from aware.assistant.tasks import handle_user_message
 from aware.config.config import Config
 from aware.data.database.client_handlers import ClientHandlers
 from aware.utils.logger.file_logger import FileLogger
@@ -26,13 +26,13 @@ class MessagesListener:
         )
         self.listen_task: Optional[threading.Thread] = None
 
-    def on_new_message(self, payload):
+    def on_user_message(self, payload):
         # Trigger Celery task
         logger = FileLogger(name="migration_tests")
         try:
             data = payload["record"]
             logger.info(f"Handling new message: {data}")
-            handle_new_message.delay(data)
+            handle_user_message.delay(data)
             supabase_handler = ClientHandlers().get_supabase_handler()
             supabase_handler.remove_frontend_message(data["id"])
         except Exception as e:
@@ -74,7 +74,7 @@ def main():
         schema="public",
         table_name="frontend_messages",
         event_type="INSERT",
-        callback=message_listener.on_new_message,
+        callback=message_listener.on_user_message,
     )
     message_listener.start_realtime_listener()
 

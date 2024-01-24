@@ -51,6 +51,37 @@ class Conversation:
 
         return removed_message
 
+    def get_current_tokens(self):
+        """Get the current number of tokens in the conversation, excluding the system message."""
+
+        return count_message_tokens(
+            messages=self.to_string(get_system_message=False),
+            model_name=self.model_name,
+        )
+
+    def get_remaining_tokens(self):
+        return Config().max_conversation_tokens - self.get_current_tokens()
+
+    def reset(self):
+        while self.messages:
+            self.delete_oldest_message()
+
+    def should_trigger_warning(self):
+        warning_tokens = (
+            Config().max_conversation_tokens * Config().conversation_warning_threshold
+        )
+        return self.get_current_tokens() >= int(warning_tokens)
+
+    def to_string(self, get_system_message: bool = True):
+        start_index = 0 if get_system_message else 1
+
+        messages_to_convert = self.messages[start_index:]
+
+        conversation_string = "\n".join(
+            [message.to_string() for message in messages_to_convert]
+        )
+        return conversation_string
+
     def trim_conversation(self):
         current_message_tokens = self.get_current_tokens()
         while (current_message_tokens) > Config().max_conversation_tokens:
@@ -79,30 +110,3 @@ class Conversation:
                 current_message_tokens -= count_message_tokens(
                     removed_message.to_string(), self.model_name
                 )
-
-    def get_current_tokens(self):
-        """Get the current number of tokens in the conversation, excluding the system message."""
-
-        return count_message_tokens(
-            messages=self.to_string(get_system_message=False),
-            model_name=self.model_name,
-        )
-
-    def get_remaining_tokens(self):
-        return Config().max_conversation_tokens - self.get_current_tokens()
-
-    def should_trigger_warning(self):
-        warning_tokens = (
-            Config().max_conversation_tokens * Config().conversation_warning_threshold
-        )
-        return self.get_current_tokens() >= int(warning_tokens)
-
-    def to_string(self, get_system_message: bool = True):
-        start_index = 0 if get_system_message else 1
-
-        messages_to_convert = self.messages[start_index:]
-
-        conversation_string = "\n".join(
-            [message.to_string() for message in messages_to_convert]
-        )
-        return conversation_string

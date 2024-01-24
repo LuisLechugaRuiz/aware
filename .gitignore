@@ -10,6 +10,3 @@ dist/
 
 **/permanent_storage/logs/**
 **/permanent_storage/user_data/**
-
-# Ignore events for now.
-**/events/**

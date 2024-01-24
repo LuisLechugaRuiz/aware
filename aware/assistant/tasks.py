@@ -10,100 +10,129 @@ from aware.assistant.user.data_storage.user_data_storage_manager import (
 from aware.assistant.user.thought_generator.user_thought_generator import (
     UserThoughtGenerator,
 )
-from aware.chat.conversation_schemas import ChatMessage, UserMessage
+from aware.chat.conversation_schemas import AssistantMessage, UserMessage
 from aware.chat.conversation import Conversation
 from aware.config.config import Config
 from aware.data.database.client_handlers import ClientHandlers
+from aware.events.assistant_message import AssistantMessageEvent
 from aware.memory.user.user_data import UserData
 from aware.memory.user.user_profile import UserProfile
 from aware.server.celery_app import app as celery_app
 from aware.utils.logger.file_logger import FileLogger
 
 
-@celery_app.task(name="assistant.handle_new_message")
-def handle_new_message(data: Dict[str, Any]):
+def add_conversation_buffer_message(user_data_json: str, json_message: str):
+    user_data = UserData.from_json(user_data_json)
+
+    # Add message to assistant conversation buffer (for future storage).
+    conversation_buffer = f"{Assistant.get_process_name()}_conversation_buffer"
+    ClientHandlers().add_message(
+        chat_id=user_data.chat_id,
+        user_id=user_data.user_id,
+        process_name=conversation_buffer,
+        json_message=json_message,
+    )
+    assistant_conversation_buffer = Conversation(
+        chat_id=user_data.chat_id,
+        user_id=user_data.user_id,
+        process_name=conversation_buffer,
+    )
+
+    if assistant_conversation_buffer.should_trigger_warning():
+        user_profile = UserProfile(user_data.user_id)
+
+        user_data_storage_manager = UserDataStorageManager(
+            user_id=user_data.user_id,
+            chat_id=user_data.chat_id,
+        ).preprocess(
+            extra_kwargs={
+                "assistant_name": Config().assistant_name,
+                "assistant_conversation": assistant_conversation_buffer.to_string(),
+                "user_name": user_data.user_name,
+                "user_profile": user_profile.to_string(),
+            }
+        )
+        user_data_storage_manager.request_response()
+
+        user_context_manager = UserContextManager(
+            user_id=user_data.user_id,
+            chat_id=user_data.chat_id,
+        ).preprocess(
+            extra_kwargs={
+                "assistant_name": Config().assistant_name,
+                "assistant_conversation": assistant_conversation_buffer.to_string(),
+                "user_name": user_data.user_name,
+                "user_profile": user_profile.to_string(),
+            }
+        )
+        user_context_manager.request_response()
+
+        # Reset conversation buffer.
+        assistant_conversation_buffer.reset()
+
+
+def add_thought_generator_message(user_data_json: str, json_message: str):
+    user_data = UserData.from_json(user_data_json)
+
+    # Add message to thought generator.
+    ClientHandlers().add_message(
+        chat_id=user_data.chat_id,
+        user_id=user_data.user_id,
+        process_name=UserThoughtGenerator.get_process_name(),
+        json_message=json_message,
+    )
+
+
+@celery_app.task(name="assistant.handle_user_message")
+def handle_user_message(data: Dict[str, Any]):
     try:
         log = FileLogger("migration_tests", should_print=True)
         user_id = data["user_id"]
         chat_id = data["chat_id"]
-        role = data["role"]
         content = data["content"]
-        if role == "user":
-            log.info(f"PROCESSING NEW USER MESSAGE: {content}")
+        log.info(f"Processing new user message: {content}")
 
-            user_data = ClientHandlers().get_user_data(user_id, chat_id)
+        user_data = ClientHandlers().get_user_data(user_id, chat_id)
+        user_message = UserMessage(name=user_data.user_name, content=content)
 
-            # TODO: Should we group these tasks?
-            log.info("DEBUG PRE")
-            user_message = UserMessage(name=user_data.user_name, content=content)
-            chat_message = ChatMessage(
-                message_id=data["id"],
-                timestamp=data["created_at"],
-                message=user_message,
-            )
-            log.info(
-                f"Task assistant_response started with message: {chat_message.to_string()}"
-            )
-            assistant_response.delay(user_data.to_json(), chat_message.to_json())
-            log.info("DEBUG POST")
+        # Add message to assistant conversation.
+        ClientHandlers().add_message(
+            chat_id=user_data.chat_id,
+            user_id=user_data.user_id,
+            process_name=Assistant.get_process_name(),
+            json_message=user_message.to_json(),
+        )
+        assistant = Assistant(
+            user_id=user_data.user_id, chat_id=user_data.chat_id
+        ).preprocess()
+        assistant.request_response()
 
-            user_profile = UserProfile(user_data.user_id)
-            thought_generator.delay(
-                user_data.to_json(), chat_message.to_json(), user_profile.to_json()
-            )
-        elif role == "assistant":
-            log = FileLogger("migration_tests_assistant", should_print=True)
-            log.info(f"PROCESSING NEW ASSISTANT MESSAGE: {content}")
-            # TODO: Trigger Context Manager.
+        add_thought_generator_message(user_data.to_json(), user_message.to_json())
+        add_conversation_buffer_message(user_data.to_json(), user_message.to_json())
     except Exception as e:
         log.error(f"Error: {e}")
 
 
-@celery_app.task(name="assistant.get_response")
-def assistant_response(user_data_json: str, chat_message_json: str):
-    log = FileLogger("migration_tests", should_print=True)
-
+@celery_app.task(name="assistant.handle_assistant_message")
+def handle_assistant_message(assistant_message_event_json: str):
     try:
-        log.info("New user message")
-        chat_message = ChatMessage.from_json(chat_message_json, UserMessage)
-        user_data = UserData.from_json(user_data_json)
+        log = FileLogger("migration_tests", should_print=True)
 
-        redis_handler = ClientHandlers().get_redis_handler()
-        redis_handler.add_message(
-            chat_id=user_data.chat_id,
-            process_name=Assistant.get_process_name(),
-            chat_message=chat_message,
+        assistant_message_event = AssistantMessageEvent.from_json(
+            assistant_message_event_json
         )
-
-        assistant = Assistant(
-            user_id=user_data.user_id, chat_id=user_data.chat_id
-        ).preprocess()
-        assistant.on_user_message()
-    except Exception as e:
-        log.error(f"Error in assistant_response: {e}")
-
-
-# TODO: Trigger this after assistant response, adding the response as part of the thought. This way we can easily synchronize both.
-@celery_app.task(name="assistant.get_thought")
-def thought_generator(
-    user_data_json: str, chat_message_json: str, user_profile_json: str
-):
-    log = FileLogger("migration_tests", should_print=True)
-
-    try:
-        log.info("Generating thought")
-        chat_message = ChatMessage.from_json(chat_message_json, UserMessage)
-        user_data = UserData.from_json(user_data_json)
-
-        redis_handler = ClientHandlers().get_redis_handler()
-        redis_handler.add_message(
-            chat_id=user_data.chat_id,
-            process_name=UserThoughtGenerator.get_process_name(),
-            chat_message=chat_message,
+        log.info(f"Processing new assistant message: {assistant_message_event.message}")
+        user_data = ClientHandlers().get_user_data(
+            assistant_message_event.user_id, assistant_message_event.chat_id
         )
+        assistant_message = AssistantMessage(
+            name=assistant_message_event.assistant_name,
+            content=assistant_message_event.message,
+        )
+        add_thought_generator_message(user_data.to_json(), assistant_message.to_json())
 
-        user_profile = UserProfile.from_json(user_data.user_id, user_profile_json)
-
+        # Trigger thought generator.
+        user_profile = UserProfile(user_data.user_id)
         user_thought_generator = UserThoughtGenerator(
             user_id=user_data.user_id,
             chat_id=user_data.chat_id,
@@ -114,69 +143,11 @@ def thought_generator(
                 "user_profile": user_profile.to_string(),
             }
         )
-        user_thought_generator.on_user_message()
-        log.info("Thought generated")
-    except Exception as e:
-        log.error(f"Error in generating thought: {e}")
+        user_thought_generator.request_response()
 
-
-# TODO: Trigger after conversation trim to don't loose info
-@celery_app.task(name="assistant.store_data")
-def data_storage_manager(user_data_json: str, user_profile_json: str):
-    log = FileLogger("migration_tests", should_print=True)
-
-    try:
-        log.info("Saving data")
-        user_data = UserData.from_json(user_data_json)
-
-        # use assistant conversation as kwarg.
-        assistant_conversation = Conversation(
-            chat_id=user_data.chat_id,
-            user_id=user_data.user_id,
-            process_name=Assistant.get_process_name(),
+        # Add message to conversation buffer.
+        add_conversation_buffer_message(
+            user_data.to_json(), assistant_message.to_json()
         )
-
-        user_profile = UserProfile.from_json(user_data.user_id, user_profile_json)
-
-        user_data_storage_manager = UserDataStorageManager(
-            user_id=user_data.user_id,
-            chat_id=user_data.chat_id,
-        ).preprocess(
-            extra_kwargs={
-                "assistant_name": Config().assistant_name,
-                "user_name": user_data.user_name,
-                "user_profile": user_profile.to_string(),
-                "assistant_conversation": assistant_conversation.to_string(),
-            }
-        )
-        # TODO: remove and trigger by event.
-        user_data_storage_manager.on_conversation_trim()
-        log.info("Data saved")
     except Exception as e:
-        log.error(f"Error saving data: {e}")
-
-
-@celery_app.task(name="assistant.get_context")
-def context_manager(user_data_json: str, user_profile_json: str):
-    log = FileLogger("migration_tests", should_print=True)
-
-    try:
-        log.info("Context manager")
-        user_data = UserData.from_json(user_data_json)
-        user_profile = UserProfile.from_json(user_data.user_id, user_profile_json)
-
-        user_context_manager = UserContextManager(
-            user_id=user_data.user_id,
-            chat_id=user_data.chat_id,
-        ).preprocess(
-            extra_kwargs={
-                "assistant_name": Config().assistant_name,
-                "user_name": user_data.user_name,
-                "user_profile": user_profile.to_string(),
-            }
-        )
-        # TODO: remove and trigger by event.
-        user_context_manager.on_new_message()
-        log.info("Data saved")
-    except Exception as e:
-        log.error(f"Error saving data: {e}")
+        log.error(f"Error: {e}")

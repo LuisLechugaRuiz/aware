@@ -1,8 +1,10 @@
 from aware.agent.tools import Tools
 from aware.agent.decorators import default_function
+from aware.assistant.tasks import handle_assistant_message
 from aware.chat.conversation_schemas import AssistantMessage
 from aware.config.config import Config
 from aware.data.database.client_handlers import ClientHandlers
+from aware.events.assistant_message import AssistantMessageEvent
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -65,6 +67,13 @@ class AssistantTools(Tools):
             name=assistant_message.name,
             content=assistant_message.content,
         )
+        # Triggering internal logic to start thought + store message on conversation_buffer.
+        # TODO: Publish this as event and manage it properly instead of just triggering the task.
+        assistant_message_event = AssistantMessageEvent(
+            chat_id=self.chat_id, user_id=self.user_id, message=message
+        )
+        handle_assistant_message.delay(assistant_message_event.to_json())
+
         self.stop_agent()
         return "Message sent to the user."
 
