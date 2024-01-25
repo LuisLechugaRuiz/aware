@@ -6,12 +6,10 @@ class UserData:
     def __init__(
         self,
         user_id: str,
-        chat_id: str,
         user_name: str,
         api_key: str,
     ):
         self.user_id = user_id
-        self.chat_id = chat_id
         self.user_name = user_name
         self.api_key = api_key
 
@@ -26,7 +24,6 @@ class UserData:
         data = json.loads(data)
         return cls(
             user_id=data["user_id"],
-            chat_id=data["chat_id"],
             user_name=data["user_name"],
             api_key=data["api_key"],
         )

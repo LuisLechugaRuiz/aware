@@ -32,9 +32,9 @@ def process_model_response(response_str: str, call_info_str: str):
         call_info = CallInfo.from_json(call_info_str)
 
         process = get_process(
-            process_name=call_info.process_name,
             user_id=call_info.user_id,
-            chat_id=call_info.chat_id,
+            process_id=call_info.process_id,
+            process_name=call_info.process_name,
         )
         process.postprocess()
 
@@ -62,9 +62,8 @@ def process_model_response(response_str: str, call_info_str: str):
         logger.info("Adding message to redis and supabase")
         # 3. Upload message to Supabase and Redis.
         ClientHandlers().add_message(
-            chat_id=call_info.chat_id,
             user_id=call_info.user_id,
-            process_name=call_info.process_name,
+            process_id=call_info.process_id,
             json_message=new_message,
         )
 
@@ -80,9 +79,8 @@ def process_model_response(response_str: str, call_info_str: str):
                 tools_response = process.execute_tools(function_calls)
                 for tool_response in tools_response:
                     ClientHandlers().add_message(
-                        chat_id=call_info.chat_id,
                         user_id=call_info.user_id,
-                        process_name=call_info.process_name,
+                        process_id=call_info.process_id,
                         json_message=tool_response,
                     )
         # TODO: Check if we need to retrigger the process.
@@ -92,16 +90,20 @@ def process_model_response(response_str: str, call_info_str: str):
         logger.error(f"Error in process_response: {e}")
 
 
-# TODO: Split into Assistant - System.
-def get_process(process_name: str, user_id: str, chat_id: str) -> Process:
+# TODO: Split into Assistant - System. - TODO: FIX ME PROPERLY, this classes should not exist.
+def get_process(
+    user_id: str,
+    process_id: str,
+    process_name: str,
+) -> Process:
     if process_name == Assistant.get_process_name():
-        return Assistant(user_id=user_id, chat_id=chat_id)
+        return Assistant(user_id=user_id, process_id=process_id)
     elif process_name == UserThoughtGenerator.get_process_name():
-        return UserThoughtGenerator(user_id=user_id, chat_id=chat_id)
+        return UserThoughtGenerator(user_id=user_id, process_id=process_id)
     elif process_name == UserContextManager.get_process_name():
-        return UserContextManager(user_id=user_id, chat_id=chat_id)
+        return UserContextManager(user_id=user_id, process_id=process_id)
     elif process_name == UserDataStorageManager.get_process_name():
-        return UserDataStorageManager(user_id=user_id, chat_id=chat_id)
+        return UserDataStorageManager(user_id=user_id, process_id=process_id)
     # TODO: Implement me after splitting Assistant - System.
     elif "system":
         pass

@@ -19,8 +19,8 @@ class AsyncRedisHandler:
         self.client = client
 
     # TODO: Check if conversation exists, return None otherwise.
-    async def get_conversation(self, chat_id: str) -> List[JSONMessage]:
-        conversation_key = f"conversation:{chat_id}"
+    async def get_conversation(self, process_id: str) -> List[JSONMessage]:
+        conversation_key = f"conversation:{process_id}"
 
         # Retrieve all message keys from the sorted set, ordered by timestamp
         message_keys = await self.client.zrange(conversation_key, 0, -1)
@@ -70,9 +70,9 @@ class AsyncRedisHandler:
             return user_data.api_key
         return None
 
-    async def get_call_info(self, call_id: str) -> CallInfo:
-        data = CallInfo.from_json(await self.client.get(f"call_info:{call_id}"))
-        data.set_conversation(await self.get_conversation(data.chat_id))
+    async def get_call_info(self, process_id: str) -> CallInfo:
+        data = CallInfo.from_json(await self.client.get(f"call_info:{process_id}"))
+        data.set_conversation(await self.get_conversation(data.process_id))
 
         data.set_api_key(await self.get_api_key(data.user_id))
         return data

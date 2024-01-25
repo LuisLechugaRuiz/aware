@@ -9,17 +9,18 @@ class CallInfo:
     def __init__(
         self,
         user_id: str,
-        call_id: str,
-        chat_id: str,
+        process_id: str,
         process_name: str,
+        call_id: str,
         agent_name: str,
         system_message: str,
         functions: List[Dict[str, Any]],
     ):
         self.user_id = user_id
-        self.call_id = call_id
-        self.chat_id = chat_id
+        self.process_id = process_id
         self.process_name = process_name
+
+        self.call_id = call_id
         self.agent_name = agent_name
         self.system_message = system_message
         self.functions = functions
@@ -34,9 +35,8 @@ class CallInfo:
     def to_dict(self):
         return {
             "user_id": self.user_id,
+            "process_id": self.process_id,
             "call_id": self.call_id,
-            "chat_id": self.chat_id,
-            "process_name": self.process_name,
             "agent_name": self.agent_name,
             "system_message": self.system_message,
             "functions": self.functions,

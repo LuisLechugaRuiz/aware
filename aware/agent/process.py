@@ -6,15 +6,16 @@ from aware.agent.tools import FunctionCall, Tools
 from aware.agent.decorators import on_preprocess, on_postprocess
 from aware.chat.chat import Chat
 from aware.chat.conversation_schemas import ToolResponseMessage
+from aware.data.database.client_handlers import ClientHandlers
 from aware.tools.tools_manager import ToolsManager
 from aware.utils.logger.file_logger import FileLogger
 
 
 class Process(ABC):
     user_id: str
-    chat_id: str
+    process_id: str
     tools: Tools
-    process_name: str
+
     # Preprocess
     chat: Optional[Chat] = None
     initialized_for_preprocessing: bool = False
@@ -22,18 +23,17 @@ class Process(ABC):
     tools_manager: Optional[ToolsManager] = None
     initialized_for_postprocessing: bool = False
 
+    # TODO: Tools should be fetched from the database, based on process_id.
     def __init__(
         self,
         user_id: str,
-        chat_id: str,
-        agent_name: str,
+        process_id: str,
         run_remote: bool,
-        tools: Tools,
         module_name: str = "system",
     ):
         self.user_id = user_id
-        self.chat_id = chat_id
-        self.agent_name = agent_name
+        self.process_id = process_id
+        self.tools = ClientHandlers.get_tools(user_id, process_id)
 
         self.run_remote = run_remote
         self.tools = tools
@@ -44,15 +44,16 @@ class Process(ABC):
         extra_kwargs: Optional[Dict[str, str]] = None,
     ):
         self.chat = Chat(
-            process_name=self.get_process_name(),
             user_id=self.user_id,
-            chat_id=self.chat_id,
+            process_id=self.process_id,
+            process_name=self.get_process_name(),
             module_name=self.module_name,
-            agent_name=self.agent_name,
+            agent_name=self.get_agent_name(),
             logger=self.get_logger(),
             extra_kwargs=extra_kwargs,
         )
         self.initialized_for_preprocessing = True
+        self.request_response()
         return self
 
     def postprocess(self):
@@ -60,19 +61,19 @@ class Process(ABC):
         self.initialized_for_postprocessing = True
         return self
 
+    def get_agent_name(self) -> str:
+        return self.tools.__class__.__name__
+
     def get_default_tool_call(
         self, content: str
     ) -> Optional[ChatCompletionMessageToolCall]:
         return self.tools.get_default_tool_call(content)
 
-    @classmethod
-    @abstractmethod
     def get_process_name(self) -> str:
-        pass
+        return self.tools.get_process_name()
 
-    @classmethod
-    def get_logger(cls) -> FileLogger:
-        return FileLogger(cls.get_process_name())
+    def get_logger(self) -> FileLogger:
+        return FileLogger(self.get_process_name())
 
     @on_preprocess
     def request_response(self):

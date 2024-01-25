@@ -41,21 +41,21 @@ class ClientHandlers:
         self.logger = FileLogger("migration_client_handlers", should_print=True)
 
     def add_message(
-        self, chat_id: str, user_id: str, process_name: str, json_message: JSONMessage
+        self,
+        user_id: str,
+        process_id: str,
+        json_message: JSONMessage,
     ):
         redis_handlers = self.get_redis_handler()
         supabase_handlers = self.get_supabase_handler()
         self.logger.info("Adding to supa")
         chat_message = supabase_handlers.add_message(
-            chat_id=chat_id,
+            process_id=process_id,
             user_id=user_id,
-            process_name=process_name,
             json_message=json_message,
         )
         self.logger.info("Adding to redis")
-        redis_handlers.add_message(
-            chat_id=chat_id, chat_message=chat_message, process_name=process_name
-        )
+        redis_handlers.add_message(process_id=process_id, chat_message=chat_message)
         return chat_message
 
     def get_supabase_handler(self):
@@ -67,7 +67,13 @@ class ClientHandlers:
     def get_redis_handler(self) -> RedisHandler:
         return self._instance.redis_handler
 
-    def get_user_data(self, user_id: str, chat_id: str) -> UserData:
+    # TODO: FILL ME PROPERLY! - Main idea is that we just get the tools class from Redis or Supabase and construct a full process based on this.
+    def get_tools(self, user_id: str, process_id: str) -> str:
+        # TODO: Get from Redis or get from Supabase!!
+        tools_class = self.get_redis_handler().get_tools(process_id)
+        # TODO: Initialize tools class using user_id and process_id.
+
+    def get_user_data(self, user_id: str) -> UserData:
         supabase_handler = self.get_supabase_handler()
         redis_handler = self.get_redis_handler()
         user_data = redis_handler.get_user_data(user_id)
@@ -75,8 +81,8 @@ class ClientHandlers:
         if user_data is None:
             self.logger.info("User data not found in Redis")
             # Fetch user profile from Supabase
-            ui_profile = supabase_handler.get_ui_profile(user_id)
-            if not ui_profile["has_topics"]:
+            ui_profile = supabase_handler.get_user_profile(user_id)
+            if not ui_profile["initialized"]:
                 try:
                     self.logger.info("Creating topics")
                     # Create user on Weaviate
@@ -99,7 +105,7 @@ class ClientHandlers:
                         )
                     supabase_handler.create_topics(user_id)
                     self.logger.info("Updating user profile")
-                    ui_profile["has_topics"] = True
+                    ui_profile["initialized"] = True
                     supabase_handler.update_user_ui_profile(user_id, ui_profile)
                 except Exception as e:
                     self.logger.error(f"Error while creating topics: {e}")
@@ -107,7 +113,6 @@ class ClientHandlers:
             if ui_profile is None:
                 raise Exception("User profile not found")
             user_data = UserData(
-                chat_id=chat_id,
                 user_id=user_id,
                 user_name=ui_profile["display_name"],
                 api_key=ui_profile["openai_api_key"],

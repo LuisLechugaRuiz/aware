@@ -5,6 +5,7 @@ from aware.permanent_storage.permanent_storage import get_permanent_storage_path
 from aware.data.database.client_handlers import ClientHandlers
 
 
+# TODO: MODIFY BY GENERAL PROFILE CLASS (WHERE USER IS A SPECIFIC PROFILE USED BY ASSISTANT AGENT!)
 class UserProfile:
     def __init__(self, user_id: str, profile=None):
         self.template_path = os.path.join(

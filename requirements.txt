@@ -11,4 +11,5 @@ jinja2
 tzlocal
 websockets
 celery
+# realtime==1.0.2 # Supabase realtime.
 # python3-tk python3-dev for pywhatkit

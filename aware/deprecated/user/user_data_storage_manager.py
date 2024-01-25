@@ -1,8 +1,8 @@
-import threading
+<import threading
 from typing import Callable
 
 from aware.memory.working_memory.data_storage_manager import DataStorageManager
-from aware.memory.user.user_profile import UserProfile
+from aware.memory.profiles.user_profile import UserProfile
 from aware.memory.memory_manager import MemoryManager
 from aware.architecture.user.user_message import UserMessage
 from aware.deprecated.chat import Chat

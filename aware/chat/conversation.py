@@ -16,30 +16,28 @@ from aware.utils.logger.file_logger import FileLogger
 class Conversation:
     """Conversation class to keep track of the messages and the current state of the conversation."""
 
-    def __init__(self, chat_id: str, user_id: str, process_name: str):
+    def __init__(self, user_id: str, process_id: str):
         log = FileLogger("migration_tests", should_print=True)
         log.info(
-            f"Starting new conversation for chat_id: {chat_id} and user_id: {user_id}"
+            f"Starting new conversation for user_id: {user_id} and process_id: {process_id}"
         )
-
-        self.chat_id = chat_id
         self.user_id = user_id
-        self.process_name = process_name
+        self.process_id = process_id
 
         self.model_name = Config().openai_model  # TODO: Enable more models.
         self.redis_handler = ClientHandlers().get_redis_handler()
         self.supabase_handler = ClientHandlers().get_supabase_handler()
-        conversation_messages = self.redis_handler.get_conversation(
-            chat_id, process_name
-        )
+        conversation_messages = self.redis_handler.get_conversation(process_id)
         for index, message in enumerate(conversation_messages):
             log.info(f"REDIS MESSAGE {index}: {message.to_string()}")
         if not conversation_messages:
             conversation_messages = self.supabase_handler.get_active_messages(
-                chat_id, process_name
+                process_id
             )
             for message in conversation_messages:
-                self.redis_handler.add_message(chat_id, message)
+                self.redis_handler.add_message(
+                    process_id=process_id, chat_message=message
+                )
         self.messages: List[ChatMessage] = conversation_messages
 
     def delete_oldest_message(self) -> ChatMessage:
@@ -47,7 +45,7 @@ class Conversation:
         message_id = removed_message.message_id
 
         self.supabase_handler.delete_message(message_id)
-        self.redis_handler.delete_message(self.chat_id, message_id, self.process_name)
+        self.redis_handler.delete_message(self.process_id, message_id)
 
         return removed_message
 

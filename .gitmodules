@@ -4,6 +4,3 @@
 [submodule "chatbot-ui"]
 	path = chatbot-ui
 	url = git@github.com:LuisLechugaRuiz/chatbot-ui.git
-[submodule "supabase-py"]
-	path = supabase-py
-	url = git@github.com:supabase-community/supabase-py.git
