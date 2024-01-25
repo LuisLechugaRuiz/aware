@@ -2,9 +2,9 @@ import json
 
 
 class Event:
-    def __init__(self, chat_id: str, user_id: str):
-        self.chat_id = chat_id
+    def __init__(self, user_id: str, process_id: str):
         self.user_id = user_id
+        self.process_id = process_id
 
     def to_json(self):
         return json.dumps(self.__dict__)

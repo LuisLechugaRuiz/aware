@@ -7,13 +7,13 @@ from aware.agent.process import Process
 class Assistant(Process):
     """Your classical chatbot! But it can send requests to the system"""
 
-    def __init__(self, user_id: str, chat_id: str):
+    def __init__(self, user_id: str, process_id: str):
         super().__init__(
             user_id=user_id,
-            chat_id=chat_id,
+            process_id=process_id,
             agent_name=Config().assistant_name,  # TODO: get from supabase.
             run_remote=False,
-            tools=AssistantTools(user_id, chat_id),
+            tools=AssistantTools(user_id, process_id),
             module_name="assistant",
         )
 

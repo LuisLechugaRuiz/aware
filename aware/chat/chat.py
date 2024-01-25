@@ -16,17 +16,17 @@ class Chat:
 
     def __init__(
         self,
-        process_name: str,
         user_id: str,
-        chat_id: str,
+        process_id: str,
+        process_name: str,
         module_name: str,
         agent_name: str,
         logger: FileLogger,
         extra_kwargs: Optional[Dict[str, str]] = None,
     ):
-        self.process_name = process_name
         self.user_id = user_id
-        self.chat_id = chat_id
+        self.process_id = process_id
+        self.process_name = process_name
         self.module_name = module_name
         self.agent_name = agent_name
 
@@ -39,9 +39,7 @@ class Chat:
         self.system_message = self.get_system(
             system_instruction_message=system_instruction_message
         )
-        self.conversation = Conversation(
-            chat_id=chat_id, user_id=user_id, process_name=process_name
-        )
+        self.conversation = Conversation(user_id=user_id, process_id=process_id)
         self.redis_handler = ClientHandlers().get_redis_handler()
 
         self.logger = logger
@@ -77,9 +75,9 @@ class Chat:
 
         call_info = CallInfo(
             user_id=self.user_id,
-            call_id=str(uuid.uuid4()),
-            chat_id=self.chat_id,
+            process_id=self.process_id,
             process_name=self.process_name,
+            call_id=str(uuid.uuid4()),
             agent_name=self.agent_name,
             system_message=self.system_message,
             functions=function_schemas,

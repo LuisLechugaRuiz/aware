@@ -8,7 +8,7 @@ from aware.events.assistant_message import AssistantMessageEvent
 from aware.utils.logger.file_logger import FileLogger
 
 
-class AssistantTools(Tools):
+class Assistant(Tools):
     def __init__(self, user_id: str, process_id: str):
         super().__init__(user_id, process_id)
 
@@ -42,7 +42,7 @@ class AssistantTools(Tools):
     # def send_message_to_user(self, user_name: str, message: str):
     #     self.users[user_name].send_message(message)
 
-    @default_function
+    @default_function  # TODO: REMOVE THE EVENT FROM HERE. WE WILL MANAGE THE INTERNAL LOGIC DIFFERENT - TRIGGER THOUGHT ON ANY NEW ASSISTANT MESSAGE.
     def talk(self, message: str):
         """
         Use this tool as the only way to communicate with the user.

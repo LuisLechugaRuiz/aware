@@ -5,12 +5,12 @@ from aware.system.data_storage_manager.data_storage_manager_tools import (
 
 
 class DataStorageManager(Process):
-    def __init__(self, chat_id: str, user_id: str):
+    def __init__(self, user_id: str, process_id: str):
         super().__init__(
             user_id=user_id,
-            chat_id=chat_id,
+            process_id=process_id,
             run_remote=False,
-            tools=DataStorageManagerTools(user_id=user_id, chat_id=chat_id),
+            tools=DataStorageManagerTools(user_id=user_id, process_id=process_id),
             module_name="system",
         )
 

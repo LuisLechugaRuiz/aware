@@ -7,8 +7,8 @@ from aware.utils.logger.file_logger import FileLogger
 
 
 class UserDataStorageTools(DataStorageManagerTools):
-    def __init__(self, user_id: str, chat_id: str):
-        super().__init__(user_id=user_id, chat_id=chat_id)
+    def __init__(self, user_id: str, process_id: str):
+        super().__init__(user_id=user_id, process_id=process_id)
         self.logger = FileLogger("user_data_storage_manager")
 
     def get_tools(self):

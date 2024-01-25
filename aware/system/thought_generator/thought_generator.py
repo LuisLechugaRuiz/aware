@@ -3,13 +3,13 @@ from aware.system.thought_generator.thought_generator_tools import ThoughtGenera
 
 
 class ThoughtGenerator(Process):
-    def __init__(self, chat_id: str, user_id: str):
+    def __init__(self, user_id: str, process_id: str):
         super().__init__(
             user_id=user_id,
-            chat_id=chat_id,
+            process_id=process_id,
             agent_name="Thought Generator",
             run_remote=False,
-            tools=ThoughtGeneratorTools(user_id=user_id, chat_id=chat_id),
+            tools=ThoughtGeneratorTools(user_id=user_id, process_id=process_id),
             module_name="system",
         )
 

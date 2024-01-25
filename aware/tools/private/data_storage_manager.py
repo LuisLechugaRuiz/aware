@@ -3,16 +3,20 @@ from aware.memory.memory_manager import MemoryManager
 from aware.utils.logger.file_logger import FileLogger
 
 
-class DataStorageManagerTools(Tools):
+class DataStorageManager(Tools):
     def __init__(self, user_id: str, process_id: str):
         self.logger = FileLogger("data_storage_manager")
-        super().__init__(user_id, process_id)
+        super().__init__(user_id, process_id, run_remote=False)
 
     def get_tools(self):
         return [
             self.store,
             self.stop,
         ]
+
+    @classmethod
+    def get_process_name(self):
+        return "data_storage_manager"
 
     def store(self, data: str, potential_query: str):
         """

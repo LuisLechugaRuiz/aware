@@ -13,14 +13,16 @@ class SupabaseHandler:
         self.client = client
 
     def add_message(
-        self, chat_id: str, user_id: str, process_name: str, json_message: JSONMessage
+        self,
+        user_id: str,
+        process_id: str,
+        json_message: JSONMessage,
     ) -> ChatMessage:
         logger = FileLogger("migration_tests")
         invoke_options = {
-            "p_chat_id": chat_id,
             "p_user_id": user_id,
+            "p_process_id": process_id,
             "p_model": Config().aware_model,
-            "p_process_name": process_name,
             "p_message_type": json_message.__class__.__name__,
         }
         # Add p_ to all the keys in json_message
@@ -90,11 +92,10 @@ class SupabaseHandler:
             return None
         return data[0]
 
-    def get_active_messages(self, chat_id: str, process_name: str) -> List[ChatMessage]:
+    def get_active_messages(self, process_id: str) -> List[ChatMessage]:
         log = FileLogger("migration_tests")
-        invoke_options = {"p_chat_id": chat_id, "p_process_name": process_name}
-        log.info("PRE INVOKE with id: " + chat_id)
-        log.info("INFO: " + str({"body": invoke_options, "responseType": "json"}))
+        invoke_options = {"p_process_id": process_id}
+        log.info(f"PRE INVOKE with id: {process_id}")
         ordered_messages = (
             self.client.rpc("get_active_messages", invoke_options).execute().data
         )
@@ -120,11 +121,13 @@ class SupabaseHandler:
         data = data[0]
         return data["content"]
 
-    def get_ui_profile(self, user_id: str):
+    # TODO: Instead of this we should get profile for each agent!!
+    def get_agent_profile(self, user_id: str, agent_id: str):
         data = (
             self.client.table("profiles")
             .select("*")
             .eq("user_id", user_id)
+            .eq("agent_id", agent_id)
             .execute()
             .data
         )
@@ -142,9 +145,8 @@ class SupabaseHandler:
 
     def send_message_to_user(
         self,
-        chat_id: str,
         user_id: str,
-        process_name: str,
+        process_id: str,
         message_type: str,
         role: str,
         name: str,
@@ -153,10 +155,9 @@ class SupabaseHandler:
         logger = FileLogger("migration_tests")
         logger.info(f"DEBUG - Sending message to user {user_id}")
         invoke_options = {
-            "p_chat_id": chat_id,
             "p_user_id": user_id,
+            "p_process_id": process_id,
             "p_model": Config().aware_model,
-            "p_process_name": process_name,
             "p_message_type": message_type,
             "p_role": role,
             "p_name": name,

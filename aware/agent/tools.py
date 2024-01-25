@@ -10,9 +10,10 @@ import inspect
 
 
 class Tools(ABC):
-    def __init__(self, user_id: str, chat_id: str):
+    def __init__(self, user_id: str, process_id: str, run_remote: bool = False):
         self.user_id = user_id
-        self.chat_id = chat_id
+        self.process_id = process_id
+        self.run_remote = run_remote
 
     @abstractmethod
     def get_tools(self) -> List[Callable]:
@@ -37,6 +38,10 @@ class Tools(ABC):
                 )
                 return function_call
         return None
+
+    @classmethod
+    def get_process_name(self) -> str:
+        return "main"
 
     def _construct_arguments_dict(self, func: Callable, content: str):
         signature = inspect.signature(func)

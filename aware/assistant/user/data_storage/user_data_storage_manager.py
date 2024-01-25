@@ -6,13 +6,13 @@ from aware.utils.logger.file_logger import FileLogger
 
 
 class UserDataStorageManager(Process):
-    def __init__(self, user_id: str, chat_id: str):
+    def __init__(self, user_id: str, process_id: str):
         super().__init__(
             user_id=user_id,
-            chat_id=chat_id,
+            process_id=process_id,
             agent_name="User Data Storage Manager",
             run_remote=False,
-            tools=UserDataStorageTools(user_id=user_id, chat_id=chat_id),
+            tools=UserDataStorageTools(user_id=user_id, process_id=process_id),
             module_name="assistant",
         )
 

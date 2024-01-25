@@ -26,7 +26,7 @@ class TestRedisHandler(unittest.TestCase):
 
     def test_add_message(self):
         # Setup
-        chat_id = "conv1"
+        process_id = "conv1"
         message_id = "msg1"
         timestamp = "2024-01-21T01:15:17.041211+00:00"
         message = UserMessage(name="Alice", content="Hello")
@@ -40,22 +40,22 @@ class TestRedisHandler(unittest.TestCase):
 
         # Execute
         chat_message = ChatMessage(message_id, timestamp, message)
-        self.redis_handler.add_message(chat_id, chat_message)
+        self.redis_handler.add_message(process_id, chat_message)
 
         # Assert
-        message_key = f"conversation:{chat_id}:message:{message_id}"
+        message_key = f"conversation:{process_id}:message:{message_id}"
         self.mock_redis_client.hmset.assert_called_with(
             message_key, expected_message_data
         )
         self.mock_redis_client.zadd.assert_called_with(
-            f"conversation:{chat_id}",
+            f"conversation:{process_id}",
             {message_key: convert_timestamp_to_epoch(timestamp)},
         )
 
     def test_get_conversation(self):
         # Setup
-        chat_id = "conv1"
-        message_keys = [f"conversation:{chat_id}:message:{i}" for i in range(1, 6)]
+        process_id = "conv1"
+        message_keys = [f"conversation:{process_id}:message:{i}" for i in range(1, 6)]
         self.mock_redis_client.zrange.return_value = message_keys
 
         # Mocking Redis hget responses for each message
@@ -109,7 +109,7 @@ class TestRedisHandler(unittest.TestCase):
         ]
 
         # Execute
-        conversation = self.redis_handler.get_conversation(chat_id)
+        conversation = self.redis_handler.get_conversation(process_id)
         print(conversation)
 
         # Assert

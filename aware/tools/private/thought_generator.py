@@ -7,9 +7,9 @@ from aware.utils.logger.file_logger import FileLogger
 from aware.memory.memory_manager import MemoryManager
 
 
-class ThoughtGeneratorTools(Tools):
+class ThoughtGenerator(Tools):
     def __init__(self, user_id: str, process_id: str):
-        super().__init__(user_id, process_id)
+        super().__init__(user_id, process_id, run_remote=False)
 
     def get_tools(self):
         return [
@@ -17,6 +17,10 @@ class ThoughtGeneratorTools(Tools):
             self.final_thought,
             self.search,
         ]
+
+    @classmethod
+    def get_process_name(self):
+        return "thought_generator"
 
     def search(self, questions: List[str]):
         """Search for the answer to the questions in the memory.
