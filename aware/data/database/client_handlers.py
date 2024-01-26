@@ -1,5 +1,5 @@
 from supabase import create_client
-import aioredis
+from redis import asyncio as aioredis
 import redis
 import threading
 

@@ -8,8 +8,8 @@ from aware.tools.tools import Tools
 
 
 class ThoughtGenerator(Tools):
-    def __init__(self, user_id: str, process_id: str):
-        super().__init__(user_id, process_id, run_remote=False)
+    def __init__(self, user_id: str, agent_id: str, process_id: str):
+        super().__init__(user_id, agent_id, process_id, run_remote=False)
 
     def get_tools(self):
         return [

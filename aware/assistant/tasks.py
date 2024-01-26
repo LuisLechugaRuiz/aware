@@ -42,7 +42,12 @@ def handle_user_message(data: Dict[str, Any]):
             module_name="assistant",
             prompt_name="assistant",
             agent_name="Aware",
-            extra_kwargs={"assistant_name": Config().assistant_name},
+            extra_kwargs={
+                "assistant_name": Config().assistant_name,
+                "context": assistant_agent_data.context,
+                "thought": assistant_agent_data.thought,
+                "requests": "",  # TODO: Fill this properly.
+            },
         )
 
         # Add thought generator message.
@@ -61,7 +66,7 @@ def handle_user_message(data: Dict[str, Any]):
             extra_kwargs={
                 "assistant_name": Config().assistant_name,
                 "user_name": user_data.user_name,
-                "profile": assistant_agent_data.profile,
+                "profile": assistant_agent_data.profile.to_string(),
                 "context": assistant_agent_data.context,
             },
         )
@@ -102,6 +107,7 @@ def handle_assistant_message(assistant_message_event_json: str):
         log.error(f"Error: {e}")
 
 
+# TODO: We can merge both into a single process - Data Storage Manager, removing Context Manager and asking for that info on Stop!!
 def manage_conversation_buffer(user_data_json: str, agent_data_json: str):
     user_data = UserData.from_json(user_data_json)
     agent_data = Agent.from_json(agent_data_json)
@@ -121,7 +127,7 @@ def manage_conversation_buffer(user_data_json: str, agent_data_json: str):
                 "assistant_name": Config().assistant_name,
                 "assistant_conversation": assistant_conversation_buffer.to_string(),
                 "user_name": user_data.user_name,
-                "profile": agent_data.profile,
+                "profile": agent_data.profile.to_string(),
                 "context": agent_data.context,
             },
         )
@@ -136,7 +142,7 @@ def manage_conversation_buffer(user_data_json: str, agent_data_json: str):
                 "assistant_name": Config().assistant_name,
                 "assistant_conversation": assistant_conversation_buffer.to_string(),
                 "user_name": user_data.user_name,
-                "profile": agent_data.profile,
+                "profile": agent_data.profile.to_string(),
                 "context": agent_data.context,
             },
         )
