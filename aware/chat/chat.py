@@ -20,18 +20,20 @@ class Chat:
         process_id: str,
         process_name: str,
         module_name: str,
-        agent_name: str,
+        prompt_name: str,
         logger: FileLogger,
+        agent_name: Optional[str] = None,
         extra_kwargs: Optional[Dict[str, str]] = None,
     ):
         self.user_id = user_id
         self.process_id = process_id
         self.process_name = process_name
+
+        self.prompt_name = prompt_name
         self.module_name = module_name
-        self.agent_name = agent_name
 
         system_instruction_message = load_prompt_from_database(
-            self.process_name,
+            self.prompt_name,
             user_id,
             self.module_name,
             extra_kwargs,
@@ -43,6 +45,7 @@ class Chat:
         self.redis_handler = ClientHandlers().get_redis_handler()
 
         self.logger = logger
+        self.agent_name = agent_name
 
     def get_conversation(self):
         return self.conversation
@@ -76,11 +79,11 @@ class Chat:
         call_info = CallInfo(
             user_id=self.user_id,
             process_id=self.process_id,
-            process_name=self.process_name,
             call_id=str(uuid.uuid4()),
-            agent_name=self.agent_name,
+            process_name=self.process_name,
             system_message=self.system_message,
             functions=function_schemas,
+            agent_name=self.agent_name,
         )
         self.redis_handler.add_call_info(call_info)
         self.log_conversation()

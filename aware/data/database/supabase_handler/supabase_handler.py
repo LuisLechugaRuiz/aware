@@ -1,10 +1,13 @@
 from supabase import Client
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
+from aware.agent.agent import Agent
 from aware.chat.conversation_schemas import ChatMessage, JSONMessage
 from aware.data.database.data import get_topics
 from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
+from aware.memory.memory_manager import MemoryManager
+from aware.tools.profiles import Profile
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -80,18 +83,6 @@ class SupabaseHandler:
         response = self.client.rpc("soft_delete_message", invoke_options).execute().data
         return response
 
-    def get_user_profile(self, user_id: str):
-        data = (
-            self.client.table("user_profiles")
-            .select("*")
-            .eq("user_id", user_id)
-            .execute()
-            .data
-        )
-        if not data:
-            return None
-        return data[0]
-
     def get_active_messages(self, process_id: str) -> List[ChatMessage]:
         log = FileLogger("migration_tests")
         invoke_options = {"p_process_id": process_id}
@@ -107,19 +98,37 @@ class SupabaseHandler:
                 messages.append(MessagesFactory.create_message(row))
         return messages
 
-    def get_topic_content(self, user_id: str, name: str):
-        data = (
-            self.client.table("topics")
-            .select("*")
-            .eq("user_id", user_id)
-            .eq("name", name)
-            .execute()
-            .data
+    def get_buffered_messages(self, process_id: str) -> List[ChatMessage]:
+        log = FileLogger("migration_tests")
+        invoke_options = {"p_process_id": process_id}
+        log.info(f"PRE INVOKE with id: {process_id}")
+        ordered_messages = (
+            self.client.rpc("get_buffered_messages", invoke_options).execute().data
         )
+        log.info("POST INVOKE, response: " + str(ordered_messages))
+        messages = []
+        if ordered_messages:
+            for row in ordered_messages:
+                log.info(f"Row: {str(row)}")
+                messages.append(MessagesFactory.create_message(row))
+        return messages
+
+    def get_agent(self, agent_id: str):
+        data = self.client.table("agents").select("*").eq("id", agent_id).execute().data
         if not data:
             return None
         data = data[0]
-        return data["content"]
+        return Agent(
+            id=data["id"],
+            name=data["name"],
+            thought=data["thought"],
+            context=data["context"],
+            profile=data["profile"],
+            main_process_id=data["main_process_id"],
+            thought_generator_process_id=data["thought_generator_process_id"],
+            context_manager_process_id=data["context_manager_process_id"],
+            data_storage_manager_process_id=data["data_storage_manager_process_id"],
+        )
 
     # TODO: Instead of this we should get profile for each agent!!
     def get_agent_profile(self, user_id: str, agent_id: str):
@@ -134,6 +143,82 @@ class SupabaseHandler:
         if not data:
             return None
         return data[0]
+
+    def get_tools_class(self, process_id: str) -> Optional[str]:
+        data = (
+            self.client.table("processes")
+            .select("*")
+            .eq("id", process_id)
+            .execute()
+            .data
+        )
+        if not data:
+            return None
+        return data[0]["tools_class"]
+
+    def get_user_profile(self, user_id: str):
+        data = (
+            self.client.table("profiles")
+            .select("*")
+            .eq("user_id", user_id)
+            .execute()
+            .data
+        )
+        if not data:
+            return None
+        return data[0]
+
+    def get_topic_content(self, user_id: str, name: str):
+        data = (
+            self.client.table("topics")
+            .select("*")
+            .eq("user_id", user_id)
+            .eq("name", name)
+            .execute()
+            .data
+        )
+        if not data:
+            return None
+        data = data[0]
+        return data["content"]
+
+    def initialize_user(self, user_id: str, user_profile: Dict[str, Any]):
+        logger = FileLogger("migration_tests")
+        # AgentProfile
+        logger.info("Initializing user")
+        # Create user on Weaviate
+        try:
+            memory_manager = MemoryManager(user_id=user_id, logger=logger)
+            result = memory_manager.create_user(
+                user_id=user_id, user_name=user_profile["display_name"]
+            )
+        except Exception as e:
+            logger.error(f"Error while creating weaviate user: {e}")
+            raise e
+        if result.error:
+            logger.info(f"DEBUG - error creating weaviate user result: {result.error}")
+        else:
+            logger.info(f"DEBUG - success creating weaviate user result: {result.data}")
+        try:
+            assistant_profile = Profile.get(module_name="core", agent_name="assistant")
+            self.update_agent_profile(
+                agent_id=user_profile["assistant_agent_id"], profile=assistant_profile
+            )
+            orchestrator_profile = Profile.get(
+                module_name="core", agent_name="orchestrator"
+            )
+            self.update_agent_profile(
+                agent_id=user_profile["orchestrator_agent_id"],
+                profile=orchestrator_profile,
+            )
+        except Exception as e:
+            logger.error(f"Error while updating agent profile: {e}")
+            raise e
+        self.create_topics(user_id)
+
+        logger.info("Updating user profile")
+        user_profile["initialized"] = True
+        self.update_user_profile(user_id, user_profile)
 
     def remove_frontend_message(self, message_id: str):
         self.client.table("frontend_messages").delete().eq("id", message_id).execute()
@@ -169,6 +254,9 @@ class SupabaseHandler:
         logger.info(f"DEBUG - Response: {response}")
         return response
 
+    def set_agent(self, agent: Agent):
+        self.client.table("agents").update(agent.to_dict()).eq("id", agent.id).execute()
+
     def set_topic_content(self, user_id: str, name: str, content: str):
         data = (
             self.client.table("topics")
@@ -185,10 +273,10 @@ class SupabaseHandler:
                 "user_id", user_id
             ).eq("name", name).execute()
 
-    def update_user_profile(self, user_id: str, profile: Dict[str, Any]):
-        self.client.table("user_profiles").update(profile).eq(
-            "user_id", user_id
+    def update_agent_profile(self, agent_id: str, profile: Dict[str, Any]):
+        self.client.table("agents").update({"profile": profile}).eq(
+            "agent_id", agent_id
         ).execute()
 
-    def update_user_ui_profile(self, user_id: str, profile: Dict[str, Any]):
+    def update_user_profile(self, user_id: str, profile: Dict[str, Any]):
         self.client.table("profiles").update(profile).eq("user_id", user_id).execute()

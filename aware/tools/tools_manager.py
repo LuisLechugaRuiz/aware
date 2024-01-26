@@ -1,25 +1,20 @@
-import glob
 import json
-import importlib
 import inspect
-from pathlib import Path
-import os
-import warnings
-from typing import Callable, List
+from typing import Callable, List, Optional, Type
 from openai.types.chat import ChatCompletionMessageToolCall
 
-from aware.agent.tools import FunctionCall
 from aware.chat.conversation_schemas import ToolResponseMessage
 from aware.utils.logger.file_logger import FileLogger
+from aware.tools.tools import FunctionCall, Tools
+from aware.tools.tools_registry import ToolsRegistry
 
 
 class ToolsManager:
     def __init__(self, logger: FileLogger):
         self.module_path = "aware.tools.tools"
-        self.tools_folder = Path(__file__).parent / "tools"
+        self.tools_registry = ToolsRegistry(["core", "private", "public"])
         self.default_tools = []
         self.logger = logger
-        # Ideally the data retrieved after executing tool should be send online to our database (after filtering), for future fine-tuning, so we can improve the models and provide them back to the community.
 
     def clean_tool_calls(self, tool_calls: List[ChatCompletionMessageToolCall]):
         """Clean the tool calls to replace any '.' in the name with ' _'."""
@@ -27,40 +22,8 @@ class ToolsManager:
             tool_call.function.name = tool_call.function.name.replace(".", "_")
         return tool_calls
 
-    def save_tool(self, function, name):
-        path = os.path.join(self.tools_folder / f"{name}.py")
-        with open(path, "w") as f:
-            f.write(function)
-
-    def get_tool(self, name: str) -> Callable:
-        with warnings.catch_warnings():
-            # Filter ResourceWarnings to ignore unclosed file objects
-            warnings.filterwarnings("ignore", category=ResourceWarning)
-
-            # Dynamically import the module
-            module = importlib.import_module(f"{self.module_path}.{name}")
-
-        # Retrieve the function with the same name as the module
-        tool_function = getattr(module, name, None)
-
-        if tool_function is None:
-            raise AttributeError(f"No function named '{name}' found in module '{name}'")
-
-        return tool_function
-
-    def get_all_tools(self) -> List[str]:
-        module_names = []
-
-        # Use glob to find all Python files in the specified folder
-        python_files = glob.glob(os.path.join(self.tools_folder, "*.py"))
-        python_files = [file for file in python_files if "__init__" not in file]
-
-        for file_path in python_files:
-            # Remove the file extension and path to get the module name
-            module_name = os.path.splitext(os.path.basename(file_path))[0]
-            module_names.append(module_name)
-
-        return module_names
+    def get_tools(self, name: str) -> Optional[Type[Tools]]:
+        return self.tools_registry.get_tools(name)
 
     def get_function_calls(
         self,
@@ -104,9 +67,9 @@ class ToolsManager:
                         arguments=call_arguments_dict,
                     )
                 )
-                args_string = "\n".join(
-                    [f"{key}={value!r}" for key, value in call_arguments_dict.items()]
-                )
+                # args_string = "\n".join(
+                #     [f"{key}={value!r}" for key, value in call_arguments_dict.items()]
+                # )
                 # self.logger.info(f"Function: {function.__name__}\n{args_string}")
             except Exception as e:
                 self.logger.error(
@@ -146,3 +109,8 @@ class ToolsManager:
                 )
 
         return tool_response_messages
+
+    # def save_tool(self, function, name):
+    #     path = os.path.join(self.tools_folder / f"{name}.py")
+    #     with open(path, "w") as f:
+    #         f.write(function)

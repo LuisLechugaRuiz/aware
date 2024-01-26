@@ -6,14 +6,12 @@ from aware.utils.helpers import count_message_tokens
 
 from aware.chat.conversation_schemas import (
     ChatMessage,
-    ToolCalls,
-    ToolResponseMessage,
 )
 from aware.data.database.client_handlers import ClientHandlers
 from aware.utils.logger.file_logger import FileLogger
 
 
-class Conversation:
+class ConversationBuffer:
     """Conversation class to keep track of the messages and the current state of the conversation."""
 
     def __init__(self, user_id: str, process_id: str):
@@ -27,27 +25,20 @@ class Conversation:
         self.model_name = Config().openai_model  # TODO: Enable more models.
         self.redis_handler = ClientHandlers().get_redis_handler()
         self.supabase_handler = ClientHandlers().get_supabase_handler()
-        conversation_messages = self.redis_handler.get_conversation(process_id)
+        # Get the buffered messages from redis.
+        conversation_messages = self.redis_handler.get_conversation_buffer(process_id)
         for index, message in enumerate(conversation_messages):
             log.info(f"REDIS MESSAGE {index}: {message.to_string()}")
         if not conversation_messages:
-            conversation_messages = self.supabase_handler.get_active_messages(
+            # If there are no buffered messages, get the buffered messages from supabase.
+            conversation_messages = self.supabase_handler.get_buffered_messages(
                 process_id
             )
             for message in conversation_messages:
-                self.redis_handler.add_message(
+                self.redis_handler.add_message_to_buffer(
                     process_id=process_id, chat_message=message
                 )
         self.messages: List[ChatMessage] = conversation_messages
-
-    def delete_oldest_message(self) -> ChatMessage:
-        removed_message = self.messages.pop(0)
-        message_id = removed_message.message_id
-
-        self.supabase_handler.delete_message(message_id)
-        self.redis_handler.delete_message(self.process_id, message_id)
-
-        return removed_message
 
     def get_current_tokens(self):
         """Get the current number of tokens in the conversation, excluding the system message."""
@@ -61,8 +52,7 @@ class Conversation:
         return Config().max_conversation_tokens - self.get_current_tokens()
 
     def reset(self):
-        while self.messages:
-            self.delete_oldest_message()
+        self.redis_handler.clear_conversation_buffer()
 
     def should_trigger_warning(self):
         warning_tokens = (
@@ -75,32 +65,3 @@ class Conversation:
             [message.to_string() for message in self.messages]
         )
         return conversation_string
-
-    def trim_conversation(self):
-        current_message_tokens = self.get_current_tokens()
-        while (current_message_tokens) > Config().max_conversation_tokens:
-            # Check if the next message is a 'tool' message and the current one is 'assistant' with 'tool_calls'.
-            if len(self.messages) > 2 and isinstance(self.messages[0] == ToolCalls):
-                removed_message = (
-                    self.delete_oldest_message()
-                )  # Delete 'tool_calls' message.
-
-                current_message_tokens -= count_message_tokens(
-                    removed_message.to_string(), self.model_name
-                )
-                # Delete all the 'tool_response' messages.
-                while len(self.messages) > 1 and isinstance(
-                    self.messages[1], ToolResponseMessage
-                ):
-                    removed_tool_message = self.delete_oldest_message()
-                    current_message_tokens -= count_message_tokens(
-                        removed_tool_message.to_string(),
-                        self.model_name,
-                    )
-            else:
-                # Delete the oldest message if the above condition is not met.
-                removed_message = self.delete_oldest_message()
-
-                current_message_tokens -= count_message_tokens(
-                    removed_message.to_string(), self.model_name
-                )

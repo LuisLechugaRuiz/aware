@@ -1,10 +1,10 @@
-from aware.agent.tools import Tools
-from aware.agent.decorators import default_function
 from aware.assistant.tasks import handle_assistant_message
 from aware.chat.conversation_schemas import AssistantMessage
 from aware.config.config import Config
 from aware.data.database.client_handlers import ClientHandlers
 from aware.events.assistant_message import AssistantMessageEvent
+from aware.tools.tools import Tools
+from aware.tools.decorators import default_function
 from aware.utils.logger.file_logger import FileLogger
 
 

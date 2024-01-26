@@ -7,7 +7,7 @@ from aware.memory.user import (
     UserThoughtGenerator,
     UserDataStorageManager,
 )
-from aware.memory.profiles.user_profile import UserProfile
+from aware.memory.profiles.agent_profile import UserProfile
 from aware.architecture.helpers.topics import (
     DEF_SEARCH_DATABASE,
     DEF_GET_THOUGHT,

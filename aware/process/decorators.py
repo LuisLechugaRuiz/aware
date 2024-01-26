@@ -1,11 +1,6 @@
 from functools import wraps
 
 
-def default_function(func):
-    func.is_default_function = True
-    return func
-
-
 def on_preprocess(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):

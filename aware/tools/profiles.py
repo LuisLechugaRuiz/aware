@@ -1,16 +1,18 @@
 import json
 import os
+from pathlib import Path
 
 from aware.permanent_storage.permanent_storage import get_permanent_storage_path
 from aware.data.database.client_handlers import ClientHandlers
 
 
-# TODO: MODIFY BY GENERAL PROFILE CLASS (WHERE USER IS A SPECIFIC PROFILE USED BY ASSISTANT AGENT!)
-class UserProfile:
-    def __init__(self, user_id: str, profile=None):
-        self.template_path = os.path.join(
-            get_permanent_storage_path(), "user_data", "user_profile_template.json"
-        )
+# TODO: MODIFY BY GENERAL PROFILE CLASS FOR EACH AGENT - BASED ON TOOLS.
+class Profile:
+    def __init__(self, template_name: str, agent_id: str, profile=None):
+        # TODO: ADAPT ME!
+        # self.template_path = os.path.join(
+        #     get_permanent_storage_path(), "user_data", "user_profile_template.json"
+        # )
 
         if profile is not None:
             self.profile = profile
@@ -19,6 +21,12 @@ class UserProfile:
 
     def get_profile(self):
         return self.profile
+
+    @classmethod
+    def get(self, module_name: str, agent_name: str):
+        path = Path(__file__).parent / module_name / agent_name / "profile.json"
+        with open(path, "r") as file:
+            return json.load(file)
 
     def load(self, user_id: str):
         with open(self.template_path, "r") as file:

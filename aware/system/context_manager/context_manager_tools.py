@@ -1,6 +1,6 @@
-from aware.agent.tools import Tools
 from aware.data.database.client_handlers import ClientHandlers
 from aware.utils.logger.file_logger import FileLogger
+from aware.tools.tools import Tools
 
 
 class ContextManagerTools(Tools):
