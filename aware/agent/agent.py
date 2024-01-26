@@ -24,6 +24,7 @@ class Agent:
 
     def to_dict(self):
         return {
+            "id": self.id,
             "name": self.name,
             "thought": self.thought,
             "context": self.context,

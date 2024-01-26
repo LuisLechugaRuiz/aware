@@ -32,12 +32,14 @@ def handle_user_message(data: Dict[str, Any]):
         ClientHandlers().add_message(
             user_id=user_data.user_id,
             process_id=assistant_agent_data.main_process_id,
-            json_message=user_message.to_json(),
+            json_message=user_message,
         )
 
         # TODO: Get assistant name from database, on profile!
         Process(
-            user_id=user_data.user_id, process_id=assistant_agent_data.main_process_id
+            user_id=user_data.user_id,
+            agent_id=user_data.assistant_agent_id,
+            process_id=assistant_agent_data.main_process_id,
         ).preprocess(
             module_name="assistant",
             prompt_name="assistant",
@@ -54,11 +56,12 @@ def handle_user_message(data: Dict[str, Any]):
         ClientHandlers().add_message(
             user_id=user_data.user_id,
             process_id=assistant_agent_data.thought_generator_process_id,
-            json_message=user_message.to_json(),
+            json_message=user_message,
         )
         # Trigger thought generator.
         Process(
             user_id=user_data.user_id,
+            agent_id=user_data.assistant_agent_id,
             process_id=assistant_agent_data.thought_generator_process_id,
         ).preprocess(
             module_name="assistant",
@@ -99,7 +102,7 @@ def handle_assistant_message(assistant_message_event_json: str):
         ClientHandlers().add_message(
             user_id=user_data.user_id,
             process_id=assistant_agent_data.thought_generator_process_id,
-            json_message=assistant_message.to_json(),
+            json_message=assistant_message,
         )
 
         manage_conversation_buffer(user_data.to_json(), assistant_agent_data.to_json())
@@ -119,6 +122,7 @@ def manage_conversation_buffer(user_data_json: str, agent_data_json: str):
     if assistant_conversation_buffer.should_trigger_warning():
         Process(
             user_id=user_data.user_id,
+            agent_id=user_data.assistant_agent_id,
             process_id=agent_data.data_storage_manager_process_id,
         ).preprocess(
             module_name="assistant",
@@ -134,6 +138,7 @@ def manage_conversation_buffer(user_data_json: str, agent_data_json: str):
 
         Process(
             user_id=user_data.user_id,
+            agent_id=user_data.assistant_agent_id,
             process_id=agent_data.context_manager_process_id,
         ).preprocess(
             module_name="assistant",

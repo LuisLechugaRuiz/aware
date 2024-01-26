@@ -17,6 +17,7 @@ class Chat:
     def __init__(
         self,
         user_id: str,
+        agent_id: str,
         process_id: str,
         process_name: str,
         module_name: str,
@@ -26,6 +27,7 @@ class Chat:
         extra_kwargs: Optional[Dict[str, str]] = None,
     ):
         self.user_id = user_id
+        self.agent_id = agent_id
         self.process_id = process_id
         self.process_name = process_name
 
@@ -41,7 +43,7 @@ class Chat:
         self.system_message = self.get_system(
             system_instruction_message=system_instruction_message
         )
-        self.conversation = Conversation(user_id=user_id, process_id=process_id)
+        self.conversation = Conversation(process_id=process_id)
         self.redis_handler = ClientHandlers().get_redis_handler()
 
         self.logger = logger
@@ -78,6 +80,7 @@ class Chat:
 
         call_info = CallInfo(
             user_id=self.user_id,
+            agent_id=self.agent_id,
             process_id=self.process_id,
             call_id=str(uuid.uuid4()),
             process_name=self.process_name,

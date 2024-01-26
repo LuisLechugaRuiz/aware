@@ -61,7 +61,6 @@ class ThoughtGenerator(Tools):
 
     # TODO: We should add a @publishes decorator instead of calling update_thought directly.
     def update_thought(self, thought: str):
+        # TODO: UPDATE THIS AT ASSISTANT!
         supabase_handler = ClientHandlers().get_supabase_handler()
-        supabase_handler.set_topic_content(
-            user_id=self.user_id, name="assistant_thought", content=thought
-        )
+        supabase_handler.update_agent(agent_id=self.agent_id, data={"thought": thought})

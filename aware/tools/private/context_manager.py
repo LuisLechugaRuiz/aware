@@ -16,6 +16,15 @@ class ContextManager(Tools):
             self.edit_context,
         ]
 
+    def _get_context(self):
+        supabase_handler = ClientHandlers().get_supabase_handler()
+        agent = supabase_handler.get_agent(agent_id=self.agent_id)
+        return agent.context
+
+    def _update_context(self, context):
+        supabase_handler = ClientHandlers().get_supabase_handler()
+        supabase_handler.update_agent(agent_id=self.agent_id, data={"context": context})
+
     @classmethod
     def get_process_name(self):
         return "context_manager"
@@ -29,14 +38,9 @@ class ContextManager(Tools):
             data (str): Data to be appended.
         """
 
-        supabase_handler = ClientHandlers().get_supabase_handler()
-        context = supabase_handler.get_topic_content(
-            user_id=self.user_id, name="assistant_context"
-        )  # TODO: GET DEPENDING ON AGENT NAME!
+        context = self._get_context()
         context += data
-        supabase_handler.set_topic_content(
-            user_id=self.user_id, name="assistant_context", content=context
-        )
+        self._update_context(context)
         self.stop_agent()
         return "Context appended."
 
@@ -48,15 +52,10 @@ class ContextManager(Tools):
             old_data (str): Old data that should be replaced.
             new_data (str): New data to replace the old data.
         """
-        supabase_handler = ClientHandlers().get_supabase_handler()
-        context = supabase_handler.get_topic_content(
-            user_id=self.user_id, name="assistant_context"
-        )  # TODO: GET DEPENDING ON AGENT NAME!
+        context = self._get_context()
         if old_data in context:
             context.replace(old_data, new_data)
-            supabase_handler.set_topic_content(
-                user_id=self.user_id, name="assistant_context", content=context
-            )
+            self._update_context(context)
             self.stop_agent()
             return "Context edited."
         else:
