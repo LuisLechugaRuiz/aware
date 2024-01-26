@@ -9,6 +9,7 @@ import uuid
 import inspect
 
 
+# TODO: Run remote should be a decorator.
 class Tools(ABC):
     def __init__(self, user_id: str, process_id: str, run_remote: bool = False):
         self.user_id = user_id
@@ -38,10 +39,6 @@ class Tools(ABC):
                 )
                 return function_call
         return None
-
-    @classmethod
-    def get_process_name(self) -> str:
-        return "main"
 
     def _construct_arguments_dict(self, func: Callable, content: str):
         signature = inspect.signature(func)

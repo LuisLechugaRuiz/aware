@@ -1,19 +1,11 @@
 from openai.types.chat import ChatCompletionMessage
 
-from aware.agent.process import Process
+
 from aware.assistant.assistant import Assistant
-from aware.assistant.user.context_manager.user_context_manager import (
-    UserContextManager,
-)
-from aware.assistant.user.data_storage.user_data_storage_manager import (
-    UserDataStorageManager,
-)
-from aware.assistant.user.thought_generator.user_thought_generator import (
-    UserThoughtGenerator,
-)
 from aware.data.database.client_handlers import ClientHandlers
 from aware.chat.call_info import CallInfo
 from aware.chat.conversation_schemas import AssistantMessage, ToolCalls
+from aware.process.process import Process
 from aware.server.celery_app import app as celery_app
 from aware.utils.logger.file_logger import FileLogger
 
@@ -31,11 +23,7 @@ def process_model_response(response_str: str, call_info_str: str):
         # 1. Get process.
         call_info = CallInfo.from_json(call_info_str)
 
-        process = get_process(
-            user_id=call_info.user_id,
-            process_id=call_info.process_id,
-            process_name=call_info.process_name,
-        )
+        process = Process(user_id=call_info.user_id, process_id=call_info.process_id)
         process.postprocess()
 
         # 2. Reconstruct response.
@@ -88,27 +76,6 @@ def process_model_response(response_str: str, call_info_str: str):
 
     except Exception as e:
         logger.error(f"Error in process_response: {e}")
-
-
-# TODO: Split into Assistant - System. - TODO: FIX ME PROPERLY, this classes should not exist.
-def get_process(
-    user_id: str,
-    process_id: str,
-    process_name: str,
-) -> Process:
-    if process_name == Assistant.get_process_name():
-        return Assistant(user_id=user_id, process_id=process_id)
-    elif process_name == UserThoughtGenerator.get_process_name():
-        return UserThoughtGenerator(user_id=user_id, process_id=process_id)
-    elif process_name == UserContextManager.get_process_name():
-        return UserContextManager(user_id=user_id, process_id=process_id)
-    elif process_name == UserDataStorageManager.get_process_name():
-        return UserDataStorageManager(user_id=user_id, process_id=process_id)
-    # TODO: Implement me after splitting Assistant - System.
-    elif "system":
-        pass
-    else:
-        raise Exception("Unknown process name.")
 
 
 # TODO: Can have multiple tools.

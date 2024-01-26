@@ -1,5 +1,5 @@
 import json
-from typing import List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 
 from aware.chat.conversation_schemas import JSONMessage, SystemMessage
@@ -10,20 +10,25 @@ class CallInfo:
         self,
         user_id: str,
         process_id: str,
-        process_name: str,
         call_id: str,
-        agent_name: str,
+        process_name: str,
         system_message: str,
         functions: List[Dict[str, Any]],
+        agent_name: Optional[str] = None,
     ):
         self.user_id = user_id
         self.process_id = process_id
-        self.process_name = process_name
-
         self.call_id = call_id
-        self.agent_name = agent_name
+
+        self.process_name = process_name
         self.system_message = system_message
         self.functions = functions
+
+        if agent_name is not None:
+            self.agent_name = agent_name
+        else:
+            self.agent_name = self.process_name
+
         self.conversation = None
         self.api_key = None
 
@@ -37,7 +42,7 @@ class CallInfo:
             "user_id": self.user_id,
             "process_id": self.process_id,
             "call_id": self.call_id,
-            "agent_name": self.agent_name,
+            "process_name": self.process_name,
             "system_message": self.system_message,
             "functions": self.functions,
         }

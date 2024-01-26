@@ -1,14 +1,15 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from openai.types.chat import ChatCompletionMessageToolCall
 from typing import Dict, List, Optional
 
-from aware.agent.tools import FunctionCall, Tools
-from aware.agent.decorators import on_preprocess, on_postprocess
+
 from aware.chat.chat import Chat
 from aware.chat.conversation_schemas import ToolResponseMessage
 from aware.data.database.client_handlers import ClientHandlers
 from aware.tools.tools_manager import ToolsManager
+from aware.tools.tools import FunctionCall, Tools
 from aware.utils.logger.file_logger import FileLogger
+from aware.process.decorators import on_preprocess, on_postprocess
 
 
 class Process(ABC):
@@ -28,28 +29,26 @@ class Process(ABC):
         self,
         user_id: str,
         process_id: str,
-        run_remote: bool,
-        module_name: str = "system",
     ):
         self.user_id = user_id
         self.process_id = process_id
-        self.tools = ClientHandlers.get_tools(user_id, process_id)
-
-        self.run_remote = run_remote
-        self.tools = tools
-        self.module_name = module_name
+        self.tools = ClientHandlers().get_tools(user_id, process_id)
 
     def preprocess(
         self,
+        module_name: str = "system",
+        prompt_name: str = "agent",
+        agent_name: Optional[str] = None,
         extra_kwargs: Optional[Dict[str, str]] = None,
     ):
         self.chat = Chat(
             user_id=self.user_id,
             process_id=self.process_id,
             process_name=self.get_process_name(),
-            module_name=self.module_name,
-            agent_name=self.get_agent_name(),
+            module_name=module_name,
+            prompt_name=prompt_name,
             logger=self.get_logger(),
+            agent_name=agent_name,
             extra_kwargs=extra_kwargs,
         )
         self.initialized_for_preprocessing = True
@@ -61,19 +60,16 @@ class Process(ABC):
         self.initialized_for_postprocessing = True
         return self
 
-    def get_agent_name(self) -> str:
-        return self.tools.__class__.__name__
-
     def get_default_tool_call(
         self, content: str
     ) -> Optional[ChatCompletionMessageToolCall]:
         return self.tools.get_default_tool_call(content)
 
-    def get_process_name(self) -> str:
-        return self.tools.get_process_name()
-
     def get_logger(self) -> FileLogger:
         return FileLogger(self.get_process_name())
+
+    def get_process_name(self) -> str:
+        return self.tools.__class__.__name__
 
     @on_preprocess
     def request_response(self):
