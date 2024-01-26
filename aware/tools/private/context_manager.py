@@ -4,8 +4,10 @@ from aware.tools.tools import Tools
 
 
 class ContextManager(Tools):
-    def __init__(self, user_id: str, process_id: str):
-        super().__init__(user_id=user_id, process_id=process_id, run_remote=False)
+    def __init__(self, user_id: str, agent_id: str, process_id: str):
+        super().__init__(
+            user_id=user_id, agent_id=agent_id, process_id=process_id, run_remote=False
+        )
         self.logger = FileLogger("context_manager")
 
     def get_tools(self):

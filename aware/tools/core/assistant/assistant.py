@@ -9,8 +9,8 @@ from aware.tools.tools import Tools
 
 
 class Assistant(Tools):
-    def __init__(self, user_id: str, process_id: str):
-        super().__init__(user_id, process_id)
+    def __init__(self, user_id: str, agent_id: str, process_id: str):
+        super().__init__(user_id, agent_id, process_id)
 
     def get_tools(self):
         return [

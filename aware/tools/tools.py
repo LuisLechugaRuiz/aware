@@ -11,8 +11,11 @@ import inspect
 
 # TODO: Run remote should be a decorator.
 class Tools(ABC):
-    def __init__(self, user_id: str, process_id: str, run_remote: bool = False):
+    def __init__(
+        self, user_id: str, agent_id: str, process_id: str, run_remote: bool = False
+    ):
         self.user_id = user_id
+        self.agent_id = agent_id
         self.process_id = process_id
         self.run_remote = run_remote
 

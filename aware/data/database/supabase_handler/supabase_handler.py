@@ -7,7 +7,7 @@ from aware.data.database.data import get_topics
 from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
 from aware.memory.memory_manager import MemoryManager
-from aware.tools.profiles import Profile
+from aware.tools.profile import Profile
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -123,17 +123,16 @@ class SupabaseHandler:
             name=data["name"],
             thought=data["thought"],
             context=data["context"],
-            profile=data["profile"],
+            profile=Profile(profile=data["profile"]),
             main_process_id=data["main_process_id"],
             thought_generator_process_id=data["thought_generator_process_id"],
             context_manager_process_id=data["context_manager_process_id"],
             data_storage_manager_process_id=data["data_storage_manager_process_id"],
         )
 
-    # TODO: Instead of this we should get profile for each agent!!
-    def get_agent_profile(self, user_id: str, agent_id: str):
+    def get_agent_profile(self, user_id: str, agent_id: str) -> Optional[Profile]:
         data = (
-            self.client.table("profiles")
+            self.client.table("agents")
             .select("*")
             .eq("user_id", user_id)
             .eq("agent_id", agent_id)
@@ -142,7 +141,7 @@ class SupabaseHandler:
         )
         if not data:
             return None
-        return data[0]
+        return Profile(profile=data[0]["profile"])
 
     def get_tools_class(self, process_id: str) -> Optional[str]:
         data = (
@@ -200,11 +199,13 @@ class SupabaseHandler:
         else:
             logger.info(f"DEBUG - success creating weaviate user result: {result.data}")
         try:
-            assistant_profile = Profile.get(module_name="core", agent_name="assistant")
+            assistant_profile = Profile.load_from_template(
+                module_name="core", agent_name="assistant"
+            )
             self.update_agent_profile(
                 agent_id=user_profile["assistant_agent_id"], profile=assistant_profile
             )
-            orchestrator_profile = Profile.get(
+            orchestrator_profile = Profile.load_from_template(
                 module_name="core", agent_name="orchestrator"
             )
             self.update_agent_profile(

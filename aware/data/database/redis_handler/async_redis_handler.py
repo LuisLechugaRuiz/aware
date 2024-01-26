@@ -1,5 +1,5 @@
 import json
-from aioredis import Redis
+from redis.asyncio import Redis
 from typing import List, Optional, Tuple
 
 from aware.memory.user.user_data import UserData
