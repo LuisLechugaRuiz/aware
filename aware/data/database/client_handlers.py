@@ -76,17 +76,18 @@ class ClientHandlers:
     def get_redis_handler(self) -> RedisHandler:
         return self._instance.redis_handler
 
-    def get_tools(self, user_id: str, process_id: str) -> Tools:
+    def get_tools(self, user_id: str, agent_id: str, process_id: str) -> Tools:
         redis_handler = self.get_redis_handler()
         tools_class = redis_handler.get_tools_class(process_id)
         if tools_class is None:
             supabase_handler = self.get_supabase_handler()
             tools_class = supabase_handler.get_tools_class(process_id)
             redis_handler.set_tools_class(process_id, tools_class)
-        tools_class = ToolsManager.get_tools(name=tools_class)
+        tools_manager = ToolsManager(logger=FileLogger(name="migration_tests"))
+        tools_class = tools_manager.get_tools(name=tools_class)
         if tools_class is None:
             raise Exception("Tools class not found")
-        return tools_class(user_id=user_id, process_id=process_id)
+        return tools_class(user_id=user_id, agent_id=agent_id, process_id=process_id)
 
     def get_agent_data(self, agent_id: str) -> Agent:
         redis_handler = self.get_redis_handler()

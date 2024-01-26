@@ -1,7 +1,5 @@
 from openai.types.chat import ChatCompletionMessage
 
-
-from aware.assistant.assistant import Assistant
 from aware.data.database.client_handlers import ClientHandlers
 from aware.chat.call_info import CallInfo
 from aware.chat.conversation_schemas import AssistantMessage, ToolCalls
@@ -23,7 +21,11 @@ def process_model_response(response_str: str, call_info_str: str):
         # 1. Get process.
         call_info = CallInfo.from_json(call_info_str)
 
-        process = Process(user_id=call_info.user_id, process_id=call_info.process_id)
+        process = Process(
+            user_id=call_info.user_id,
+            agent_id=call_info.agent_id,
+            process_id=call_info.process_id,
+        )
         process.postprocess()
 
         # 2. Reconstruct response.
@@ -59,7 +61,7 @@ def process_model_response(response_str: str, call_info_str: str):
         # 4. Get function calls
         if tool_calls:
             function_calls = process.get_function_calls(tool_calls)
-            if process.run_remote:
+            if process.should_run_remote():
                 # TODO: Call supabase real-time client.
                 pass
             else:

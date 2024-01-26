@@ -16,12 +16,9 @@ from aware.utils.logger.file_logger import FileLogger
 class Conversation:
     """Conversation class to keep track of the messages and the current state of the conversation."""
 
-    def __init__(self, user_id: str, process_id: str):
+    def __init__(self, process_id: str):
         log = FileLogger("migration_tests", should_print=True)
-        log.info(
-            f"Starting new conversation for user_id: {user_id} and process_id: {process_id}"
-        )
-        self.user_id = user_id
+        log.info(f"Starting new conversation for process_id: {process_id}")
         self.process_id = process_id
 
         self.model_name = Config().openai_model  # TODO: Enable more models.

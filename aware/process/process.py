@@ -14,6 +14,7 @@ from aware.process.decorators import on_preprocess, on_postprocess
 
 class Process(ABC):
     user_id: str
+    agent_id: str
     process_id: str
     tools: Tools
 
@@ -24,15 +25,18 @@ class Process(ABC):
     tools_manager: Optional[ToolsManager] = None
     initialized_for_postprocessing: bool = False
 
-    # TODO: Tools should be fetched from the database, based on process_id.
     def __init__(
         self,
         user_id: str,
+        agent_id: str,
         process_id: str,
     ):
         self.user_id = user_id
+        self.agent_id = agent_id
         self.process_id = process_id
-        self.tools = ClientHandlers().get_tools(user_id, process_id)
+        self.tools = ClientHandlers().get_tools(
+            user_id=user_id, agent_id=agent_id, process_id=process_id
+        )
 
     def preprocess(
         self,
@@ -43,6 +47,7 @@ class Process(ABC):
     ):
         self.chat = Chat(
             user_id=self.user_id,
+            agent_id=self.agent_id,
             process_id=self.process_id,
             process_name=self.get_process_name(),
             module_name=module_name,
@@ -75,7 +80,6 @@ class Process(ABC):
     def request_response(self):
         self.chat.request_response(self.tools.get_tools())
 
-    # TODO: Implement a decorator to mark as default tool calls?
     @on_postprocess
     def get_function_calls(
         self, tool_calls: List[ChatCompletionMessageToolCall]
@@ -90,6 +94,9 @@ class Process(ABC):
             function_calls, self.tools.get_tools()
         )
         return tool_responses
+
+    def should_run_remote(self) -> bool:
+        return self.tools.run_remote
 
     def stop_agent(self):
         self.tools.stop_agent()

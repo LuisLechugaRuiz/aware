@@ -69,7 +69,10 @@ class AssistantTools(Tools):
         # Triggering internal logic to start thought + store message on conversation_buffer.
         # TODO: Publish this as event and manage it properly instead of just triggering the task.
         assistant_message_event = AssistantMessageEvent(
-            process_id=self.process_id, user_id=self.user_id, message=message
+            process_id=self.process_id,
+            user_id=self.user_id,
+            assistant_name=assistant_message.name,
+            message=message,
         )
         handle_assistant_message.delay(assistant_message_event.to_json())
 

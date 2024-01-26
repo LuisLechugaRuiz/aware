@@ -23,6 +23,7 @@ class ToolsManager:
         return tool_calls
 
     def get_tools(self, name: str) -> Optional[Type[Tools]]:
+        self.logger.info(f"Getting tools for name: {name}")
         return self.tools_registry.get_tools(name)
 
     def get_function_calls(

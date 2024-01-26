@@ -1,5 +1,5 @@
 from aware.agent.process import Process
-from aware.assistant.user.data_storage.user_data_storage_manager_tools import (
+from aware.assistant.user_new.data_storage.user_data_storage_manager_tools import (
     UserDataStorageTools,
 )
 from aware.utils.logger.file_logger import FileLogger

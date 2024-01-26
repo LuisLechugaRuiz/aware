@@ -130,15 +130,8 @@ class SupabaseHandler:
             data_storage_manager_process_id=data["data_storage_manager_process_id"],
         )
 
-    def get_agent_profile(self, user_id: str, agent_id: str) -> Optional[Profile]:
-        data = (
-            self.client.table("agents")
-            .select("*")
-            .eq("user_id", user_id)
-            .eq("agent_id", agent_id)
-            .execute()
-            .data
-        )
+    def get_agent_profile(self, agent_id: str) -> Optional[Profile]:
+        data = self.client.table("agents").select("*").eq("id", agent_id).execute().data
         if not data:
             return None
         return Profile(profile=data[0]["profile"])
@@ -202,12 +195,15 @@ class SupabaseHandler:
             assistant_profile = Profile.load_from_template(
                 module_name="core", agent_name="assistant"
             )
+            logger.info(f"DEBUG - assistant id: {user_profile['assistant_agent_id']}")
+            logger.info(f"DEBUG - assistant profile: {assistant_profile}")
             self.update_agent_profile(
                 agent_id=user_profile["assistant_agent_id"], profile=assistant_profile
             )
             orchestrator_profile = Profile.load_from_template(
                 module_name="core", agent_name="orchestrator"
             )
+            logger.info(f"DEBUG - orchestrator profile: {orchestrator_profile}")
             self.update_agent_profile(
                 agent_id=user_profile["orchestrator_agent_id"],
                 profile=orchestrator_profile,
@@ -274,9 +270,12 @@ class SupabaseHandler:
                 "user_id", user_id
             ).eq("name", name).execute()
 
+    def update_agent(self, agent_id: str, data: Dict[str, Any]):
+        self.client.table("agents").update(data).eq("id", agent_id).execute()
+
     def update_agent_profile(self, agent_id: str, profile: Dict[str, Any]):
         self.client.table("agents").update({"profile": profile}).eq(
-            "agent_id", agent_id
+            "id", agent_id
         ).execute()
 
     def update_user_profile(self, user_id: str, profile: Dict[str, Any]):

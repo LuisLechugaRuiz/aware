@@ -53,6 +53,6 @@ class UserProfile:
                 profile_str += (
                     f"Field: {category}\n"
                     + f"Description: {info['description']}\n"
-                    + f"Data: {info['data'] if info['data'] else 'Not specified'}\n\n"
+                    + f"Data: {info['data'] if info['data'] else ''}\n\n"
                 )
             return profile_str.strip()

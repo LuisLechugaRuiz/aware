@@ -9,6 +9,7 @@ class CallInfo:
     def __init__(
         self,
         user_id: str,
+        agent_id: str,
         process_id: str,
         call_id: str,
         process_name: str,
@@ -17,6 +18,7 @@ class CallInfo:
         agent_name: Optional[str] = None,
     ):
         self.user_id = user_id
+        self.agent_id = agent_id
         self.process_id = process_id
         self.call_id = call_id
 
@@ -40,6 +42,7 @@ class CallInfo:
     def to_dict(self):
         return {
             "user_id": self.user_id,
+            "agent_id": self.agent_id,
             "process_id": self.process_id,
             "call_id": self.call_id,
             "process_name": self.process_name,

@@ -27,12 +27,14 @@ class DataStorageManager(Tools):
     def _get_agent_profile(self) -> Optional[Profile]:
         """Get the agent's profile."""
         supabase_handler = ClientHandlers().get_supabase_handler()
-        agent_profile = supabase_handler.get_agent_profile(
-            user_id=self.user_id, agent_id=self.agent_id
-        )
+        agent_profile = supabase_handler.get_agent_profile(agent_id=self.agent_id)
         if agent_profile is None:
             return None
         return agent_profile
+
+    def _update_profile(self, profile: Profile):
+        supabase_handler = ClientHandlers().get_supabase_handler()
+        supabase_handler.update_agent_profile(agent_id=self.agent_id, data=profile)
 
     def append_profile(self, field: str, data: str):
         """
@@ -45,7 +47,9 @@ class DataStorageManager(Tools):
         agent_profile = self._get_agent_profile()
         if agent_profile is None:
             return "Error!! Profile not found in Supabase."
-        return agent_profile.append_profile(field=field, data=data)
+        result = agent_profile.append_profile(field=field, data=data)
+        self._update_profile(agent_profile)
+        return result
 
     def edit_profile(self, field: str, old_data: str, new_data: str):
         """
@@ -59,9 +63,11 @@ class DataStorageManager(Tools):
         agent_profile = self._get_agent_profile()
         if agent_profile is None:
             return "Error!! Profile not found in Supabase."
-        return agent_profile.edit_profile(
+        result = agent_profile.edit_profile(
             field=field, old_data=old_data, new_data=new_data
         )
+        self._update_profile(agent_profile)
+        return result
 
     def store(self, data: str, potential_query: str):
         """
