@@ -1,12 +1,15 @@
 from supabase import Client
 from typing import Any, Dict, List, Optional
 
-from aware.agent.agent import Agent
+from aware.agent import Agent, AgentData, AgentProcesses
 from aware.chat.conversation_schemas import ChatMessage, JSONMessage
 from aware.data.database.data import get_topics
 from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
 from aware.memory.memory_manager import MemoryManager
+from aware.process import ProcessData, PromptData, ProcessIds
+from aware.requests.request import Request, RequestData
+from aware.requests.service import Service, ServiceData
 from aware.tools.profile import Profile
 from aware.utils.logger.file_logger import FileLogger
 
@@ -44,6 +47,70 @@ class SupabaseHandler:
             message_id=response["id"],
             timestamp=response["created_at"],
             message=json_message,
+        )
+
+    def create_request(
+        self,
+        user_id: str,
+        client_process_id: str,
+        service_name: str,
+        query: str,
+    ) -> Request:
+        logger = FileLogger("migration_tests")
+        logger.info(f"DEBUG - Creating request {service_name}")
+        response = (
+            self.client.rpc(
+                "create_request",
+                {
+                    "p_user_id": user_id,
+                    "p_client_process_id": client_process_id,
+                    "p_service_name": service_name,
+                    "p_query": query,
+                },
+            )
+            .execute()
+            .data
+        )
+        response = response[0]
+        request_data = RequestData(
+            query=response["query"],
+            status=response["status"],
+            response=response["response"],
+            prompt_prefix=response["prompt_prefix"],
+        )
+        return Request(
+            request_id=response["id"],
+            service_id=response["service_id"],
+            client_process_id=client_process_id,
+            timestamp=response["created_at"],
+            request_data=request_data,
+        )
+
+    def create_service(
+        self, user_id: str, tools_class: str, service_data: ServiceData
+    ) -> Service:
+        logger = FileLogger("migration_tests")
+        logger.info(f"DEBUG - Creating service {service_data.name}")
+        response = (
+            self.client.rpc(
+                "create_service",
+                {
+                    "p_user_id": user_id,
+                    "p_tool_class": tools_class,
+                    "p_name": service_data.name,
+                    "p_description": service_data.description,
+                    "p_prompt_prefix": service_data.prompt_prefix,
+                },
+            )
+            .execute()
+            .data
+        )
+        return (
+            Service(
+                service_id=response["returned_id"],
+                process_id=response["returned_process_id"],
+                data=service_data,
+            ),
         )
 
     def create_topics(self, user_id: str):
@@ -118,16 +185,20 @@ class SupabaseHandler:
         if not data:
             return None
         data = data[0]
-        return Agent(
-            id=data["id"],
+        agent_data = AgentData(
             name=data["name"],
             thought=data["thought"],
             context=data["context"],
             profile=Profile(profile=data["profile"]),
+        )
+        agent_processes = AgentProcesses(
             main_process_id=data["main_process_id"],
             thought_generator_process_id=data["thought_generator_process_id"],
             context_manager_process_id=data["context_manager_process_id"],
             data_storage_manager_process_id=data["data_storage_manager_process_id"],
+        )
+        return Agent(
+            agent_data=agent_data, agent_processes=agent_processes, profile=None
         )
 
     def get_agent_profile(self, agent_id: str) -> Optional[Profile]:
@@ -147,6 +218,79 @@ class SupabaseHandler:
         if not data:
             return None
         return data[0]["tools_class"]
+
+    def get_requests(self, service_id: str) -> List[Request]:
+        data = (
+            (
+                self.client.table("requests")
+                .select("*")
+                .eq("service_id", service_id)
+                .execute()
+                .data
+            )
+            .execute()
+            .data
+        )
+        requests = []
+        if not data:
+            return requests
+        for row in data:
+            request_data = RequestData(
+                query=row["query"],
+                status=row["status"],
+                response=row["response"],
+                prompt_prefix=row["prompt_prefix"],
+            )
+            requests.append(
+                Request(
+                    request_id=row["id"],
+                    service_id=service_id,
+                    client_process_id=row["client_process_id"],
+                    request_data=request_data,
+                )
+            )
+        return requests
+
+    def get_process_service_requests(self, process_id: str) -> List[Request]:
+        data = (
+            (
+                self.client.table("services")
+                .select("*")
+                .eq("process_id", process_id)
+                .execute()
+                .data
+            )
+            .execute()
+            .data
+        )
+        requests = []
+        if not data:
+            return requests
+        for row in data:
+            requests.extend(self.get_requests(row["id"]))
+        return requests
+
+    def get_process_data(self, process_ids: ProcessIds) -> Optional[ProcessData]:
+        data = (
+            self.client.table("processes")
+            .select("*")
+            .eq("id", process_ids.process_id)
+            .execute()
+            .data
+        )
+        if not data:
+            return None
+        prompt_data = PromptData(
+            module_name=data[0]["module_name"], prompt_name=data[0]["prompt_name"]
+        )
+        requests = self.get_process_service_requests(process_id=process_ids.process_id)
+        return ProcessData(
+            ids=process_ids,
+            agent_data=self.get_agent(process_ids.agent_id).data,
+            prompt_data=prompt_data,
+            requests=requests,
+            # TODO: Add events!
+        )
 
     def get_user_profile(self, user_id: str):
         data = (
@@ -208,6 +352,8 @@ class SupabaseHandler:
                 agent_id=user_profile["orchestrator_agent_id"],
                 profile=orchestrator_profile,
             )
+            # TODO: DISCOVER SERVICES AND ADD THEM TO BOTH SUPABASE AND REDIS.
+
         except Exception as e:
             logger.error(f"Error while updating agent profile: {e}")
             raise e
@@ -251,9 +397,6 @@ class SupabaseHandler:
         logger.info(f"DEBUG - Response: {response}")
         return response
 
-    def set_agent(self, agent: Agent):
-        self.client.table("agents").update(agent.to_dict()).eq("id", agent.id).execute()
-
     def set_topic_content(self, user_id: str, name: str, content: str):
         data = (
             self.client.table("topics")
@@ -270,8 +413,10 @@ class SupabaseHandler:
                 "user_id", user_id
             ).eq("name", name).execute()
 
-    def update_agent(self, agent_id: str, data: Dict[str, Any]):
-        self.client.table("agents").update(data).eq("id", agent_id).execute()
+    def update_agent_data(self, agent_id: str, agent_data: AgentData):
+        self.client.table("agents").update(agent_data.to_dict()).eq(
+            "id", agent_id
+        ).execute()
 
     def update_agent_profile(self, agent_id: str, profile: Dict[str, Any]):
         self.client.table("agents").update({"profile": profile}).eq(

@@ -1,8 +1,8 @@
 import json
 from redis import Redis
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
-from aware.agent.agent import Agent
+from aware.agent.agent import Agent, AgentData
 from aware.memory.user.user_data import UserData
 from aware.chat.conversation_schemas import (
     ChatMessage,
@@ -14,6 +14,9 @@ from aware.chat.conversation_schemas import (
     ToolCalls,
 )
 from aware.chat.call_info import CallInfo
+from aware.process import ProcessData, PromptData, ProcessIds
+from aware.requests.request import Request
+from aware.requests.service import Service
 from aware.utils.helpers import (
     convert_timestamp_to_epoch,
 )
@@ -69,6 +72,30 @@ class RedisHandler:
     def clear_conversation_buffer(self, process_id: str):
         self.client.delete(f"conversation_buffer:{process_id}")
 
+    def create_request(
+        self, service_process_id: str, service_id: str, request: Request
+    ):
+        # Key for storing the serialized request
+        request_data_key = f"service:{service_id}:request:{request.id}"
+
+        # Key for the sorted set to maintain the order of requests by timestamp
+        request_order_key = f"process:{service_process_id}:requests:order"
+
+        # Key for mapping request_id to service_id
+        request_service_map_key = f"request:{request.id}:service"
+
+        # Convert the request to JSON and store it
+        self.client.set(request_data_key, request.to_json())
+
+        # Store the mapping of request_id to service_id
+        self.client.set(request_service_map_key, service_id)
+
+        # Add the request ID to the sorted set with the timestamp as the score
+        self.client.zadd(
+            request_order_key,
+            {request.id: convert_timestamp_to_epoch(request.timestamp)},
+        )
+
     def delete_message(self, process_id: str, message_id: str):
         # The key for the specific message
         message_key = f"conversation:{process_id}:message:{message_id}"
@@ -119,6 +146,73 @@ class RedisHandler:
 
         return messages
 
+    def get_process_data(self, process_ids: ProcessIds) -> Optional[ProcessData]:
+        agent = self.get_agent(agent_id=process_ids.agent_id)
+        prompt_data = self.get_prompt_data(process_id=process_ids.process_id)
+        requests = self.get_requests(process_id=process_ids.process_id)
+
+        if agent and prompt_data:
+            return ProcessData(
+                ids=process_ids,
+                agent_data=agent.data,
+                prompt_data=prompt_data,
+                requests=requests,
+            )
+        return None
+
+    def get_process_services(self, process_id: str) -> List[Service]:
+        service_keys = self.client.keys(f"process:{process_id}:service:*")
+        return [
+            Service.from_json(self.client.get(service_key))
+            for service_key in service_keys
+        ]
+
+    def get_prompt_data(self, process_id: str) -> Optional[PromptData]:
+        data = self.client.get(f"prompt_data:{process_id}")
+        if data:
+            return PromptData.from_json(data)
+        return None
+
+    def get_requests(self, process_id: str) -> List[Request]:
+        # Key pattern for the sorted sets of requests for each service process
+        request_order_key = f"process:{process_id}:requests:order"
+
+        # Retrieve all request IDs from the sorted set, ordered by timestamp
+        request_ids = self.client.zrange(request_order_key, 0, -1)
+
+        requests = []
+        for request_id_bytes in request_ids:
+            request_id = request_id_bytes.decode("utf-8")
+
+            # Retrieve the service_id for this request
+            service_id = self.client.get(f"request:{request_id}:service").decode(
+                "utf-8"
+            )
+            request = self.get_request(service_id, request_id)
+            if request:
+                requests.append(request)
+
+        return requests
+
+    def get_request(self, service_id: str, request_id: str) -> Request:
+        # Construct the key for the serialized request data
+        request_data_key = f"service:{service_id}:request:{request_id}"
+
+        # Fetch the request data for each request ID and deserialize it
+        request_data_json = self.client.get(request_data_key)
+        if request_data_json:
+            return Request.from_json(request_data_json.decode("utf-8"))
+        return None
+
+    def get_service(
+        self,
+        service_id: str,
+    ) -> Optional[Service]:
+        data = self.client.get(f"service:{service_id}")
+        if data:
+            return Service.from_json(data)
+        return None
+
     def get_user_data(self, user_id: str) -> Optional[UserData]:
         data = self.client.get(f"user_data:{user_id}")
         if data:
@@ -131,10 +225,39 @@ class RedisHandler:
             return data.decode()
         return None
 
+    def update_agent_data(self, agent_id: str, agent_data: AgentData):
+        agent = self.get_agent(agent_id)
+        agent.data = agent_data
+        self.set_agent(agent)
+
     def set_agent(self, agent: Agent):
         self.client.set(
             f"agent:{agent.id}",
             agent.to_json(),
+        )
+
+    def set_prompt_data(self, process_id: str, prompt_data: PromptData):
+        self.client.set(
+            f"prompt_data:{process_id}",
+            prompt_data.to_json(),
+        )
+
+    def set_process_data(self, process_data: ProcessData):
+        self.update_agent_data(process_data.ids.agent_id, process_data.agent_data)
+        self.set_prompt_data(process_data.ids.process_id, process_data.prompt_data)
+        self.set_requests(process_data.requests)
+
+    def set_requests(self, requests: List[Request]):
+        for request in requests:
+            self.create_request(request.service_id, request)
+
+    def set_service(
+        self,
+        service: Service,
+    ):
+        self.client.set(
+            f"service:{service.id}",
+            service.to_json(),
         )
 
     def set_tools_class(self, process_id: str, tools_class: str):
@@ -148,17 +271,6 @@ class RedisHandler:
             f"user_data:{user_data.user_id}",
             user_data.to_json(),
         )
-
-    # def get_message(self, conversation_id: str, message_id: str):
-    #     key = f"conversation:{conversation_id}:message:{message_id}"
-    #     message_data = self.client.hgetall(key)
-    #     if not message_data:
-    #         return None
-
-    #     message_type = message_data[b"type"].decode()
-    #     message_json = message_data[b"data"].decode()
-
-    #     return self.reconstruct_message(message_type, message_json)
 
     def reconstruct_message(self, message_data_str: str) -> JSONMessage:
         message_data_json = json.loads(message_data_str)

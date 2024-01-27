@@ -19,35 +19,35 @@ class Chat:
         user_id: str,
         agent_id: str,
         process_id: str,
-        process_name: str,
+        agent_name: str,
         module_name: str,
         prompt_name: str,
         logger: FileLogger,
-        agent_name: Optional[str] = None,
-        extra_kwargs: Optional[Dict[str, str]] = None,
+        prompt_kwargs: Optional[Dict[str, str]] = None,
+        meta_prompt_kwargs: Optional[Dict[str, str]] = None,
     ):
         self.user_id = user_id
         self.agent_id = agent_id
         self.process_id = process_id
-        self.process_name = process_name
 
-        self.prompt_name = prompt_name
+        self.agent_name = agent_name
         self.module_name = module_name
+        self.prompt_name = prompt_name
 
         system_instruction_message = load_prompt_from_database(
             self.prompt_name,
             user_id,
             self.module_name,
-            extra_kwargs,
+            prompt_kwargs,
         )
         self.system_message = self.get_system(
-            system_instruction_message=system_instruction_message
+            system_instruction_message=system_instruction_message,
+            meta_prompt_kwargs=meta_prompt_kwargs,
         )
         self.conversation = Conversation(process_id=process_id)
         self.redis_handler = ClientHandlers().get_redis_handler()
 
         self.logger = logger
-        self.agent_name = agent_name
 
     def get_conversation(self):
         return self.conversation
@@ -60,14 +60,17 @@ class Chat:
             self.conversation.should_trigger_warning(),
         )
 
-    def get_system(self, system_instruction_message: str):
-        self.system = load_prompt_from_args(
-            "meta",
-            args={
-                "date": get_current_date(),
-                "instruction": system_instruction_message,
-            },
-        )
+    def get_system(
+        self,
+        system_instruction_message: str,
+        meta_prompt_kwargs: Optional[Dict[str, str]] = None,
+    ):
+        args = {
+            "date": get_current_date(),
+            "instruction": system_instruction_message,
+        }
+        args.update(meta_prompt_kwargs or {})
+        self.system = load_prompt_from_args("meta", args=args)
         return self.system
 
     def request_response(self, functions: List[Callable]):
@@ -83,10 +86,9 @@ class Chat:
             agent_id=self.agent_id,
             process_id=self.process_id,
             call_id=str(uuid.uuid4()),
-            process_name=self.process_name,
+            agent_name=self.agent_name,
             system_message=self.system_message,
             functions=function_schemas,
-            agent_name=self.agent_name,
         )
         self.redis_handler.add_call_info(call_info)
         self.log_conversation()

@@ -33,7 +33,7 @@ class Config(metaclass=Singleton):
         self.assistant_name = os.getenv("ASSISTANT_NAME", "Aware")
         # Memory
         self.max_conversation_tokens = 2000  # TODO: Define this value.
-        self.conversation_warning_threshold = 0.8  # TODO: Define this value.
+        self.conversation_warning_threshold = 0.1  # 0.8  # TODO: Define this value.
 
         self.conversation_timeout_sec = 240
         self.task_timeout_sec = 600
