@@ -1,35 +1,30 @@
-from aware.data.database.client_handlers import ClientHandlers
+from aware.process.process_data import ProcessData
 from aware.utils.logger.file_logger import FileLogger
 from aware.tools.tools import Tools
 
 
 class ContextManager(Tools):
-    def __init__(self, user_id: str, agent_id: str, process_id: str):
-        super().__init__(
-            user_id=user_id, agent_id=agent_id, process_id=process_id, run_remote=False
-        )
+    def __init__(
+        self,
+        process_data: ProcessData,
+    ):
+        super().__init__(process_data)
         self.logger = FileLogger("context_manager")
 
-    def get_tools(self):
+    def set_tools(self):
         return [
             self.append_context,
             self.edit_context,
         ]
 
-    def _get_context(self):
-        supabase_handler = ClientHandlers().get_supabase_handler()
-        agent = supabase_handler.get_agent(agent_id=self.agent_id)
-        return agent.context
-
     def _update_context(self, context):
-        supabase_handler = ClientHandlers().get_supabase_handler()
-        supabase_handler.update_agent(agent_id=self.agent_id, data={"context": context})
+        self.process_data.agent_data.context = context
+        self.update_agent_data()
 
     @classmethod
     def get_process_name(self):
         return "context_manager"
 
-    # TODO: Instead of topic we should update the context directly on user profile!
     def append_context(self, data: str):
         """
         Append data at the end of the agent's context.
@@ -38,7 +33,7 @@ class ContextManager(Tools):
             data (str): Data to be appended.
         """
 
-        context = self._get_context()
+        context = self.process_data.agent_data.context
         context += data
         self._update_context(context)
         self.stop_agent()
@@ -52,7 +47,7 @@ class ContextManager(Tools):
             old_data (str): Old data that should be replaced.
             new_data (str): New data to replace the old data.
         """
-        context = self._get_context()
+        context = self.process_data.agent_data.context
         if old_data in context:
             context.replace(old_data, new_data)
             self._update_context(context)

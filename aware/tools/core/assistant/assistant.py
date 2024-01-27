@@ -1,22 +1,24 @@
+from aware.agent.agent_data import AgentData
 from aware.assistant.tasks import handle_assistant_message
 from aware.chat.conversation_schemas import AssistantMessage
 from aware.config.config import Config
 from aware.data.database.client_handlers import ClientHandlers
 from aware.events.assistant_message import AssistantMessageEvent
+from aware.process.process_data import ProcessData
 from aware.utils.logger.file_logger import FileLogger
 from aware.tools.decorators import default_function
 from aware.tools.tools import Tools
 
 
 class Assistant(Tools):
-    def __init__(self, user_id: str, agent_id: str, process_id: str):
-        super().__init__(user_id, agent_id, process_id)
+    def __init__(self, process_data: ProcessData):
+        super().__init__(process_data)
 
     def get_tools(self):
         return [
             self.talk,
             self.send_request,
-            self.search_user_info,
+            self.search_info,
         ]
 
     def send_request(self, user_name: str, request: str):
@@ -67,10 +69,10 @@ class Assistant(Tools):
             content=assistant_message.content,
         )
         # Triggering internal logic to start thought + store message on conversation_buffer.
-        # TODO: Publish this as event and manage it properly instead of just triggering the task.
+        # TODO: CHANGE BY SEND EVENT! AS WITH REQUESTS!
         assistant_message_event = AssistantMessageEvent(
-            process_id=self.process_id,
-            user_id=self.user_id,
+            process_id=self.process_data.ids.process_id,
+            user_id=self.process_data.ids.user_id,
             assistant_name=assistant_message.name,
             message=message,
         )
@@ -79,18 +81,18 @@ class Assistant(Tools):
         self.stop_agent()
         return "Message sent to the user."
 
-    def search_user_info(self, user_name: str, query: str):
+    @schedules_request
+    def search_info(self, query: str):
         """
-        Search the query on user's semantic database.
+        Search the query on semantic database.
 
         Args:
-            user_name (str): The user name to be searched.
             query (str): The search query.
 
         Returns:
             str
         """
-        return "Not implemented yet."
+        return self.create_request("search", query)
         # try:
         #     print(f"Searching for {query} on {user_name}'s database")
         #     data = self.database_clients[user_name].send(

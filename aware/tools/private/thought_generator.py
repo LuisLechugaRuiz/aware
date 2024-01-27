@@ -1,21 +1,35 @@
 from typing import List
 
-from aware.data.database.client_handlers import ClientHandlers
-from aware.utils.logger.file_logger import FileLogger
 from aware.memory.memory_manager import MemoryManager
+from aware.process.process_data import ProcessData
+from aware.requests.service import ServiceData
 from aware.tools.decorators import default_function
 from aware.tools.tools import Tools
+from aware.utils.logger.file_logger import FileLogger
 
 
 class ThoughtGenerator(Tools):
-    def __init__(self, user_id: str, agent_id: str, process_id: str):
-        super().__init__(user_id, agent_id, process_id, run_remote=False)
+    def __init__(
+        self,
+        process_data: ProcessData,
+    ):
+        super().__init__(process_data)
 
-    def get_tools(self):
+    def set_tools(self):
         return [
             self.intermediate_thought,
             self.final_thought,
             self.search,
+        ]
+
+    @classmethod
+    def get_services(self) -> List[ServiceData]:
+        return [
+            ServiceData(
+                name="search",
+                description="Search for an answer on semantic database.",
+                prompt_prefix="Received the following question:",
+            )
         ]
 
     @classmethod
@@ -29,7 +43,7 @@ class ThoughtGenerator(Tools):
             questions (List[str]): The questions to be answered.
         """
         memory_manager = MemoryManager(
-            user_id=self.user_id,
+            user_id=self.process_data.ids.user_id,
             logger=FileLogger("user_memory_manager", should_print=False),
         )
 
@@ -41,9 +55,7 @@ class ThoughtGenerator(Tools):
         Args:
             thought (str): The thought to be processed.
         """
-        self.update_thought(
-            thought
-        )  # TODO: This should be a publisher with the new thought!
+        self.update_thought(thought)
         return "Intermediate thought saved."
 
     @default_function
@@ -53,14 +65,10 @@ class ThoughtGenerator(Tools):
         Args:
             thought (str): The thought to be processed.
         """
-        self.update_thought(
-            thought
-        )  # TODO: This should be a publisher with the new thought!
+        self.update_thought(thought)
         self.stop_agent()
         return "Final thought saved, stopping agent."
 
-    # TODO: We should add a @publishes decorator instead of calling update_thought directly.
     def update_thought(self, thought: str):
-        # TODO: UPDATE THIS AT ASSISTANT!
-        supabase_handler = ClientHandlers().get_supabase_handler()
-        supabase_handler.update_agent(agent_id=self.agent_id, data={"thought": thought})
+        self.process_data.agent_data.thought = thought
+        self.update_agent_data()

@@ -24,14 +24,14 @@ def handle_user_message(data: Dict[str, Any]):
         user_data = ClientHandlers().get_user_data(user_id)
         user_message = UserMessage(name=user_data.user_name, content=content)
 
-        assistant_agent_data = ClientHandlers().get_agent_data(
+        assistant_agent = ClientHandlers().get_agent(
             agent_id=user_data.assistant_agent_id
         )
 
         # Add message to assistant conversation. (Also with buffer is true.)
         ClientHandlers().add_message(
             user_id=user_data.user_id,
-            process_id=assistant_agent_data.main_process_id,
+            process_id=assistant_agent.processes.main_process_id,
             json_message=user_message,
         )
 
@@ -43,9 +43,9 @@ def handle_user_message(data: Dict[str, Any]):
         ).preprocess(
             module_name="assistant",
             prompt_name="assistant",
-            agent_name="Aware",
+            agent_name=assistant_agent_data.name,
             extra_kwargs={
-                "assistant_name": Config().assistant_name,
+                "assistant_name": assistant_agent_data.name,
                 "context": assistant_agent_data.context,
                 "thought": assistant_agent_data.thought,
                 "requests": "",  # TODO: Fill this properly.
@@ -67,7 +67,7 @@ def handle_user_message(data: Dict[str, Any]):
             module_name="assistant",
             prompt_name="thought_generator",
             extra_kwargs={
-                "assistant_name": Config().assistant_name,
+                "assistant_name": assistant_agent_data.name,
                 "user_name": user_data.user_name,
                 "profile": assistant_agent_data.profile.to_string(),
                 "context": assistant_agent_data.context,
@@ -128,7 +128,7 @@ def manage_conversation_buffer(user_data_json: str, agent_data_json: str):
             module_name="assistant",
             prompt_name="data_storage_manager",
             extra_kwargs={
-                "assistant_name": Config().assistant_name,
+                "assistant_name": agent_data.name,
                 "assistant_conversation": assistant_conversation_buffer.to_string(),
                 "user_name": user_data.user_name,
                 "profile": agent_data.profile.to_string(),
@@ -144,7 +144,7 @@ def manage_conversation_buffer(user_data_json: str, agent_data_json: str):
             module_name="assistant",
             prompt_name="context_manager",
             extra_kwargs={
-                "assistant_name": Config().assistant_name,
+                "assistant_name": agent_data.name,
                 "assistant_conversation": assistant_conversation_buffer.to_string(),
                 "user_name": user_data.user_name,
                 "profile": agent_data.profile.to_string(),

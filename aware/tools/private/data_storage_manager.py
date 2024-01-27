@@ -1,18 +1,15 @@
-from typing import Optional
-
-from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
+from aware.process.process_data import ProcessData
 from aware.utils.logger.file_logger import FileLogger
-from aware.tools.profile import Profile
 from aware.tools.tools import Tools
 
 
 class DataStorageManager(Tools):
-    def __init__(self, user_id: str, agent_id: str, process_id: str):
+    def __init__(self, process_data: ProcessData):
         self.logger = FileLogger("data_storage_manager")
-        super().__init__(user_id, agent_id, process_id, run_remote=False)
+        super().__init__(process_data)
 
-    def get_tools(self):
+    def set_tools(self):
         return [
             self.append_profile,
             self.edit_profile,
@@ -24,18 +21,6 @@ class DataStorageManager(Tools):
     def get_process_name(self):
         return "data_storage_manager"
 
-    def _get_agent_profile(self) -> Optional[Profile]:
-        """Get the agent's profile."""
-        supabase_handler = ClientHandlers().get_supabase_handler()
-        agent_profile = supabase_handler.get_agent_profile(agent_id=self.agent_id)
-        if agent_profile is None:
-            return None
-        return agent_profile
-
-    def _update_profile(self, profile: Profile):
-        supabase_handler = ClientHandlers().get_supabase_handler()
-        supabase_handler.update_agent_profile(agent_id=self.agent_id, data=profile)
-
     def append_profile(self, field: str, data: str):
         """
         Append data into a specific field of the profile.
@@ -44,11 +29,10 @@ class DataStorageManager(Tools):
             field (str): Field to edit.
             data (str): Data to be inserted.
         """
-        agent_profile = self._get_agent_profile()
-        if agent_profile is None:
-            return "Error!! Profile not found in Supabase."
-        result = agent_profile.append_profile(field=field, data=data)
-        self._update_profile(agent_profile)
+        result = self.process_data.agent_data.profile.append_profile(
+            field=field, data=data
+        )
+        self.update_agent_data()
         return result
 
     def edit_profile(self, field: str, old_data: str, new_data: str):
@@ -60,13 +44,10 @@ class DataStorageManager(Tools):
             old_data (str): Old data to be replaced.
             new_data (str): New data to replace the old data.
         """
-        agent_profile = self._get_agent_profile()
-        if agent_profile is None:
-            return "Error!! Profile not found in Supabase."
-        result = agent_profile.edit_profile(
+        result = self.process_data.agent_data.profile.edit_profile(
             field=field, old_data=old_data, new_data=new_data
         )
-        self._update_profile(agent_profile)
+        self.update_agent_data()
         return result
 
     def store(self, data: str, potential_query: str):
@@ -81,7 +62,7 @@ class DataStorageManager(Tools):
             str: Feedback message.
         """
         memory_manager = MemoryManager(
-            user_id=self.user_id,
+            user_id=self.process_data.ids.user_id,
             logger=self.logger,
         )
 

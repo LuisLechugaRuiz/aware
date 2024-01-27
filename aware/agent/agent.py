@@ -1,46 +1,35 @@
 import json
 from dataclasses import dataclass
 
-from aware.tools.profile import Profile
+from aware.agent.agent_data import AgentData
+from aware.agent.agent_processes import AgentProcesses
 
 
 @dataclass
 class Agent:
-    id: str
-    name: str
-    thought: str
-    context: str
-    profile: Profile
-    main_process_id: str
-    thought_generator_process_id: str
-    context_manager_process_id: str
-    data_storage_manager_process_id: str
-
-    def to_json(self):
-        return json.dumps(
-            self.to_dict(),
-            default=lambda o: o.__dict__ if hasattr(o, "__dict__") else str(o),
-        )
+    def __init__(self, agent_data: AgentData, agent_processes: AgentProcesses):
+        self.data = agent_data
+        self.processes = agent_processes
 
     def to_dict(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "thought": self.thought,
-            "context": self.context,
-            "profile": json.loads(self.profile.to_json()),
-            "main_process_id": self.main_process_id,
-            "thought_generator_process_id": self.thought_generator_process_id,
-            "context_manager_process_id": self.context_manager_process_id,
-            "data_storage_manager_process_id": self.data_storage_manager_process_id,
-        }
+        combined_dict = {**self.data.to_dict(), **self.processes.to_dict()}
+        return combined_dict
+
+    def to_json(self):
+        return json.dumps(self.to_dict())
 
     @classmethod
     def from_json(cls, json_str):
         data = json.loads(json_str)
-        data["profile"] = (
-            Profile(profile=json.loads(data["profile"]))
-            if isinstance(data["profile"], str)
-            else Profile(profile=data["profile"])
-        )
-        return cls(**data)
+
+        # Extracting AgentData and AgentProcesses parts from the combined data
+        data_dict = {k: data[k] for k in AgentData.__annotations__.keys() if k in data}
+        processes_dict = {
+            k: data[k] for k in AgentProcesses.__annotations__.keys() if k in data
+        }
+
+        # Creating AgentData and AgentProcesses instances from their respective parts
+        data = AgentData(**data_dict)
+        processes = AgentProcesses(**processes_dict)
+
+        return cls(data, processes)

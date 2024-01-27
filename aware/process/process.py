@@ -9,13 +9,12 @@ from aware.data.database.client_handlers import ClientHandlers
 from aware.tools.tools_manager import ToolsManager
 from aware.tools.tools import FunctionCall, Tools
 from aware.utils.logger.file_logger import FileLogger
+from aware.process.process_data import ProcessData
 from aware.process.decorators import on_preprocess, on_postprocess
 
 
 class Process(ABC):
-    user_id: str
-    agent_id: str
-    process_id: str
+    process_data: ProcessData
     tools: Tools
 
     # Preprocess
@@ -27,34 +26,36 @@ class Process(ABC):
 
     def __init__(
         self,
-        user_id: str,
-        agent_id: str,
-        process_id: str,
+        process_data: ProcessData,
     ):
-        self.user_id = user_id
-        self.agent_id = agent_id
-        self.process_id = process_id
+        self.process_data = process_data
         self.tools = ClientHandlers().get_tools(
-            user_id=user_id, agent_id=agent_id, process_id=process_id
+            process_data=process_data,
         )
+        self.user_id = process_data.ids.user_id
+        self.agent_id = process_data.ids.agent_id
+        self.process_id = process_data.ids.process_id
 
     def preprocess(
         self,
-        module_name: str = "system",
-        prompt_name: str = "agent",
-        agent_name: Optional[str] = None,
         extra_kwargs: Optional[Dict[str, str]] = None,
     ):
+        prompt_kwargs = self.process_data.get_prompt_kwargs()
+        prompt_kwargs.update(extra_kwargs)
+
+        meta_prompt_kwargs = self.process_data.get_meta_prompt_kwargs()
+
         self.chat = Chat(
             user_id=self.user_id,
             agent_id=self.agent_id,
             process_id=self.process_id,
             process_name=self.get_process_name(),
-            module_name=module_name,
-            prompt_name=prompt_name,
+            agent_name=self.process_data.agent_data.name,
+            module_name=self.process_data.prompt_data.module_name,
+            prompt_name=self.process_data.prompt_data.prompt_name,
             logger=self.get_logger(),
-            agent_name=agent_name,
-            extra_kwargs=extra_kwargs,
+            prompt_kwargs=prompt_kwargs,
+            meta_prompt_kwargs=meta_prompt_kwargs,
         )
         self.initialized_for_preprocessing = True
         self.request_response()
