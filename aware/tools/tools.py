@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import json
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
     Function,
@@ -8,28 +8,31 @@ from openai.types.chat.chat_completion_message_tool_call import (
 import uuid
 import inspect
 
-from aware.data.database.client_handlers import ClientHandlers
 from aware.process.process_data import ProcessData
 from aware.requests.service import ServiceData
+
+if TYPE_CHECKING:
+    from aware.data.database.client_handlers import ClientHandlers
 
 
 # TODO: Run remote should be a decorator.
 class Tools(ABC):
     def __init__(
         self,
+        client_handlers: "ClientHandlers",
         process_data: ProcessData,
         run_remote: bool = False,
     ):
+        self.client_handlers = client_handlers
         self.process_data = process_data
         self.run_remote = run_remote
         self.default_tools = self._get_default_tools()
 
     def create_request(self, service_name: str, query: str):
-        return ClientHandlers().create_request(
-            self.process_data.ids.user_id,
-            self.process_data.ids.process_id,
-            service_name,
-            query,
+        return self.client_handlers.create_request(
+            process_ids=self.process_data.ids,
+            service_name=service_name,
+            query=query,
         )
 
     def _construct_arguments_dict(self, func: Callable, content: str):
@@ -79,8 +82,8 @@ class Tools(ABC):
                 return function_call
         return None
 
-    def update_agent_data(self):
-        return ClientHandlers().update_agent_data(
+    def update_agent(self):
+        return self.client_handlers.update_agent(
             agent_id=self.process_data.ids.agent_id,
             agent_data=self.process_data.agent_data,
         )
@@ -92,7 +95,7 @@ class Tools(ABC):
     def set_request_completed(self, response: str):
         """Use this method to set the request as completed and provide the response."""
 
-        return ClientHandlers().set_request_completed(
+        return self.client_handlers.set_request_completed(
             self.process_data.ids.user_id,
             self.process_data.ids.process_id,
             self.process_data.requests[0].id,

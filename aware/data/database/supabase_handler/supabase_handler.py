@@ -1,13 +1,15 @@
 from supabase import Client
 from typing import Any, Dict, List, Optional
 
-from aware.agent import Agent, AgentData, AgentProcesses
+from aware.agent import AgentData
 from aware.chat.conversation_schemas import ChatMessage, JSONMessage
 from aware.data.database.data import get_topics
 from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
 from aware.memory.memory_manager import MemoryManager
-from aware.process import ProcessData, PromptData, ProcessIds
+from aware.process.process_data import ProcessData
+from aware.process.process_ids import ProcessIds
+from aware.process.prompt_data import PromptData
 from aware.requests.request import Request, RequestData
 from aware.requests.service import Service, ServiceData
 from aware.tools.profile import Profile
@@ -180,25 +182,17 @@ class SupabaseHandler:
                 messages.append(MessagesFactory.create_message(row))
         return messages
 
-    def get_agent(self, agent_id: str):
+    def get_agent_data(self, agent_id: str):
         data = self.client.table("agents").select("*").eq("id", agent_id).execute().data
         if not data:
             return None
         data = data[0]
-        agent_data = AgentData(
+        return AgentData(
+            id=agent_id,
             name=data["name"],
             thought=data["thought"],
             context=data["context"],
             profile=Profile(profile=data["profile"]),
-        )
-        agent_processes = AgentProcesses(
-            main_process_id=data["main_process_id"],
-            thought_generator_process_id=data["thought_generator_process_id"],
-            context_manager_process_id=data["context_manager_process_id"],
-            data_storage_manager_process_id=data["data_storage_manager_process_id"],
-        )
-        return Agent(
-            agent_data=agent_data, agent_processes=agent_processes, profile=None
         )
 
     def get_agent_profile(self, agent_id: str) -> Optional[Profile]:
@@ -206,6 +200,19 @@ class SupabaseHandler:
         if not data:
             return None
         return Profile(profile=data[0]["profile"])
+
+    def get_agent_process_id(self, agent_id: str, process_name: str) -> Optional[str]:
+        data = (
+            self.client.table("processes")
+            .select("*")
+            .eq("agent_id", agent_id)
+            .eq("name", process_name)
+            .execute()
+            .data
+        )
+        if not data:
+            return None
+        return data[0]["id"]
 
     def get_tools_class(self, process_id: str) -> Optional[str]:
         data = (
@@ -286,7 +293,7 @@ class SupabaseHandler:
         requests = self.get_process_service_requests(process_id=process_ids.process_id)
         return ProcessData(
             ids=process_ids,
-            agent_data=self.get_agent(process_ids.agent_id).data,
+            agent_data=self.get_agent_data(process_ids.agent_id),
             prompt_data=prompt_data,
             requests=requests,
             # TODO: Add events!
@@ -413,9 +420,9 @@ class SupabaseHandler:
                 "user_id", user_id
             ).eq("name", name).execute()
 
-    def update_agent_data(self, agent_id: str, agent_data: AgentData):
+    def update_agent_data(self, agent_data: AgentData):
         self.client.table("agents").update(agent_data.to_dict()).eq(
-            "id", agent_id
+            "id", agent_data.id
         ).execute()
 
     def update_agent_profile(self, agent_id: str, profile: Dict[str, Any]):

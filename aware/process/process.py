@@ -15,26 +15,39 @@ from aware.process.decorators import on_preprocess, on_postprocess
 
 class Process(ABC):
     process_data: ProcessData
+    tools_manager: ToolsManager
     tools: Tools
 
     # Preprocess
     chat: Optional[Chat] = None
     initialized_for_preprocessing: bool = False
     # Postprocess
-    tools_manager: Optional[ToolsManager] = None
     initialized_for_postprocessing: bool = False
 
     def __init__(
         self,
         process_data: ProcessData,
     ):
+        self.client_handlers = ClientHandlers()
         self.process_data = process_data
-        self.tools = ClientHandlers().get_tools(
-            process_data=process_data,
-        )
+        self.tools_manager = ToolsManager(self.get_logger())
+        self.tools = self._get_tools(process_data=process_data)
+
         self.user_id = process_data.ids.user_id
         self.agent_id = process_data.ids.agent_id
         self.process_id = process_data.ids.process_id
+
+    def _get_tools(self, process_data: ProcessData) -> Tools:
+        tools_class = self.client_handlers.get_tools_class(
+            process_id=process_data.ids.process_id
+        )
+        tools_class_type = self.tools_manager.get_tools(name=tools_class)
+        if tools_class_type is None:
+            raise Exception("Tools class not found")
+        return tools_class_type(
+            client_handlers=self.client_handlers,
+            process_data=process_data,
+        )
 
     def preprocess(
         self,

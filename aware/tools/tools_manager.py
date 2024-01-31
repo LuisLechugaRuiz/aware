@@ -1,6 +1,6 @@
 import json
 import inspect
-from typing import Callable, Dict, List, Optional, Type
+from typing import Callable, Dict, List, Optional, Type, TYPE_CHECKING
 from openai.types.chat import ChatCompletionMessageToolCall
 
 from aware.chat.conversation_schemas import ToolResponseMessage
