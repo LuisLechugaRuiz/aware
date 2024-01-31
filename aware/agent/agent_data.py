@@ -6,6 +6,7 @@ from aware.tools.profile import Profile
 
 @dataclass
 class AgentData:
+    id: str
     name: str
     thought: str
     context: str
@@ -16,6 +17,7 @@ class AgentData:
 
     def to_dict(self):
         return {
+            "id": self.id,
             "name": self.name,
             "thought": self.thought,
             "context": self.context,

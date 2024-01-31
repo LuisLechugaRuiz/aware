@@ -2,7 +2,7 @@ import json
 from redis import Redis
 from typing import List, Optional
 
-from aware.agent.agent import Agent, AgentData
+from aware.agent.agent_data import Agent, AgentData
 from aware.memory.user.user_data import UserData
 from aware.chat.conversation_schemas import (
     ChatMessage,
@@ -14,7 +14,9 @@ from aware.chat.conversation_schemas import (
     ToolCalls,
 )
 from aware.chat.call_info import CallInfo
-from aware.process import ProcessData, PromptData, ProcessIds
+from aware.process.process_data import ProcessData
+from aware.process.process_ids import ProcessIds
+from aware.process.prompt_data import PromptData
 from aware.requests.request import Request
 from aware.requests.service import Service
 from aware.utils.helpers import (
@@ -107,10 +109,16 @@ class RedisHandler:
         conversation_key = f"conversation:{process_id}"
         self.client.zrem(conversation_key, message_key)
 
-    def get_agent(self, agent_id: str) -> Optional[Agent]:
+    def get_agent_data(self, agent_id: str) -> Optional[AgentData]:
         data = self.client.get(f"agent:{agent_id}")
         if data:
-            return Agent.from_json(data)
+            return AgentData.from_json(data)
+        return None
+
+    def get_agent_process_id(self, agent_id: str, process_name: str) -> Optional[str]:
+        process_id = self.client.get(f"agent:{agent_id}:process_name:{process_name}")
+        if process_id:
+            return process_id.decode()
         return None
 
     # TODO: Check if conversation exists, return None otherwise.
@@ -147,14 +155,14 @@ class RedisHandler:
         return messages
 
     def get_process_data(self, process_ids: ProcessIds) -> Optional[ProcessData]:
-        agent = self.get_agent(agent_id=process_ids.agent_id)
+        agent_data = self.get_agent_data(agent_id=process_ids.agent_id)
         prompt_data = self.get_prompt_data(process_id=process_ids.process_id)
         requests = self.get_requests(process_id=process_ids.process_id)
 
-        if agent and prompt_data:
+        if agent_data and prompt_data:
             return ProcessData(
                 ids=process_ids,
-                agent_data=agent.data,
+                agent_data=agent_data,
                 prompt_data=prompt_data,
                 requests=requests,
             )
@@ -225,15 +233,16 @@ class RedisHandler:
             return data.decode()
         return None
 
-    def update_agent_data(self, agent_id: str, agent_data: AgentData):
-        agent = self.get_agent(agent_id)
-        agent.data = agent_data
-        self.set_agent(agent)
-
-    def set_agent(self, agent: Agent):
+    def set_agent_data(self, agent_data: AgentData):
         self.client.set(
-            f"agent:{agent.id}",
-            agent.to_json(),
+            f"agent:{agent_data.id}",
+            agent_data.to_json(),
+        )
+
+    def set_agent_process_id(self, agent_id: str, process_name: str, process_id: str):
+        self.client.set(
+            f"agent:{agent_id}:process_name:{process_name}",
+            process_id,
         )
 
     def set_prompt_data(self, process_id: str, prompt_data: PromptData):
@@ -243,7 +252,7 @@ class RedisHandler:
         )
 
     def set_process_data(self, process_data: ProcessData):
-        self.update_agent_data(process_data.ids.agent_id, process_data.agent_data)
+        self.set_agent(process_data.ids.agent_id, process_data.agent_data)
         self.set_prompt_data(process_data.ids.process_id, process_data.prompt_data)
         self.set_requests(process_data.requests)
 
