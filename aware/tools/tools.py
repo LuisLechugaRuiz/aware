@@ -27,6 +27,7 @@ class Tools(ABC):
         self.process_data = process_data
         self.run_remote = run_remote
         self.default_tools = self._get_default_tools()
+        self.running = True
 
     def create_request(self, service_name: str, query: str):
         return self.client_handlers.create_request(
@@ -82,6 +83,9 @@ class Tools(ABC):
                 return function_call
         return None
 
+    def is_running(self) -> bool:
+        return self.running
+
     def update_agent(self):
         return self.client_handlers.update_agent(
             agent_id=self.process_data.ids.agent_id,
@@ -103,8 +107,7 @@ class Tools(ABC):
         )
 
     def stop_agent(self):
-        # TODO: Implement me to stop agent execution, setting it to false at Supabase.
-        pass
+        self.running = False
 
 
 class FunctionCall:

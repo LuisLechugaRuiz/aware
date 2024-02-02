@@ -115,6 +115,13 @@ class RedisHandler:
             return AgentData.from_json(data)
         return None
 
+    def get_agent_id_by_process_id(self, process_id: str) -> str:
+        agent_id = self.client.get(f"process:{process_id}:agent_id")
+        if agent_id:
+            return agent_id.decode()
+        else:
+            return None
+
     def get_agent_process_id(self, agent_id: str, process_name: str) -> Optional[str]:
         process_id = self.client.get(f"agent:{agent_id}:process_name:{process_name}")
         if process_id:
@@ -243,6 +250,10 @@ class RedisHandler:
         self.client.set(
             f"agent:{agent_id}:process_name:{process_name}",
             process_id,
+        )
+        self.client.set(
+            f"process:{process_id}:agent_id",
+            agent_id,
         )
 
     def set_prompt_data(self, process_id: str, prompt_data: PromptData):

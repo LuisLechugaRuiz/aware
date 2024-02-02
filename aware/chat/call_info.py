@@ -3,27 +3,26 @@ from typing import Any, Dict, List
 
 
 from aware.chat.conversation_schemas import JSONMessage, SystemMessage
+from aware.process.process_ids import ProcessIds
 
 
 class CallInfo:
     def __init__(
         self,
-        user_id: str,
-        agent_id: str,
-        process_id: str,
+        process_ids: ProcessIds,
         call_id: str,
         agent_name: str,
         system_message: str,
         functions: List[Dict[str, Any]],
+        prompt_kwargs: Dict[str, Any] = {},
     ):
-        self.user_id = user_id
-        self.agent_id = agent_id
-        self.process_id = process_id
+        self.process_ids = process_ids
         self.call_id = call_id
 
         self.agent_name = agent_name
         self.system_message = system_message
         self.functions = functions
+        self.prompt_kwargs = prompt_kwargs
 
         self.conversation = None
         self.api_key = None
@@ -31,17 +30,17 @@ class CallInfo:
     @classmethod
     def from_json(cls, json_str):
         data = json.loads(json_str)
+        data["process_ids"] = ProcessIds(**data["process_ids"])
         return cls(**data)
 
     def to_dict(self):
         return {
-            "user_id": self.user_id,
-            "agent_id": self.agent_id,
-            "process_id": self.process_id,
+            "process_ids": self.process_ids.to_dict(),
             "call_id": self.call_id,
             "agent_name": self.agent_name,
             "system_message": self.system_message,
             "functions": self.functions,
+            "prompt_kwargs": self.prompt_kwargs,
         }
 
     def to_json(self):
@@ -55,7 +54,7 @@ class CallInfo:
     def set_conversation(self, conversation: List[JSONMessage]):
         self.conversation = conversation
 
-    def get_api_key(self):
+    def get_api_key(self) -> str:
         return self.api_key
 
     def set_api_key(self, api_key: str):
