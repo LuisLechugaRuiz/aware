@@ -33,10 +33,6 @@ class Process(ABC):
         self.tools_manager = ToolsManager(self.get_logger())
         self.tools = self._get_tools(process_data=process_data)
 
-        self.user_id = process_data.ids.user_id
-        self.agent_id = process_data.ids.agent_id
-        self.process_id = process_data.ids.process_id
-
     def _get_tools(self, process_data: ProcessData) -> Tools:
         tools_class = self.client_handlers.get_tools_class(
             process_id=process_data.ids.process_id
@@ -51,23 +47,21 @@ class Process(ABC):
 
     def preprocess(
         self,
-        extra_kwargs: Optional[Dict[str, str]] = None,
+        prompt_kwargs: Dict[str, str] = {},
     ):
-        prompt_kwargs = self.process_data.get_prompt_kwargs()
-        prompt_kwargs.update(extra_kwargs)
+        all_prompt_kwargs = self.process_data.get_prompt_kwargs()
+        all_prompt_kwargs.update(prompt_kwargs)
 
         meta_prompt_kwargs = self.process_data.get_meta_prompt_kwargs()
 
         self.chat = Chat(
-            user_id=self.user_id,
-            agent_id=self.agent_id,
-            process_id=self.process_id,
+            process_ids=self.process_data.ids,
             process_name=self.get_process_name(),
             agent_name=self.process_data.agent_data.name,
             module_name=self.process_data.prompt_data.module_name,
             prompt_name=self.process_data.prompt_data.prompt_name,
             logger=self.get_logger(),
-            prompt_kwargs=prompt_kwargs,
+            prompt_kwargs=all_prompt_kwargs,
             meta_prompt_kwargs=meta_prompt_kwargs,
         )
         self.initialized_for_preprocessing = True
@@ -90,10 +84,6 @@ class Process(ABC):
     def get_process_name(self) -> str:
         return self.tools.__class__.__name__
 
-    @on_preprocess
-    def request_response(self):
-        self.chat.request_response(self.tools.get_tools())
-
     @on_postprocess
     def get_function_calls(
         self, tool_calls: List[ChatCompletionMessageToolCall]
@@ -108,6 +98,13 @@ class Process(ABC):
             function_calls, self.tools.get_tools()
         )
         return tool_responses
+
+    def is_running(self) -> bool:
+        return self.tools.is_running()
+
+    @on_preprocess
+    def request_response(self):
+        self.chat.request_response(self.tools.get_tools())
 
     def should_run_remote(self) -> bool:
         return self.tools.run_remote

@@ -13,7 +13,7 @@ from aware.data.database.redis_handler.redis_handler import RedisHandler
 from aware.data.database.redis_handler.async_redis_handler import AsyncRedisHandler
 from aware.process.process_data import ProcessData, ProcessIds
 from aware.requests.service import Service
-from aware.server.tasks import trigger_process
+from aware.server.tasks import preprocess
 from aware.tools.tools_manager import ToolsManager
 from aware.utils.logger.file_logger import FileLogger
 
@@ -83,6 +83,7 @@ class ClientHandlers:
         service_name: str,
         query: str,
     ):
+        # TODO: Redis + Supa?
         supabase_handlers = self.get_supabase_handler()
         request = supabase_handlers.create_request(
             user_id=process_ids.user_id,
@@ -98,8 +99,16 @@ class ClientHandlers:
             service_id=request.service_id,
             request=request,
         )
-        if not self.redis_handler.is_process_active(service.process_id):
-            trigger_process.delay(process_ids)
+
+        # Get agent id from process_id
+        service_agent_id = redis_handlers.get_agent_id_by_process_id(service.process_id)
+        server_process_ids = ProcessIds(
+            user_id=process_ids.user_id,
+            agent_id=service_agent_id,
+            process_id=service.process_id,
+        )
+        if not self.redis_handler.is_process_active(server_process_ids):
+            preprocess.delay(process_ids)
         return request.id
 
     def get_supabase_handler(self):

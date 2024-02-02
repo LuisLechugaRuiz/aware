@@ -7,6 +7,7 @@ from aware.chat.conversation_schemas import SystemMessage
 from aware.chat.parser.pydantic_parser import PydanticParser
 from aware.data.database.client_handlers import ClientHandlers
 from aware.prompts.load import load_prompt_from_args, load_prompt_from_database
+from aware.process.process_ids import ProcessIds
 from aware.utils.helpers import get_current_date
 from aware.utils.logger.file_logger import FileLogger
 
@@ -16,27 +17,24 @@ class Chat:
 
     def __init__(
         self,
-        user_id: str,
-        agent_id: str,
-        process_id: str,
+        process_ids: ProcessIds,
         agent_name: str,
         module_name: str,
         prompt_name: str,
         logger: FileLogger,
-        prompt_kwargs: Optional[Dict[str, str]] = None,
+        prompt_kwargs: Optional[Dict[str, str]] = {},
         meta_prompt_kwargs: Optional[Dict[str, str]] = None,
     ):
-        self.user_id = user_id
-        self.agent_id = agent_id
-        self.process_id = process_id
+        self.process_ids = process_ids
 
         self.agent_name = agent_name
         self.module_name = module_name
         self.prompt_name = prompt_name
+        self.prompt_kwargs = prompt_kwargs
 
         system_instruction_message = load_prompt_from_database(
             self.prompt_name,
-            user_id,
+            self.process_ids.user_id,
             self.module_name,
             prompt_kwargs,
         )
@@ -44,7 +42,7 @@ class Chat:
             system_instruction_message=system_instruction_message,
             meta_prompt_kwargs=meta_prompt_kwargs,
         )
-        self.conversation = Conversation(process_id=process_id)
+        self.conversation = Conversation(process_id=self.process_ids.process_id)
         self.redis_handler = ClientHandlers().get_redis_handler()
 
         self.logger = logger
@@ -65,6 +63,8 @@ class Chat:
         system_instruction_message: str,
         meta_prompt_kwargs: Optional[Dict[str, str]] = None,
     ):
+        # TODO: ADJUST META PROMPT PROPERLY:
+        # system_instruction_message = Task
         args = {
             "date": get_current_date(),
             "instruction": system_instruction_message,
@@ -82,13 +82,12 @@ class Chat:
             function_schemas.append(PydanticParser.get_function_schema(function))
 
         call_info = CallInfo(
-            user_id=self.user_id,
-            agent_id=self.agent_id,
-            process_id=self.process_id,
+            process_ids=self.process_ids,
             call_id=str(uuid.uuid4()),
             agent_name=self.agent_name,
             system_message=self.system_message,
             functions=function_schemas,
+            prompt_kwargs=self.prompt_kwargs,
         )
         self.redis_handler.add_call_info(call_info)
         self.log_conversation()
