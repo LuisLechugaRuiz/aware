@@ -222,21 +222,22 @@ class ClientHandlers:
         return user_data
 
     def initialize_user(self, user_id: str, user_profile: Dict[str, str]):
-        supabase_handler = self.get_supabase_handler()
-        supabase_handler.initialize_user(user_id, user_profile)
-
-        redis_handler = self.get_redis_handler()
-
+        self.supabase_handler.initialize_user(user_id, user_profile)
         # Now discover the services.
         services_data = ToolsManager(
             logger=FileLogger(name="migration_tests")
         ).discover_services()
 
         for tools_class, service_data in services_data.items():
-            service = supabase_handler.create_service(
+            service = self.supabase_handler.create_service(
                 user_id=user_id, tools_class=tools_class, service_data=service_data
             )
-            redis_handler.set_service(service=service)
+            self.redis_handler.set_service(service=service)
+            self.redis_handler.set_topic_data(user_id=user_id, topic_name="user_name", topic_data=user_profile["display_name"])
+
+    def publish(self, user_id:str, topic_name: str, topic_data: str):
+        self.supabase_handler.set_topic_content(user_id=user_id, name=topic_name, content=topic_data)
+        self.redis_handler.set_topic_data(user_id=user_id, topic_name=topic_name, topic_data=topic_data)
 
     # TODO: This should:
     # - remove the request

@@ -30,7 +30,6 @@ class Chat:
         self.agent_name = agent_name
         self.module_name = module_name
         self.prompt_name = prompt_name
-        self.prompt_kwargs = prompt_kwargs
 
         system_instruction_message = load_prompt_from_database(
             self.prompt_name,
@@ -87,7 +86,6 @@ class Chat:
             agent_name=self.agent_name,
             system_message=self.system_message,
             functions=function_schemas,
-            prompt_kwargs=self.prompt_kwargs,
         )
         self.redis_handler.add_call_info(call_info)
         self.log_conversation()

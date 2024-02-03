@@ -47,11 +47,8 @@ class Process(ABC):
 
     def preprocess(
         self,
-        prompt_kwargs: Dict[str, str] = {},
     ):
-        all_prompt_kwargs = self.process_data.get_prompt_kwargs()
-        all_prompt_kwargs.update(prompt_kwargs)
-
+        prompt_kwargs = self.process_data.get_prompt_kwargs()
         meta_prompt_kwargs = self.process_data.get_meta_prompt_kwargs()
 
         self.chat = Chat(
@@ -61,7 +58,7 @@ class Process(ABC):
             module_name=self.process_data.prompt_data.module_name,
             prompt_name=self.process_data.prompt_data.prompt_name,
             logger=self.get_logger(),
-            prompt_kwargs=all_prompt_kwargs,
+            prompt_kwargs=prompt_kwargs,
             meta_prompt_kwargs=meta_prompt_kwargs,
         )
         self.initialized_for_preprocessing = True

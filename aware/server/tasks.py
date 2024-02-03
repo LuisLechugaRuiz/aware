@@ -14,12 +14,10 @@ from aware.utils.logger.file_logger import FileLogger
 # ENTRY POINT!
 # TODO: HOW TO SERIALIZE - DESERIALIZE EXTRA KWARGS?
 @celery_app.task(name="server.preprocess")
-def preprocess(process_ids_str: str, prompt_kwargs_json: str = "{}"):
+def preprocess(process_ids_str: str):
     process_ids = ProcessIds.from_json(process_ids_str)
-    prompt_kwargs = json.loads(prompt_kwargs_json)
-
     process_data = ClientHandlers().get_process_data(process_ids)
-    Process(process_data=process_data).preprocess(prompt_kwargs=prompt_kwargs)
+    Process(process_data=process_data).preprocess()
 
 
 @celery_app.task(name="server.postprocess")
@@ -85,8 +83,7 @@ def postprocess(response_str: str, call_info_str: str):
 
         # 5. Check if agent is running or should be stopped.
         if process.is_running():
-            prompt_kwargs_json = json.dumps(call_info.prompt_kwargs)
-            preprocess.delay(call_info.process_ids.to_json(), prompt_kwargs_json)
+            preprocess.delay(call_info.process_ids.to_json())
         else:
             # Check if has requests and schedule the newest one or just stop it!
             new_request = ClientHandlers().get_request(call_info.process_ids)
