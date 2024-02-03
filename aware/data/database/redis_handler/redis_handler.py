@@ -229,7 +229,7 @@ class RedisHandler:
         return None
 
     def get_user_data(self, user_id: str) -> Optional[UserData]:
-        data = self.client.get(f"user_data:{user_id}")
+        data = self.client.get(f"user_id:data:{user_id}")
         if data:
             return UserData.from_json(data)
         return None
@@ -239,6 +239,18 @@ class RedisHandler:
         if data:
             return data.decode()
         return None
+
+    def get_topic_data(self, user_id: str, topic_name: str) -> Optional[str]:
+        data = self.client.get(
+            f"user_id:{user_id}:topic:{topic_name}"
+        )
+        if data:
+            return data.decode()
+        return None
+
+    # TODO: ADD FUNCTONS: ADD PROCESS TO ACTIVE | REMOVE PROCESS FROM ACTIVE
+    def is_process_active(self, process_id: str) -> bool:
+        return self.client.exists(f"process:{process_id}:active")
 
     def set_agent_data(self, agent_data: AgentData):
         self.client.set(
@@ -288,8 +300,14 @@ class RedisHandler:
 
     def set_user_data(self, user_data: UserData):
         self.client.set(
-            f"user_data:{user_data.user_id}",
+            f"user_id:{user_data.user_id}:data",
             user_data.to_json(),
+        )
+
+    def set_topic_data(self, user_id: str, topic_name, topic_data: str):
+        self.client.set(
+            f"user_id:{user_id}:topic:{topic_name}",
+            topic_data,
         )
 
     def reconstruct_message(self, message_data_str: str) -> JSONMessage:

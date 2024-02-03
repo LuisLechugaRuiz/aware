@@ -84,26 +84,22 @@ def handle_assistant_message(assistant_message_event_json: str):
 def manage_conversation_buffer(main_ids: ProcessIds, user_name: str):
     assistant_conversation_buffer = ConversationBuffer(process_id=main_ids.process_id)
 
-    if assistant_conversation_buffer.should_trigger_warning():
-        prompt_kwargs = {
-            "assistant_conversation": assistant_conversation_buffer.to_string(),
-            "user_name": user_name,
-        }
-        prompt_kwargs_json = json.dumps(prompt_kwargs)
+    ClientHandlers().publish(user_id=main_ids.user_id, topic_name="assistant_conversation", topic_data=assistant_conversation_buffer.to_string())
 
+    if assistant_conversation_buffer.should_trigger_warning():
         data_storage_manager_ids = get_process_ids(
             user_id=main_ids.user_id,
             agent_id=main_ids.agent_id,
             process_name="data_storage_manager",
         )
-        preprocess.delay(data_storage_manager_ids.to_json(), prompt_kwargs_json)
+        preprocess.delay(data_storage_manager_ids.to_json())
 
         context_manager_ids = get_process_ids(
             user_id=main_ids.user_id,
             agent_id=main_ids.agent_id,
             process_name="context_manager",
         )
-        preprocess.delay(context_manager_ids.to_json(), prompt_kwargs_json)
+        preprocess.delay(context_manager_ids.to_json())
 
         # CARE !!! Reset conversation buffer !!! - THIS CAN LEAD TO A RACE WITH THE TRIGGERS, WE NEED TO REMOVE AFTER THAT!!
         assistant_conversation_buffer.reset()

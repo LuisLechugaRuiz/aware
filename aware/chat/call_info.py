@@ -14,7 +14,6 @@ class CallInfo:
         agent_name: str,
         system_message: str,
         functions: List[Dict[str, Any]],
-        prompt_kwargs: Dict[str, Any] = {},
     ):
         self.process_ids = process_ids
         self.call_id = call_id
@@ -22,7 +21,6 @@ class CallInfo:
         self.agent_name = agent_name
         self.system_message = system_message
         self.functions = functions
-        self.prompt_kwargs = prompt_kwargs
 
         self.conversation = None
         self.api_key = None
@@ -40,7 +38,6 @@ class CallInfo:
             "agent_name": self.agent_name,
             "system_message": self.system_message,
             "functions": self.functions,
-            "prompt_kwargs": self.prompt_kwargs,
         }
 
     def to_json(self):
