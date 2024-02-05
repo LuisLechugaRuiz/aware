@@ -2,9 +2,9 @@ from supabase import create_client
 from redis import asyncio as aioredis
 import redis
 import threading
-from typing import Dict, TYPE_CHECKING
+from typing import Dict, Optional
 
-from aware.agent import Agent, AgentData
+from aware.agent import AgentData
 from aware.memory.user.user_data import UserData
 from aware.chat.conversation_schemas import JSONMessage
 from aware.config.config import Config
@@ -12,13 +12,10 @@ from aware.data.database.supabase_handler.supabase_handler import SupabaseHandle
 from aware.data.database.redis_handler.redis_handler import RedisHandler
 from aware.data.database.redis_handler.async_redis_handler import AsyncRedisHandler
 from aware.process.process_data import ProcessData, ProcessIds
-from aware.requests.service import Service
+from aware.requests.request import Request
 from aware.server.tasks import preprocess
 from aware.tools.tools_manager import ToolsManager
 from aware.utils.logger.file_logger import FileLogger
-
-if TYPE_CHECKING:
-    from aware.tools.tools import Tools
 
 
 class ClientHandlers:
@@ -48,6 +45,10 @@ class ClientHandlers:
         self.async_redis_handler = AsyncRedisHandler(self.async_redis_client)
         self.logger = FileLogger("migration_client_handlers", should_print=True)
 
+    def add_active_process(self, process_id: str):
+        self.redis_handler.add_active_process(process_id)
+        self.supabase_handler.set_active_process(process_id, active=True)
+
     def add_message(
         self,
         user_id: str,
@@ -70,8 +71,7 @@ class ClientHandlers:
     def create_agent(
         self, user_id: str, module_name: str, main_prompt_name: str, tools_class: str
     ):
-        supabase_handlers = self.get_supabase_handler()
-        agent = supabase_handlers.create_agent(
+        agent = self.supabase_handler.create_agent(
             user_id, module_name, main_prompt_name, tools_class=tools_class
         )
         redis_handlers = self.get_redis_handler()
@@ -83,9 +83,7 @@ class ClientHandlers:
         service_name: str,
         query: str,
     ):
-        # TODO: Redis + Supa?
-        supabase_handlers = self.get_supabase_handler()
-        request = supabase_handlers.create_request(
+        request = self.supabase_handler.create_request(
             user_id=process_ids.user_id,
             client_process_id=process_ids.process_id,
             service_name=service_name,
@@ -93,21 +91,23 @@ class ClientHandlers:
         )
 
         service = self.redis_handler.get_service(service_id=request.service_id)
-        redis_handlers = self.get_redis_handler()
-        redis_handlers.create_request(
+        self.redis_handler.create_request(
             service_process_id=service.process_id,
             service_id=request.service_id,
             request=request,
         )
 
         # Get agent id from process_id
-        service_agent_id = redis_handlers.get_agent_id_by_process_id(service.process_id)
+        service_agent_id = self.redis_handler.get_agent_id_by_process_id(
+            service.process_id
+        )
         server_process_ids = ProcessIds(
             user_id=process_ids.user_id,
             agent_id=service_agent_id,
             process_id=service.process_id,
         )
         if not self.redis_handler.is_process_active(server_process_ids):
+            # Start server process if not running
             preprocess.delay(process_ids)
         return request.id
 
@@ -130,74 +130,74 @@ class ClientHandlers:
         return tools_class
 
     def get_agent_data(self, agent_id: str) -> AgentData:
-        redis_handler = self.get_redis_handler()
-        agent_data = redis_handler.get_agent_data(agent_id)
+        agent_data = self.redis_handler.get_agent_data(agent_id)
 
         if agent_data is None:
             self.logger.info("Agent data not found in Redis")
-            supabase_handler = self.get_supabase_handler()
             # Fetch agent data from Supabase
-            agent_data = supabase_handler.get_agent_data(agent_id)
+            agent_data = self.supabase_handler.get_agent_data(agent_id)
             if agent_data is None:
                 raise Exception("Agent data not found")
 
-            redis_handler.set_agent_data(agent_data)
+            self.redis_handler.set_agent_data(agent_data)
         else:
             self.logger.info("Agent data found in Redis")
 
         return agent_data
 
     def get_agent_process_id(self, agent_id: str, process_name: str) -> str:
-        redis_handler = self.get_redis_handler()
-        process_id = redis_handler.get_agent_process_id(agent_id, process_name)
+        process_id = self.redis_handler.get_agent_process_id(agent_id, process_name)
 
         if process_id is None:
             self.logger.info("Agent process id not found in Redis")
-            supabase_handler = self.get_supabase_handler()
             # Fetch agent process id from Supabase
-            process_id = supabase_handler.get_agent_process_id(agent_id, process_name)
+            process_id = self.supabase_handler.get_agent_process_id(
+                agent_id, process_name
+            )
             if process_id is None:
                 raise Exception("Agent process id not found")
 
-            redis_handler.set_agent_process_id(agent_id, process_name, process_id)
+            self.redis_handler.set_agent_process_id(agent_id, process_name, process_id)
         else:
             self.logger.info("Agent process id found in Redis")
 
         return process_id
 
     def get_process_data(self, process_ids: ProcessIds) -> ProcessData:
-        redis_handler = self.get_redis_handler()
-        process_data = redis_handler.get_process_data(process_ids)
+        process_data = self.redis_handler.get_process_data(process_ids)
 
         if process_data is None:
             self.logger.info("Process data not found in Redis")
-            supabase_handler = self.get_supabase_handler()
             # Fetch process data from Supabase
-            process_data = supabase_handler.get_process_data(process_ids)
+            process_data = self.supabase_handler.get_process_data(process_ids)
             if process_data is None:
                 raise Exception("Process data not found")
 
-            redis_handler.set_process_data(process_data)
+            self.redis_handler.set_process_data(process_data)
         else:
             self.logger.info("Process data found in Redis")
 
         return process_data
 
+    def get_request(self, process_id: str) -> Optional[Request]:
+        requests = self.redis_handler.get_requests(process_id=process_id)
+        if len(requests) > 0:
+            return requests[0]
+        return None
+
     def get_user_data(self, user_id: str) -> UserData:
-        redis_handler = self.get_redis_handler()
-        user_data = redis_handler.get_user_data(user_id)
+        user_data = self.redis_handler.get_user_data(user_id)
 
         if user_data is None:
             self.logger.info("User data not found in Redis")
-            supabase_handler = self.get_supabase_handler()
             # Fetch user profile from Supabase
-            user_profile = supabase_handler.get_user_profile(user_id)
+            user_profile = self.supabase_handler.get_user_profile(user_id)
             if user_profile is None:
                 raise Exception("User profile not found")
 
             if not user_profile["initialized"]:
                 try:
-                    supabase_handler.initialize_user(user_id, user_profile)
+                    self.supabase_handler.initialize_user(user_id, user_profile)
                 except Exception as e:
                     self.logger.error(f"Error while initializing user: {e}")
                     raise e
@@ -210,7 +210,7 @@ class ClientHandlers:
                 assistant_agent_id=user_profile["assistant_agent_id"],
                 orchestrator_agent_id=user_profile["orchestrator_agent_id"],
             )
-            redis_handler.set_user_data(user_data)
+            self.redis_handler.set_user_data(user_data)
 
             # Try to get assistant agent data from Redis otherwise get from Supabase
             # orchestrator_agent_data = self.get_agent_data(
@@ -233,27 +233,40 @@ class ClientHandlers:
                 user_id=user_id, tools_class=tools_class, service_data=service_data
             )
             self.redis_handler.set_service(service=service)
-            self.redis_handler.set_topic_data(user_id=user_id, topic_name="user_name", topic_data=user_profile["display_name"])
+            self.redis_handler.set_topic_data(
+                user_id=user_id,
+                topic_name="user_name",
+                topic_data=user_profile["display_name"],
+            )
 
-    def publish(self, user_id:str, topic_name: str, topic_data: str):
-        self.supabase_handler.set_topic_content(user_id=user_id, name=topic_name, content=topic_data)
-        self.redis_handler.set_topic_data(user_id=user_id, topic_name=topic_name, topic_data=topic_data)
+    def publish(self, user_id: str, topic_name: str, topic_data: str):
+        self.supabase_handler.set_topic_content(
+            user_id=user_id, name=topic_name, content=topic_data
+        )
+        self.redis_handler.set_topic_data(
+            user_id=user_id, topic_name=topic_name, topic_data=topic_data
+        )
+
+    def remove_active_process(self, process_id: str):
+        self.redis_handler.remove_active_process(process_id=process_id)
+        self.supabase_handler.set_active_process(process_id=process_id, active=False)
 
     # TODO: This should:
     # - remove the request
     # - trigger new task to set the response as tool_ids.
     # - retrigger the client process.
-    def set_request_completed(self, request_id: str):
-        redis_handler = self.get_redis_handler()
-        redis_handler.set_request_completed(request_id)
+    def set_request_completed(self, request_id: str, response: str):
+        request = self.redis_handler.get_request(request_id=request_id)
+        request.data.response = response
+        request.data.status = "completed"
+
+        self.redis_handler.update_request(request)
+        self.supabase_handler.set_request_completed(request_id, response)
 
     def update_agent(self, agent_data: AgentData):
         try:
-            supabase_handler = self.get_supabase_handler()
-            supabase_handler.update_agent_data(agent_data)
-
-            redis_handler = self.get_redis_handler()
-            redis_handler.set_agent_data(agent_data)
+            self.supabase_handler.update_agent_data(agent_data)
+            self.redis_handler.set_agent_data(agent_data)
             return "Success"
         except Exception as e:
             return f"Failure: {str(e)}"

@@ -96,6 +96,9 @@ class Process(ABC):
         )
         return tool_responses
 
+    def is_request_scheduled(self) -> bool:
+        return self.tools.is_request_scheduled()
+
     def is_running(self) -> bool:
         return self.tools.is_running()
 

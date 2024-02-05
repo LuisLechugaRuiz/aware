@@ -27,9 +27,13 @@ class Tools(ABC):
         self.process_data = process_data
         self.run_remote = run_remote
         self.default_tools = self._get_default_tools()
+
         self.running = True
+        self.request_scheduled = False
 
     def create_request(self, service_name: str, query: str):
+        self.request_scheduled = True
+
         return self.client_handlers.create_request(
             process_ids=self.process_data.ids,
             service_name=service_name,
@@ -85,6 +89,9 @@ class Tools(ABC):
 
     def is_running(self) -> bool:
         return self.running
+
+    def is_request_scheduled(self) -> bool:
+        return self.request_scheduled
 
     def update_agent(self):
         return self.client_handlers.update_agent(

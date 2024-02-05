@@ -404,6 +404,16 @@ class SupabaseHandler:
         logger.info(f"DEBUG - Response: {response}")
         return response
 
+    def set_active_process(self, process_id: str, active: bool):
+        self.client.table("processes").update({"is_active": active}).eq(
+            "id", process_id
+        ).execute()
+
+    def set_request_completed(self, request_id: str, response: str):
+        self.client.table("requests").update(
+            {"status": "completed", "response": response}
+        ).eq("id", request_id).execute()
+
     def set_topic_content(self, user_id: str, name: str, content: str):
         data = (
             self.client.table("topics")
