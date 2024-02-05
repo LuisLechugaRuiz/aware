@@ -6,7 +6,7 @@ from aware.data.database.client_handlers import ClientHandlers
 from aware.events.assistant_message import AssistantMessageEvent
 from aware.process.process_data import ProcessData
 from aware.utils.logger.file_logger import FileLogger
-from aware.tools.decorators import default_function
+from aware.tools.decorators import default_function, schedules_request
 from aware.tools.tools import Tools
 
 
@@ -81,7 +81,6 @@ class Assistant(Tools):
         self.stop_agent()
         return "Message sent to the user."
 
-    @schedules_request
     def search_info(self, query: str):
         """
         Search the query on semantic database.

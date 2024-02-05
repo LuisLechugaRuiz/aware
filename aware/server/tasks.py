@@ -1,6 +1,4 @@
-import json
 from openai.types.chat import ChatCompletionMessage
-from typing import Dict
 
 from aware.chat.call_info import CallInfo
 from aware.chat.conversation_schemas import AssistantMessage, ToolCalls
@@ -12,10 +10,12 @@ from aware.utils.logger.file_logger import FileLogger
 
 
 # ENTRY POINT!
-# TODO: HOW TO SERIALIZE - DESERIALIZE EXTRA KWARGS?
 @celery_app.task(name="server.preprocess")
 def preprocess(process_ids_str: str):
     process_ids = ProcessIds.from_json(process_ids_str)
+
+    ClientHandlers().add_active_process(process_ids.process_id)
+
     process_data = ClientHandlers().get_process_data(process_ids)
     Process(process_data=process_data).preprocess()
 
@@ -82,19 +82,57 @@ def postprocess(response_str: str, call_info_str: str):
                     )
 
         # 5. Check if agent is running or should be stopped.
+        if process.is_request_scheduled():
+            logger.info(
+                f"Request scheduled, process: {call_info.process_ids}, waiting for response."
+            )
+            return
+
         if process.is_running():
             preprocess.delay(call_info.process_ids.to_json())
         else:
             # Check if has requests and schedule the newest one or just stop it!
             new_request = ClientHandlers().get_request(call_info.process_ids)
             if new_request is None:
-                ClientHandlers().stop_process(call_info.process_ids)
+                ClientHandlers().remove_active_process(call_info.process_ids)
+            else:
+                # Schedule it again to complete new request.
+                preprocess.delay(call_info.process_ids.to_json())
 
     except Exception as e:
         logger.error(f"Error in process_response: {e}")
 
 
 # TODO: Can have multiple tools.
-@celery_app.task(name="system.process_tool_feedback")
+@celery_app.task(name="server.process_tool_feedback")
 def process_tool_feedback(tool_name: str, feedback: str, call_info: CallInfo):
     pass
+
+
+@celery_app.task(name="server.set_request_completed")
+def set_request_completed(request_id: str, response: str):
+    # TODO: Implement me.
+    # 1. Get the client id from request_id.
+    redis_handler = ClientHandlers().get_redis_handler()
+    request = redis_handler.get_request(request_id)
+    # 2. Add the response as the response of last tool_call!!
+    last_message = ClientHandlers().get_last_message(
+        process_id=request.client_process_id,
+    )
+    # Should be of type:
+    # self.role = "tool"
+    # self.content = content
+    # self.tool_call_id = tool_call_id
+    last_message.content = response
+
+    # 3. Schedule client again using preprocess - Remove request from redis?
+    # redis_handler.delete_request(request_id)
+    agent_id = redis_handler.get_agent_id_by_process_id(request.client_process_id)
+
+    # Now we need to get user_id also....
+    # process_ids = ProcessIds(
+    #     user_id=??,
+    #     agent_id=agent_id,
+    #     process_id=request.client_process_id
+    # )
+    # preprocess.delay(process_ids.to_json())

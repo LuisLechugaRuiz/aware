@@ -71,6 +71,9 @@ class RedisHandler:
             {key: convert_timestamp_to_epoch(chat_message.timestamp)},
         )
 
+    def add_active_process(self, process_id: str):
+        self.client.sadd("active_processes", process_id)
+
     def clear_conversation_buffer(self, process_id: str):
         self.client.delete(f"conversation_buffer:{process_id}")
 
@@ -97,6 +100,12 @@ class RedisHandler:
             request_order_key,
             {request.id: convert_timestamp_to_epoch(request.timestamp)},
         )
+
+    def delete_request(self, service_process_id: str, request_id: str):
+        service_id = self.client.get(f"request:{request_id}:service").decode("utf-8")
+        self.client.delete(f"service:{service_id}:request:{request_id}")
+        self.client.delete(f"request:{request_id}:service")
+        self.client.zrem(f"process:{service_process_id}:requests:order", request_id)
 
     def delete_message(self, process_id: str, message_id: str):
         # The key for the specific message
@@ -199,17 +208,16 @@ class RedisHandler:
         for request_id_bytes in request_ids:
             request_id = request_id_bytes.decode("utf-8")
 
-            # Retrieve the service_id for this request
-            service_id = self.client.get(f"request:{request_id}:service").decode(
-                "utf-8"
-            )
-            request = self.get_request(service_id, request_id)
+            request = self.get_request(request_id)
             if request:
                 requests.append(request)
 
         return requests
 
-    def get_request(self, service_id: str, request_id: str) -> Request:
+    def get_request(self, request_id: str) -> Request:
+        # Retrieve the service_id for this request
+        service_id = self.client.get(f"request:{request_id}:service").decode("utf-8")
+
         # Construct the key for the serialized request data
         request_data_key = f"service:{service_id}:request:{request_id}"
 
@@ -241,16 +249,13 @@ class RedisHandler:
         return None
 
     def get_topic_data(self, user_id: str, topic_name: str) -> Optional[str]:
-        data = self.client.get(
-            f"user_id:{user_id}:topic:{topic_name}"
-        )
+        data = self.client.get(f"user_id:{user_id}:topic:{topic_name}")
         if data:
             return data.decode()
         return None
 
-    # TODO: ADD FUNCTONS: ADD PROCESS TO ACTIVE | REMOVE PROCESS FROM ACTIVE
     def is_process_active(self, process_id: str) -> bool:
-        return self.client.exists(f"process:{process_id}:active")
+        return self.client.sismember("active_processes", process_id)
 
     def set_agent_data(self, agent_data: AgentData):
         self.client.set(
@@ -275,7 +280,7 @@ class RedisHandler:
         )
 
     def set_process_data(self, process_data: ProcessData):
-        self.set_agent(process_data.ids.agent_id, process_data.agent_data)
+        self.set_agent_data(process_data.ids.agent_id, process_data.agent_data)
         self.set_prompt_data(process_data.ids.process_id, process_data.prompt_data)
         self.set_requests(process_data.requests)
 
@@ -310,6 +315,9 @@ class RedisHandler:
             topic_data,
         )
 
+    def remove_active_process(self, process_id: str):
+        self.client.srem("active_processes", process_id)
+
     def reconstruct_message(self, message_data_str: str) -> JSONMessage:
         message_data_json = json.loads(message_data_str)
         message_type = message_data_json["type"]
@@ -327,3 +335,7 @@ class RedisHandler:
             return message_class.from_json(message_json_str)
         else:
             raise ValueError(f"Unknown message type: {message_type}")
+
+    def update_request(self, request: Request):
+        service_id = self.client.get(f"request:{request.id}:service").decode("utf-8")
+        self.client.set(f"service:{service_id}:request:{request.id}", request.to_json())
