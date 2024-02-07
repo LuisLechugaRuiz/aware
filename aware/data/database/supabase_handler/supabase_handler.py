@@ -3,10 +3,8 @@ from typing import Any, Dict, List, Optional
 
 from aware.agent import AgentData
 from aware.chat.conversation_schemas import ChatMessage, JSONMessage
-from aware.data.database.data import get_topics
 from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
-from aware.memory.memory_manager import MemoryManager
 from aware.process.process_data import ProcessData
 from aware.process.process_ids import ProcessIds
 from aware.process.prompt_data import PromptData
@@ -51,6 +49,39 @@ class SupabaseHandler:
             message=json_message,
         )
 
+    def create_agent(
+        self,
+        user_id: str,
+        name: str,
+        task: str,
+        tools_class: str,
+        instructions: Optional[str] = None,
+    ):
+        logger = FileLogger("migration_tests")
+        logger.info(f"DEBUG - Creating agent {name}")
+        response = (
+            self.client.rpc(
+                "create_agent",
+                {
+                    "p_user_id": user_id,
+                    "p_name": name,
+                    "p_task": task,
+                    "p_tool_class": tools_class,
+                    "p_instructions": instructions,
+                },
+            )
+            .execute()
+            .data
+        )
+        return AgentData(
+            id=response["id"],
+            name=response["name"],
+            task=response["task"],
+            instructions=response["instructions"],
+            thought=response["thought"],
+            context=response["context"],
+        )
+
     def create_request(
         self,
         user_id: str,
@@ -87,6 +118,7 @@ class SupabaseHandler:
         return Request(
             request_id=response["id"],
             service_id=response["service_id"],
+            service_process_id=response["service_process_id"],
             client_process_id=client_process_id,
             timestamp=response["created_at"],
             request_data=request_data,
@@ -118,17 +150,6 @@ class SupabaseHandler:
                 data=service_data,
             ),
         )
-
-    def create_topics(self, user_id: str):
-        logger = FileLogger("migration_tests")
-        topics_data = get_topics()
-        if topics_data is None:
-            logger.error("DEBUG - No topics data")
-            raise Exception("No topics data")
-        logger.info(f"DEBUG - Got topics data: {topics_data}")
-        for topic_name, topic_description in topics_data.items():
-            self.create_topic(user_id, topic_name, topic_description)
-            logger.info(f"DEBUG - Created topic {topic_name}")
 
     def create_topic(self, user_id: str, topic_name: str, topic_description: str):
         logger = FileLogger("migration_tests")
@@ -194,9 +215,10 @@ class SupabaseHandler:
         return AgentData(
             id=agent_id,
             name=data["name"],
+            task=data["task"],
             thought=data["thought"],
             context=data["context"],
-            profile=Profile(profile=data["profile"]),
+            # profile=Profile(profile=data["profile"]),
         )
 
     def get_agent_profile(self, agent_id: str) -> Optional[Profile]:
@@ -328,51 +350,6 @@ class SupabaseHandler:
             return None
         data = data[0]
         return data["content"]
-
-    def initialize_user(self, user_id: str, user_profile: Dict[str, Any]):
-        logger = FileLogger("migration_tests")
-        # AgentProfile
-        logger.info("Initializing user")
-        # Create user on Weaviate
-        try:
-            memory_manager = MemoryManager(user_id=user_id, logger=logger)
-            result = memory_manager.create_user(
-                user_id=user_id, user_name=user_profile["display_name"]
-            )
-        except Exception as e:
-            logger.error(f"Error while creating weaviate user: {e}")
-            raise e
-        if result.error:
-            logger.info(f"DEBUG - error creating weaviate user result: {result.error}")
-        else:
-            logger.info(f"DEBUG - success creating weaviate user result: {result.data}")
-        try:
-            assistant_profile = Profile.load_from_template(
-                module_name="core", agent_name="assistant"
-            )
-            logger.info(f"DEBUG - assistant id: {user_profile['assistant_agent_id']}")
-            logger.info(f"DEBUG - assistant profile: {assistant_profile}")
-            self.update_agent_profile(
-                agent_id=user_profile["assistant_agent_id"], profile=assistant_profile
-            )
-            orchestrator_profile = Profile.load_from_template(
-                module_name="core", agent_name="orchestrator"
-            )
-            logger.info(f"DEBUG - orchestrator profile: {orchestrator_profile}")
-            self.update_agent_profile(
-                agent_id=user_profile["orchestrator_agent_id"],
-                profile=orchestrator_profile,
-            )
-            # TODO: DISCOVER SERVICES AND ADD THEM TO BOTH SUPABASE AND REDIS.
-
-        except Exception as e:
-            logger.error(f"Error while updating agent profile: {e}")
-            raise e
-        self.create_topics(user_id)
-
-        logger.info("Updating user profile")
-        user_profile["initialized"] = True
-        self.update_user_profile(user_id, user_profile)
 
     def remove_frontend_message(self, message_id: str):
         self.client.table("frontend_messages").delete().eq("id", message_id).execute()

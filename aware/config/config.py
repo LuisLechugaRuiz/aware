@@ -72,5 +72,5 @@ class Config(metaclass=Singleton):
         self.redis_port = os.getenv("REDIS_PORT", 6379)
 
         # MODEL
-        self.openai_model = os.getenv("OPENAI_MODEL", "gpt-4-1106-preview")
+        self.openai_model = os.getenv("OPENAI_MODEL", "gpt-4-0125-preview")
         self.aware_model = os.getenv("AWARE_MODEL", "aware-1.0")

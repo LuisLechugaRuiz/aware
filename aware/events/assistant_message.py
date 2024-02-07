@@ -1,10 +1,9 @@
 from aware.events.event import Event
+from aware.process.process_ids import ProcessIds
 
 
 class AssistantMessageEvent(Event):
-    def __init__(
-        self, process_id: str, user_id: str, assistant_name: str, message: str
-    ):
+    def __init__(self, process_ids: ProcessIds, assistant_name: str, message: str):
         self.assistant_name = assistant_name
         self.message = message
-        super().__init__(process_id, user_id)
+        super().__init__(process_ids)

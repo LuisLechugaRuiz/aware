@@ -101,11 +101,20 @@ class RedisHandler:
             {request.id: convert_timestamp_to_epoch(request.timestamp)},
         )
 
+        if request.data.is_async:
+            request_client_map_key = (
+                f"client:{request.client_process_id}:request:{request.id}"
+            )
+            self.client.set(request_client_map_key, request_data_key)
+            # TODO: When retrieving get request_data_key and then get the request data for the client.
+
     def delete_request(self, service_process_id: str, request_id: str):
         service_id = self.client.get(f"request:{request_id}:service").decode("utf-8")
         self.client.delete(f"service:{service_id}:request:{request_id}")
         self.client.delete(f"request:{request_id}:service")
         self.client.zrem(f"process:{service_process_id}:requests:order", request_id)
+        # TODO: Delete only if the request is async
+        self.client.delete(f"client:{service_process_id}:request:{request_id}")
 
     def delete_message(self, process_id: str, message_id: str):
         # The key for the specific message

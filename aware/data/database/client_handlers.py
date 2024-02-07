@@ -2,15 +2,25 @@ from supabase import create_client
 from redis import asyncio as aioredis
 import redis
 import threading
-from typing import Dict, Optional
+from typing import Optional
 
 from aware.agent import AgentData
+from aware.agent.default_agents.assistant_agent import (
+    get_assistant_task,
+    get_assistant_tool_class,
+)
+from aware.agent.default_agents.orchestrator_agent import (
+    get_orchestrator_task,
+    get_orchestrator_tool_class,
+)
 from aware.memory.user.user_data import UserData
 from aware.chat.conversation_schemas import JSONMessage, ToolResponseMessage
 from aware.config.config import Config
 from aware.data.database.supabase_handler.supabase_handler import SupabaseHandler
 from aware.data.database.redis_handler.redis_handler import RedisHandler
 from aware.data.database.redis_handler.async_redis_handler import AsyncRedisHandler
+from aware.data.database.data import get_topics
+from aware.memory.memory_manager import MemoryManager
 from aware.process.process_data import ProcessData, ProcessIds
 from aware.requests.request import Request
 from aware.server.tasks import preprocess
@@ -67,15 +77,21 @@ class ClientHandlers:
         redis_handlers.add_message(process_id=process_id, chat_message=chat_message)
         return chat_message
 
-    # TODO: Implement me, it will be useful when users want to activate certain agents based on Tools!! - It should be module_name: system, main_prompt_name: (agent prompt name!!)
     def create_agent(
-        self, user_id: str, module_name: str, main_prompt_name: str, tools_class: str
+        self, user_id: str, name: str, task: str, tools_class: str, instructions: str
     ):
+        # TODO: Two kind of instructions:
+        # Task Instructions (To specify how to perform the task).
+        # Tool Instructions: To specify how to use the tool. ( docstring )
         agent = self.supabase_handler.create_agent(
-            user_id, module_name, main_prompt_name, tools_class=tools_class
+            user_id=user_id,
+            name=name,
+            task=task,
+            tools_class=tools_class,
+            instructions=instructions,
         )
-        redis_handlers = self.get_redis_handler()
-        redis_handlers.create_agent(user_id, agent=agent)
+        self.redis_handler.create_agent(user_id, agent=agent)
+        self.create_services(user_id, tools_class)
 
     # TODO: Move to Client? - Three classes: Service, Client and Request. (Async and Sync Clients!)
     def create_request(
@@ -113,6 +129,19 @@ class ClientHandlers:
             # Start server process if not running
             preprocess.delay(process_ids)
         return request.id
+
+    def create_services(self, user_id: str, tools_class: str):
+        """Create initial user services"""
+        services_data = ToolsManager(logger=self.logger).discover_services(tools_class)
+        for service_data in services_data:
+            service = self.supabase_handler.create_service(
+                user_id=user_id, tools_class=tools_class, service_data=service_data
+            )
+            self.redis_handler.set_service(service=service)
+
+    def create_topic(self, user_id: str, topic_name: str, topic_description: str):
+        self.supabase_handler.create_topic(user_id, topic_name, topic_description)
+        self.logger.info(f"DEBUG - Created topic {topic_name}")
 
     def get_supabase_handler(self):
         return self._instance.supabase_handler
@@ -200,7 +229,11 @@ class ClientHandlers:
 
             if not user_profile["initialized"]:
                 try:
-                    self.supabase_handler.initialize_user(user_id, user_profile)
+                    self.initialize_user(
+                        user_id=user_id, user_name=user_profile["display_name"]
+                    )
+                    user_profile["initialized"] = True
+                    self.supabase_handler.update_user_profile(user_id, user_profile)
                 except Exception as e:
                     self.logger.error(f"Error while initializing user: {e}")
                     raise e
@@ -210,37 +243,12 @@ class ClientHandlers:
                 user_id=user_id,
                 user_name=user_profile["display_name"],
                 api_key=user_profile["openai_api_key"],
-                assistant_agent_id=user_profile["assistant_agent_id"],
-                orchestrator_agent_id=user_profile["orchestrator_agent_id"],
             )
             self.redis_handler.set_user_data(user_data)
-
-            # Try to get assistant agent data from Redis otherwise get from Supabase
-            # orchestrator_agent_data = self.get_agent_data(
-            #     agent_id=user_profile["orchestrator_agent_id"]
-            # )
         else:
             self.logger.info("User data found in Redis")
 
         return user_data
-
-    def initialize_user(self, user_id: str, user_profile: Dict[str, str]):
-        self.supabase_handler.initialize_user(user_id, user_profile)
-        # Now discover the services.
-        services_data = ToolsManager(
-            logger=FileLogger(name="migration_tests")
-        ).discover_services()
-
-        for tools_class, service_data in services_data.items():
-            service = self.supabase_handler.create_service(
-                user_id=user_id, tools_class=tools_class, service_data=service_data
-            )
-            self.redis_handler.set_service(service=service)
-            self.redis_handler.set_topic_data(
-                user_id=user_id,
-                topic_name="user_name",
-                topic_data=user_profile["display_name"],
-            )
 
     def publish(self, user_id: str, topic_name: str, topic_data: str):
         self.supabase_handler.set_topic_content(
@@ -253,6 +261,10 @@ class ClientHandlers:
     def remove_active_process(self, process_id: str):
         self.redis_handler.remove_active_process(process_id=process_id)
         self.supabase_handler.set_active_process(process_id=process_id, active=False)
+
+    def send_feedback(self, request: Request):
+        self.redis_handler.update_request(request)
+        # TODO: Decide if this should be appended at conversation
 
     # TODO: This should:
     # - remove the request
@@ -293,3 +305,53 @@ class ClientHandlers:
             return "Success"
         except Exception as e:
             return f"Failure: {str(e)}"
+
+    def initialize_user(self, user_id: str, user_name: str):
+        # Create user on Weaviate
+        try:
+            memory_manager = MemoryManager(user_id=user_id, logger=self.logger)
+            result = memory_manager.create_user(user_id=user_id, user_name=user_name)
+        except Exception as e:
+            self.logger.error(f"Error while creating weaviate user: {e}")
+            raise e
+        if result.error:
+            self.logger.info(
+                f"DEBUG - error creating weaviate user result: {result.error}"
+            )
+        else:
+            self.logger.info(
+                f"DEBUG - success creating weaviate user result: {result.data}"
+            )
+        try:
+            assistant_name = "aware"  # TODO: GET FROM SUPABASE!
+            assistant_task = get_assistant_task(assistant_name=assistant_name)
+            assistant_tools_class = get_assistant_tool_class()
+            self.create_agent(
+                user_id=user_id,
+                name=assistant_name,
+                task=assistant_task,
+                tools_class=assistant_tools_class,
+                instructions="",
+            )
+            orchestrator_task = get_orchestrator_task()
+            orchestrator_tools_class = get_orchestrator_tool_class()
+            self.create_agent(
+                user_id=user_id,
+                name="orchestrator",
+                task=orchestrator_task,
+                tools_class=orchestrator_tools_class,
+                instructions="",
+            )
+
+            # Create initial user topics TODO: Refactor, verify if needed!
+            topics_data = get_topics()
+            if topics_data is None:
+                self.logger.error("DEBUG - No topics data")
+                raise Exception("No topics data")
+            self.logger.info(f"DEBUG - Got topics data: {topics_data}")
+            for topic_name, topic_description in topics_data.items():
+                self.create_topic(user_id, topic_name, topic_description)
+
+        except Exception as e:
+            self.logger.error(f"Error while updating agent profile: {e}")
+            raise e

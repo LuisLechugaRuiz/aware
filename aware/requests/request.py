@@ -35,12 +35,14 @@ class Request:
         self,
         request_id: str,
         service_id: str,
+        service_process_id: str,
         client_process_id: str,
         timestamp: str,
         data: RequestData,
     ):
         self.id = request_id
         self.service_id = service_id
+        self.service_process_id = service_process_id
         self.client_process_id = client_process_id
         self.timestamp = timestamp
         self.data = data
@@ -49,6 +51,7 @@ class Request:
         return {
             "id": self.id,
             "service_id": self.service_id,
+            "service_process_id": self.service_process_id,
             "client_process_id": self.client_process_id,
             "timestamp": self.timestamp,
             "data": self.data.to_json(),

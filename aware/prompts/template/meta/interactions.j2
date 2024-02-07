@@ -1,0 +1,20 @@
+{% if request -%}
+Process this incoming request:
+{{ request }}
+{% endif -%}
+
+{% if event -%}
+Handle this event notification:
+{{ event }}
+{% endif -%}
+
+{% if requested_actions -%}
+Feedback on actions initiated by you and processed by other processes:
+{% for action, feedback in requested_actions -%}
+- {{ action }} (Feedback: {{ feedback | default('Pending') }})
+{% endfor -%}
+{% endif -%}
+
+{% for variable in variables -%}
+- {{ variable.0 }}: {{ variable.1 }}
+{% endfor -%}

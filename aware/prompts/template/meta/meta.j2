@@ -1,0 +1,11 @@
+Current date: {{ date }}
+
+{{ task }}
+
+{% include 'memory.j2' %}
+
+{% include 'interactions.j2' %}
+
+{% if instructions -%}
+Instructions: {{ instructions }}
+{% endif -%}
