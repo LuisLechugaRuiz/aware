@@ -57,6 +57,7 @@ class SupabaseHandler:
         client_process_id: str,
         service_name: str,
         query: str,
+        is_async: bool,
     ) -> Request:
         logger = FileLogger("migration_tests")
         logger.info(f"DEBUG - Creating request {service_name}")
@@ -68,6 +69,7 @@ class SupabaseHandler:
                     "p_client_process_id": client_process_id,
                     "p_service_name": service_name,
                     "p_query": query,
+                    "p_is_async": is_async,
                 },
             )
             .execute()
@@ -76,6 +78,8 @@ class SupabaseHandler:
         response = response[0]
         request_data = RequestData(
             query=response["query"],
+            is_async=response["is_async"],
+            feedback=response["feedback"],
             status=response["status"],
             response=response["response"],
             prompt_prefix=response["prompt_prefix"],

@@ -6,7 +6,7 @@ from typing import Dict, Optional
 
 from aware.agent import AgentData
 from aware.memory.user.user_data import UserData
-from aware.chat.conversation_schemas import JSONMessage
+from aware.chat.conversation_schemas import JSONMessage, ToolResponseMessage
 from aware.config.config import Config
 from aware.data.database.supabase_handler.supabase_handler import SupabaseHandler
 from aware.data.database.redis_handler.redis_handler import RedisHandler
@@ -77,17 +77,20 @@ class ClientHandlers:
         redis_handlers = self.get_redis_handler()
         redis_handlers.create_agent(user_id, agent=agent)
 
+    # TODO: Move to Client? - Three classes: Service, Client and Request. (Async and Sync Clients!)
     def create_request(
         self,
         process_ids: ProcessIds,
         service_name: str,
         query: str,
+        is_async: bool,
     ):
         request = self.supabase_handler.create_request(
             user_id=process_ids.user_id,
             client_process_id=process_ids.process_id,
             service_name=service_name,
             query=query,
+            is_async=is_async,
         )
 
         service = self.redis_handler.get_service(service_id=request.service_id)
@@ -255,15 +258,35 @@ class ClientHandlers:
     # - remove the request
     # - trigger new task to set the response as tool_ids.
     # - retrigger the client process.
-    def set_request_completed(self, request_id: str, response: str):
-        request = self.redis_handler.get_request(request_id=request_id)
-        request.data.response = response
-        request.data.status = "completed"
-
+    # TODO: Move to service?
+    def set_request_completed(self, user_id: str, request: Request):
+        # 1. Update request in Redis and Supabase
         self.redis_handler.update_request(request)
-        self.supabase_handler.set_request_completed(request_id, response)
+        self.supabase_handler.set_request_completed(request.id, request.data.response)
 
-    def update_agent(self, agent_data: AgentData):
+        # 2. Update last conversation message with the response.
+        client_conversation_with_keys = self.redis_handler.get_conversation_with_keys(
+            request.client_process_id
+        )
+        message_key, message = client_conversation_with_keys[-1]
+        if not isinstance(message, ToolResponseMessage):
+            raise ValueError("Last message is not a tool response message.")
+        message.content = request.data.response
+        self.redis_handler.update_message(message_key, message)
+
+        # 3. Schedule client again using preprocess - Remove request from redis?
+        # self.redis_handler.delete_request(request.id) ?? I think we should remove and notify, different reaction to async and sync. We should move this logic to service!!
+
+        # TODO: Only if client is sync?
+        agent_id = self.redis_handler.get_agent_id_by_process_id(
+            request.client_process_id
+        )
+        process_ids = ProcessIds(
+            user_id=user_id, agent_id=agent_id, process_id=request.client_process_id
+        )
+        preprocess.delay(process_ids.to_json())
+
+    def update_agent_data(self, agent_data: AgentData):
         try:
             self.supabase_handler.update_agent_data(agent_data)
             self.redis_handler.set_agent_data(agent_data)

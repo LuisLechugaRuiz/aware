@@ -1,8 +1,8 @@
 import json
 from redis import Redis
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
-from aware.agent.agent_data import Agent, AgentData
+from aware.agent.agent_data import AgentData
 from aware.memory.user.user_data import UserData
 from aware.chat.conversation_schemas import (
     ChatMessage,
@@ -137,7 +137,6 @@ class RedisHandler:
             return process_id.decode()
         return None
 
-    # TODO: Check if conversation exists, return None otherwise.
     def get_conversation(self, process_id: str) -> List[JSONMessage]:
         conversation_key = f"conversation:{process_id}"
 
@@ -153,6 +152,22 @@ class RedisHandler:
                 messages.append(message)
 
         return messages
+
+    def get_conversation_with_keys(
+        self, process_id: str
+    ) -> List[Tuple[str, JSONMessage]]:
+        conversation_key = f"conversation:{process_id}"
+        message_keys = self.client.zrange(conversation_key, 0, -1)
+
+        messages_with_keys = []
+        for message_key in message_keys:
+            message_data = self.client.hget(message_key, "data")
+            if message_data:
+                message_data_str = message_data.decode()
+                message = self.reconstruct_message(message_data_str)
+                messages_with_keys.append((message_key, message))
+
+        return messages_with_keys
 
     def get_conversation_buffer(self, process_id: str) -> List[JSONMessage]:
         conversation_key = f"conversation_buffer:{process_id}"
@@ -335,6 +350,12 @@ class RedisHandler:
             return message_class.from_json(message_json_str)
         else:
             raise ValueError(f"Unknown message type: {message_type}")
+
+    def update_message(self, message_key: str, message: JSONMessage):
+        message_data = json.dumps(
+            {"type": type(message).__name__, "data": message.to_json()}
+        )
+        self.client.hmset(message_key, {"data": message_data})
 
     def update_request(self, request: Request):
         service_id = self.client.get(f"request:{request.id}:service").decode("utf-8")

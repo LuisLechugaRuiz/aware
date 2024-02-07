@@ -7,12 +7,16 @@ class RequestData:
     def __init__(
         self,
         query: str,
+        is_async: bool,
+        feedback: str,
         status: str,
         response: str,
         prompt_prefix: str,
     ):
         self.query = query
+        self.is_async = is_async
         self.status = status
+        self.feedback = feedback
         self.response = response
         self.prompt_prefix = prompt_prefix
 
