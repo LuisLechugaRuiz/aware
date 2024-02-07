@@ -23,13 +23,9 @@ class ToolsManager:
             tool_call.function.name = tool_call.function.name.replace(".", "_")
         return tool_calls
 
-    def discover_services(self) -> Dict[str, ServiceData]:
-        """Discover the services in the tools."""
-        services = {}
-        for tool_name, tool_type in self.tools_registry.tools.items():
-            for service in tool_type.get_services():
-                services[tool_type.__name__] = service
-        return services
+    def discover_services(self, tools_class: str) -> List[ServiceData]:
+        """Discover the services for the given tools class."""
+        return self.tools_registry.tools[tools_class].get_services()
 
     def get_tools(self, name: str) -> Optional[Type[Tools]]:
         self.logger.info(f"Getting tools for name: {name}")

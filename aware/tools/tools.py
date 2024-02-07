@@ -136,9 +136,7 @@ class Tools(ABC):
         """
         self.request.data.feedback = feedback
 
-        # TODO: Implement me!!
         return self.client_handlers.send_feedback(
-            user_id=self.process_data.ids.user_id,
             request=self.request,
         )
 

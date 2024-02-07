@@ -1,10 +1,11 @@
 import json
 
+from aware.process.process_ids import ProcessIds
+
 
 class Event:
-    def __init__(self, user_id: str, process_id: str):
-        self.user_id = user_id
-        self.process_id = process_id
+    def __init__(self, process_ids: ProcessIds):
+        self.process_ids = process_ids
 
     def to_json(self):
         return json.dumps(self.__dict__)

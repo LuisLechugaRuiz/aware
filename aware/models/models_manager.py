@@ -4,7 +4,7 @@ from typing import Optional
 from aware.config import get_modules
 from aware.models.model import Model
 from aware.models.open.os_model import OSModel
-from aware.models.private.openai.old_openai import OpenAIModel
+from aware.models.private.openai.openai import OpenAIModel
 from aware.utils.logger.file_logger import FileLogger
 
 LOG = logging.getLogger(__name__)

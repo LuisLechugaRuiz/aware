@@ -1,5 +1,3 @@
 {
-    "assistant_thought": "The assistant thought",
-    "assistant_context": "The assistant context",
-    "assistant_requests": "The assistant requests"
+    "agent_conversation": "The agent conversation"
 }

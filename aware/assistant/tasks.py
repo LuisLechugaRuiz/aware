@@ -1,4 +1,3 @@
-import json
 from typing import Any, Dict
 
 from aware.chat.conversation_schemas import AssistantMessage, UserMessage
@@ -53,38 +52,42 @@ def handle_user_message(data: Dict[str, Any]):
 def handle_assistant_message(assistant_message_event_json: str):
     try:
         log = FileLogger("migration_tests", should_print=True)
-
         assistant_message_event = AssistantMessageEvent.from_json(
             assistant_message_event_json
         )
+
         log.info(f"Processing new assistant message: {assistant_message_event.message}")
-        user_data = ClientHandlers().get_user_data(assistant_message_event.user_id)
         assistant_message = AssistantMessage(
             name=assistant_message_event.assistant_name,
             content=assistant_message_event.message,
         )
 
-        assistant_agent_data = ClientHandlers().get_agent_data(
-            agent_id=user_data.assistant_agent_id
-        )
-
         # Add thought generator message.
+        thought_generator_ids = get_process_ids(
+            assistant_message_event.process_ids.user_id,
+            assistant_message_event.process_ids.agent_id,
+            "thought_generator",
+        )
         ClientHandlers().add_message(
-            user_id=user_data.user_id,
-            process_id=assistant_agent_data.thought_generator_process_id,
+            user_id=thought_generator_ids.user_id,
+            process_id=thought_generator_ids.process_id,
             json_message=assistant_message,
         )
 
-        manage_conversation_buffer(user_data.to_json(), assistant_agent_data.to_json())
+        manage_conversation_buffer(assistant_message_event.process_ids.to_json())
     except Exception as e:
         log.error(f"Error: {e}")
 
 
 # TODO: We can merge both into a single process - Data Storage Manager, removing Context Manager and asking for that info on Stop!!
-def manage_conversation_buffer(main_ids: ProcessIds, user_name: str):
+def manage_conversation_buffer(main_ids: ProcessIds):
     assistant_conversation_buffer = ConversationBuffer(process_id=main_ids.process_id)
 
-    ClientHandlers().publish(user_id=main_ids.user_id, topic_name="assistant_conversation", topic_data=assistant_conversation_buffer.to_string())
+    ClientHandlers().publish(
+        user_id=main_ids.user_id,
+        topic_name="agent_conversation",
+        topic_data=assistant_conversation_buffer.to_string(),
+    )
 
     if assistant_conversation_buffer.should_trigger_warning():
         data_storage_manager_ids = get_process_ids(
@@ -93,13 +96,6 @@ def manage_conversation_buffer(main_ids: ProcessIds, user_name: str):
             process_name="data_storage_manager",
         )
         preprocess.delay(data_storage_manager_ids.to_json())
-
-        context_manager_ids = get_process_ids(
-            user_id=main_ids.user_id,
-            agent_id=main_ids.agent_id,
-            process_name="context_manager",
-        )
-        preprocess.delay(context_manager_ids.to_json())
 
         # CARE !!! Reset conversation buffer !!! - THIS CAN LEAD TO A RACE WITH THE TRIGGERS, WE NEED TO REMOVE AFTER THAT!!
         assistant_conversation_buffer.reset()

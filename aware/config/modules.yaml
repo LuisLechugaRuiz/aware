@@ -1,25 +1,25 @@
 assistant:
   model:
     type: openai
-    name: gpt-4-1106-preview
+    name: gpt-4-0125-preview
 executor:
   model:
     type: openai
-    name: gpt-4-1106-preview
+    name: gpt-4-0125-preview
 user_context_manager:
   model:
     type: openai
-    name: gpt-4-1106-preview
+    name: gpt-4-0125-preview
 user_thought_generator:
   model:
     type: openai
-    name: gpt-4-1106-preview
+    name: gpt-4-0125-preview
 user_data_storage_manager:
   model:
     type: openai
-    name: gpt-4-1106-preview
+    name: gpt-4-0125-preview
 # TODO: Fix creator based on latest improvements.
 tool_creator:
   model:
     type: openai
-    name: gpt-4-1106-preview
+    name: gpt-4-0125-preview

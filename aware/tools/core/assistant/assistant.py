@@ -22,7 +22,7 @@ class Assistant(Tools):
 
     def send_request(self, request: str):
         """
-        Send a request to the system, make a very explicit request.
+        Send a request to the orchestrator, should be very explicit.
 
         Args:
             request (str): The request the system needs to solve.
@@ -30,19 +30,10 @@ class Assistant(Tools):
         Returns:
             None
         """
-        return self.create_async_request("orchestrate", request)
-        # new_request = Request(request=request)
-        # goal_handle = self.system_action_clients[user_name].send_goal(new_request)
-        # self.active_goal_handles[new_request.get_id()] = (user_name, goal_handle)
-        # self.update_request(new_request)
-        # print(colored(f"Request: {request}", "yellow"))
-        # return "Request sent to the system; the status will be updated soon."
+        self.create_async_request("orchestrate", request)
+        return "Request sent to the system; the status will be updated soon."
 
-    # NOT USED FOR NOW TO HAVE A GROUP COMMUNICATION - FOR NOW JUST BROADCASTING
-    # def send_message_to_user(self, user_name: str, message: str):
-    #     self.users[user_name].send_message(message)
-
-    @default_function  # TODO: REMOVE THE EVENT FROM HERE. WE WILL MANAGE THE INTERNAL LOGIC DIFFERENT - TRIGGER THOUGHT ON ANY NEW ASSISTANT MESSAGE.
+    @default_function
     def talk(self, message: str):
         """
         Use this tool as the only way to communicate with the user.
@@ -66,11 +57,8 @@ class Assistant(Tools):
             name=assistant_message.name,
             content=assistant_message.content,
         )
-        # Triggering internal logic to start thought + store message on conversation_buffer.
-        # TODO: CHANGE BY SEND EVENT! AS WITH REQUESTS!
         assistant_message_event = AssistantMessageEvent(
-            process_id=self.process_data.ids.process_id,
-            user_id=self.process_data.ids.user_id,
+            process_ids=self.process_data.ids,
             assistant_name=assistant_message.name,
             message=message,
         )
@@ -90,11 +78,3 @@ class Assistant(Tools):
             str
         """
         return self.create_request("search", query)
-        # try:
-        #     print(f"Searching for {query} on {user_name}'s database")
-        #     data = self.database_clients[user_name].send(
-        #         topic=f"{user_name}_{DEF_GET_THOUGHT}", message=query
-        #     )
-        #     return f"Search returned: {data}"
-        # except Exception as e:
-        #     return f"Error searching: {e}"
