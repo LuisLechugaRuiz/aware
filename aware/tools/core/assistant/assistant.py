@@ -1,4 +1,3 @@
-from aware.agent.agent_data import AgentData
 from aware.assistant.tasks import handle_assistant_message
 from aware.chat.conversation_schemas import AssistantMessage
 from aware.config.config import Config
@@ -6,7 +5,7 @@ from aware.data.database.client_handlers import ClientHandlers
 from aware.events.assistant_message import AssistantMessageEvent
 from aware.process.process_data import ProcessData
 from aware.utils.logger.file_logger import FileLogger
-from aware.tools.decorators import default_function, schedules_request
+from aware.tools.decorators import default_function
 from aware.tools.tools import Tools
 
 
@@ -21,18 +20,17 @@ class Assistant(Tools):
             self.search_info,
         ]
 
-    def send_request(self, user_name: str, request: str):
+    def send_request(self, request: str):
         """
         Send a request to the system, make a very explicit request.
 
         Args:
-            user_name (str): The name of the user which is running the system.
             request (str): The request the system needs to solve.
 
         Returns:
             None
         """
-        pass
+        return self.create_async_request("orchestrate", request)
         # new_request = Request(request=request)
         # goal_handle = self.system_action_clients[user_name].send_goal(new_request)
         # self.active_goal_handles[new_request.get_id()] = (user_name, goal_handle)
@@ -61,8 +59,8 @@ class Assistant(Tools):
         )
         logger.info(f"Sending message to user: {assistant_message.to_string()}")
         ClientHandlers().get_supabase_handler().send_message_to_user(
-            user_id=self.user_id,
-            process_id=self.process_id,
+            user_id=self.process_data.ids.user_id,
+            process_id=self.process_data.ids.process_id,
             message_type=assistant_message.__class__.__name__,
             role=assistant_message.role,
             name=assistant_message.name,

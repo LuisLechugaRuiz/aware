@@ -1,7 +1,10 @@
 from openai.types.chat import ChatCompletionMessage
 
 from aware.chat.call_info import CallInfo
-from aware.chat.conversation_schemas import AssistantMessage, ToolCalls
+from aware.chat.conversation_schemas import (
+    AssistantMessage,
+    ToolCalls,
+)
 from aware.data.database.client_handlers import ClientHandlers
 from aware.process.process import Process
 from aware.process.process_ids import ProcessIds
@@ -82,9 +85,9 @@ def postprocess(response_str: str, call_info_str: str):
                     )
 
         # 5. Check if agent is running or should be stopped.
-        if process.is_request_scheduled():
+        if process.is_sync_request_scheduled():
             logger.info(
-                f"Request scheduled, process: {call_info.process_ids}, waiting for response."
+                f"Sync request scheduled, process: {call_info.process_ids}, waiting for response."
             )
             return
 
@@ -107,32 +110,3 @@ def postprocess(response_str: str, call_info_str: str):
 @celery_app.task(name="server.process_tool_feedback")
 def process_tool_feedback(tool_name: str, feedback: str, call_info: CallInfo):
     pass
-
-
-@celery_app.task(name="server.set_request_completed")
-def set_request_completed(request_id: str, response: str):
-    # TODO: Implement me.
-    # 1. Get the client id from request_id.
-    redis_handler = ClientHandlers().get_redis_handler()
-    request = redis_handler.get_request(request_id)
-    # 2. Add the response as the response of last tool_call!!
-    last_message = ClientHandlers().get_last_message(
-        process_id=request.client_process_id,
-    )
-    # Should be of type:
-    # self.role = "tool"
-    # self.content = content
-    # self.tool_call_id = tool_call_id
-    last_message.content = response
-
-    # 3. Schedule client again using preprocess - Remove request from redis?
-    # redis_handler.delete_request(request_id)
-    agent_id = redis_handler.get_agent_id_by_process_id(request.client_process_id)
-
-    # Now we need to get user_id also....
-    # process_ids = ProcessIds(
-    #     user_id=??,
-    #     agent_id=agent_id,
-    #     process_id=request.client_process_id
-    # )
-    # preprocess.delay(process_ids.to_json())

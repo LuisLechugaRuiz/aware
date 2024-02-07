@@ -17,9 +17,9 @@ class ContextManager(Tools):
             self.edit_context,
         ]
 
-    def _update_context(self, context):
-        self.process_data.agent.context = context
-        self.update_agent()
+    def _update_context(self, context: str):
+        self.process_data.agent_data.context = context
+        self.update_agent_data()
 
     @classmethod
     def get_process_name(self):
