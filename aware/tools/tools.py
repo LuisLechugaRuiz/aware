@@ -5,10 +5,12 @@ from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
     Function,
 )
+import re
 import uuid
 import inspect
 
-from aware.process.process_data import ProcessData
+from aware.agent.agent_data import AgentData
+from aware.process.process_ids import ProcessIds
 from aware.requests.request import Request
 from aware.requests.service import ServiceData
 
@@ -21,15 +23,20 @@ class Tools(ABC):
     def __init__(
         self,
         client_handlers: "ClientHandlers",
-        process_data: ProcessData,
+        process_ids: ProcessIds,
+        agent_data: AgentData,
+        request: Optional[Request],
         run_remote: bool = False,
     ):
         self.client_handlers = client_handlers
-        self.process_data = process_data
-        self.run_remote = run_remote
-        self.request = self._get_current_request()
+
+        self.process_ids = process_ids
+        self.agent_data = agent_data
+        self.request = request
+
         self.default_tools = self._get_default_tools()
 
+        self.run_remote = run_remote
         self.running = True
         self.async_request_scheduled = False
         self.sync_request_scheduled = False
@@ -38,7 +45,7 @@ class Tools(ABC):
         self.async_request_scheduled = True
 
         self.client_handlers.create_request(
-            process_ids=self.process_data.ids,
+            process_ids=self.process_ids,
             service_name=service_name,
             query=query,
             is_async=True,
@@ -49,7 +56,7 @@ class Tools(ABC):
         self.sync_request_scheduled = True
 
         return self.client_handlers.create_request(
-            process_ids=self.process_data.ids,
+            process_ids=self.process_ids,
             service_name=service_name,
             query=query,
             is_async=False,
@@ -66,11 +73,6 @@ class Tools(ABC):
             )
         return {args[0]: content}
 
-    def _get_current_request(self) -> Optional[Request]:
-        if len(self.process_data.requests) > 0:
-            return self.process_data.requests[0]
-        return None
-
     def _get_default_tools(self) -> List[Callable]:
         default_tools = []
         if self.request is not None:
@@ -84,6 +86,12 @@ class Tools(ABC):
         process_tools = self.set_tools()
         process_tools.extend(self.default_tools)
         return process_tools
+
+    @classmethod
+    def get_process_name(cls):
+        # Convert from CamelCase to snake_case
+        name = re.sub(r"(?<!^)(?=[A-Z])", "_", cls.__class__.__name__).lower()
+        return name
 
     @classmethod
     def get_services(self) -> List[ServiceData]:
@@ -120,8 +128,8 @@ class Tools(ABC):
 
     def update_agent_data(self):
         return self.client_handlers.update_agent_data(
-            agent_id=self.process_data.ids.agent_id,
-            agent_data=self.process_data.agent_data,
+            agent_id=self.process_ids.agent_id,
+            agent_data=self.agent_data,
         )
 
     @abstractmethod
@@ -150,7 +158,7 @@ class Tools(ABC):
         self.request.data.status = "completed"
 
         return self.client_handlers.set_request_completed(
-            user_id=self.process_data.ids.user_id,
+            user_id=self.process_ids.user_id,
             request=self.request,
         )
 

@@ -1,14 +1,29 @@
-from aware.process.process_data import ProcessData
-from aware.utils.logger.file_logger import FileLogger
+from typing import Optional
+
+from aware.agent.agent_data import AgentData
+from aware.data.database.client_handlers import ClientHandlers
+from aware.process.process_ids import ProcessIds
+from aware.requests.request import Request
 from aware.tools.tools import Tools
+from aware.utils.logger.file_logger import FileLogger
 
 
 class ContextManager(Tools):
     def __init__(
         self,
-        process_data: ProcessData,
+        client_handlers: "ClientHandlers",
+        process_ids: ProcessIds,
+        agent_data: AgentData,
+        request: Optional[Request],
+        run_remote: bool = False,
     ):
-        super().__init__(process_data)
+        super().__init__(
+            client_handlers=client_handlers,
+            process_ids=process_ids,
+            agent_data=agent_data,
+            request=request,
+            run_remote=run_remote,
+        )
         self.logger = FileLogger("context_manager")
 
     def set_tools(self):
@@ -18,7 +33,7 @@ class ContextManager(Tools):
         ]
 
     def _update_context(self, context: str):
-        self.process_data.agent_data.context = context
+        self.agent_data.context = context
         self.update_agent_data()
 
     @classmethod

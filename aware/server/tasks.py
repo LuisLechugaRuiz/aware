@@ -6,7 +6,6 @@ from aware.chat.conversation_schemas import (
     ToolCalls,
 )
 from aware.data.database.client_handlers import ClientHandlers
-from aware.process.process import Process
 from aware.process.process_ids import ProcessIds
 from aware.server.celery_app import celery_app
 from aware.utils.logger.file_logger import FileLogger
@@ -18,9 +17,8 @@ def preprocess(process_ids_str: str):
     process_ids = ProcessIds.from_json(process_ids_str)
 
     ClientHandlers().add_active_process(process_ids.process_id)
-
-    process_data = ClientHandlers().get_process_data(process_ids)
-    Process(process_data=process_data).preprocess()
+    process = ClientHandlers().get_process(process_ids.process_id)
+    process.preprocess()
 
 
 @celery_app.task(name="server.postprocess")
@@ -32,10 +30,7 @@ def postprocess(response_str: str, call_info_str: str):
     try:
         # 1. Get process.
         call_info = CallInfo.from_json(call_info_str)
-        process_data = ClientHandlers().get_process_data(
-            process_ids=call_info.process_ids
-        )
-        process = Process(process_data=process_data)
+        process = ClientHandlers().get_process(process_ids.process_id)
         process.postprocess()
 
         # 2. Reconstruct response.

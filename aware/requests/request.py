@@ -28,6 +28,12 @@ class RequestData:
         data = json.loads(json_str)
         return cls(**data)
 
+    def feedback_to_string(self):
+        return f"Query: {self.query}\nFeedback: {self.feedback}"
+
+    def query_to_string(self):
+        return f"{self.prompt_prefix} {self.query}"
+
 
 @dataclass
 class Request:
@@ -65,3 +71,12 @@ class Request:
         data = json.loads(json_str)
         data["data"] = RequestData.from_json(data["data"])
         return cls(**data)
+
+    def is_async(self) -> bool:
+        return self.data.is_async
+
+    def feedback_to_string(self) -> str:
+        return self.data.feedback_to_string()
+
+    def query_to_string(self) -> str:
+        return self.data.query_to_string()

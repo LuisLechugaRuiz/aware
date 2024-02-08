@@ -4,24 +4,23 @@ import redis
 import threading
 from typing import Optional
 
-from aware.agent import AgentData
-from aware.agent.default_agents.assistant_agent import (
-    get_assistant_task,
-    get_assistant_tool_class,
-)
-from aware.agent.default_agents.orchestrator_agent import (
-    get_orchestrator_task,
-    get_orchestrator_tool_class,
-)
+from aware.agent.agent_data import AgentData
+from aware.agent.agent_builder import AgentBuilder
 from aware.memory.user.user_data import UserData
-from aware.chat.conversation_schemas import JSONMessage, ToolResponseMessage
+from aware.chat.conversation_schemas import (
+    JSONMessage,
+    ToolResponseMessage,
+    UserMessage,
+)
 from aware.config.config import Config
 from aware.data.database.supabase_handler.supabase_handler import SupabaseHandler
 from aware.data.database.redis_handler.redis_handler import RedisHandler
 from aware.data.database.redis_handler.async_redis_handler import AsyncRedisHandler
 from aware.data.database.data import get_topics
 from aware.memory.memory_manager import MemoryManager
-from aware.process.process_data import ProcessData, ProcessIds
+from aware.process.process_ids import ProcessIds
+from aware.process.process_data import ProcessData
+from aware.process.process import Process
 from aware.requests.request import Request
 from aware.server.tasks import preprocess
 from aware.tools.tools_manager import ToolsManager
@@ -77,21 +76,50 @@ class ClientHandlers:
         redis_handlers.add_message(process_id=process_id, chat_message=chat_message)
         return chat_message
 
+    def create_subscription(self, process_id: str, topic_name: str):
+        self.supabase_handler.create_subscription(process_id, topic_name)
+        # TODO: Add redis!!
+        self.redis_handler.create_subscription(process_id, topic_name)
+
     def create_agent(
-        self, user_id: str, name: str, task: str, tools_class: str, instructions: str
-    ):
-        # TODO: Two kind of instructions:
-        # Task Instructions (To specify how to perform the task).
-        # Tool Instructions: To specify how to use the tool. ( docstring )
-        agent = self.supabase_handler.create_agent(
+        self,
+        user_id: str,
+        name: str,
+    ) -> AgentData:
+        agent_data = self.supabase_handler.create_agent(
             user_id=user_id,
             name=name,
-            task=task,
+        )
+        self.redis_handler.set_agent_data(agent_data)
+        return agent_data
+
+    # TODO: Two kind of instructions:
+    # Task Instructions (To specify how to perform the task).
+    # Tool Instructions: To specify how to use the tool. ( docstring )
+    def create_process(
+        self,
+        user_id: str,
+        agent_id: str,
+        name: str,
+        tools_class: str,
+        identity: str,
+        task: str,
+        instructions: str,
+    ) -> ProcessData:
+        process_data = self.supabase_handler.create_process(
+            user_id=user_id,
+            agent_id=agent_id,
+            name=name,
             tools_class=tools_class,
+            identity=identity,
+            task=task,
             instructions=instructions,
         )
-        self.redis_handler.create_agent(user_id, agent=agent)
+        self.redis_handler.set_process_data(
+            process_id=process_data.id, process_data=process_data
+        )
         self.create_services(user_id, tools_class)
+        return process_data
 
     # TODO: Move to Client? - Three classes: Service, Client and Request. (Async and Sync Clients!)
     def create_request(
@@ -138,6 +166,10 @@ class ClientHandlers:
                 user_id=user_id, tools_class=tools_class, service_data=service_data
             )
             self.redis_handler.set_service(service=service)
+
+    def create_subscription(self, process_id: str, topic_name: str):
+        self.supabase_handler.create_subscription(process_id, topic_name)
+        self.logger.info(f"DEBUG - Created subscription {topic_name}")
 
     def create_topic(self, user_id: str, topic_name: str, topic_description: str):
         self.supabase_handler.create_topic(user_id, topic_name, topic_description)
@@ -195,21 +227,23 @@ class ClientHandlers:
 
         return process_id
 
-    def get_process_data(self, process_ids: ProcessIds) -> ProcessData:
-        process_data = self.redis_handler.get_process_data(process_ids)
+    def get_process(self, process_ids: ProcessIds) -> Process:
+        process = self.redis_handler.get_process(process_ids)
 
-        if process_data is None:
-            self.logger.info("Process data not found in Redis")
-            # Fetch process data from Supabase
-            process_data = self.supabase_handler.get_process_data(process_ids)
-            if process_data is None:
+        if process is None:
+            self.logger.info("Process not found in Redis")
+            # Fetch process from Supabase
+            process = self.supabase_handler.get_process(
+                client_handlers=self, process_ids=process_ids
+            )
+            if process is None:
                 raise Exception("Process data not found")
 
-            self.redis_handler.set_process_data(process_data)
+            self.redis_handler.set_process(process)
         else:
             self.logger.info("Process data found in Redis")
 
-        return process_data
+        return process
 
     def get_request(self, process_id: str) -> Optional[Request]:
         requests = self.redis_handler.get_requests(process_id=process_id)
@@ -264,7 +298,6 @@ class ClientHandlers:
 
     def send_feedback(self, request: Request):
         self.redis_handler.update_request(request)
-        # TODO: Decide if this should be appended at conversation
 
     # TODO: This should:
     # - remove the request
@@ -272,24 +305,46 @@ class ClientHandlers:
     # - retrigger the client process.
     # TODO: Move to service?
     def set_request_completed(self, user_id: str, request: Request):
-        # 1. Update request in Redis and Supabase
-        self.redis_handler.update_request(request)
+        # 1. Remove request from redis and supabase
+        self.redis_handler.delete_request(request.id)
         self.supabase_handler.set_request_completed(request.id, request.data.response)
 
-        # 2. Update last conversation message with the response.
-        client_conversation_with_keys = self.redis_handler.get_conversation_with_keys(
-            request.client_process_id
-        )
-        message_key, message = client_conversation_with_keys[-1]
-        if not isinstance(message, ToolResponseMessage):
-            raise ValueError("Last message is not a tool response message.")
-        message.content = request.data.response
-        self.redis_handler.update_message(message_key, message)
+        # 2. Process request completed.
+        if request.is_async():
+            # - Async requests: Add new message with the response.
+            agent_id = self.redis_handler.get_agent_id_by_process_id(
+                request.service_process_id
+            )
+            agent_data = self.get_agent_data(agent_id)
+            # Get process name.
+            process_data = self.get_process_data(
+                ProcessIds(
+                    user_id=user_id,
+                    agent_id=request.service_id,
+                    process_id=request.service_process_id,
+                )
+            )
+            agent_name = process_data.name
+            user_message = UserMessage(
+                name=agent_data.name, content=request.data.response
+            )
+            self.add_message(
+                user_id=user_id,
+                process_id=request.client_process_id,
+                json_message=user_message,
+            )
+        else:
+            # - Sync requests: Update last conversation message with the response.
+            client_conversation_with_keys = (
+                self.redis_handler.get_conversation_with_keys(request.client_process_id)
+            )
+            message_key, message = client_conversation_with_keys[-1]
+            if not isinstance(message, ToolResponseMessage):
+                raise ValueError("Last message is not a tool response message.")
+            message.content = request.data.response
+            self.redis_handler.update_message(message_key, message)
 
-        # 3. Schedule client again using preprocess - Remove request from redis?
-        # self.redis_handler.delete_request(request.id) ?? I think we should remove and notify, different reaction to async and sync. We should move this logic to service!!
-
-        # TODO: Only if client is sync?
+        # 3. Trigger client process.
         agent_id = self.redis_handler.get_agent_id_by_process_id(
             request.client_process_id
         )
@@ -324,23 +379,8 @@ class ClientHandlers:
             )
         try:
             assistant_name = "aware"  # TODO: GET FROM SUPABASE!
-            assistant_task = get_assistant_task(assistant_name=assistant_name)
-            assistant_tools_class = get_assistant_tool_class()
-            self.create_agent(
-                user_id=user_id,
-                name=assistant_name,
-                task=assistant_task,
-                tools_class=assistant_tools_class,
-                instructions="",
-            )
-            orchestrator_task = get_orchestrator_task()
-            orchestrator_tools_class = get_orchestrator_tool_class()
-            self.create_agent(
-                user_id=user_id,
-                name="orchestrator",
-                task=orchestrator_task,
-                tools_class=orchestrator_tools_class,
-                instructions="",
+            AgentBuilder(client_handlers=self).initialize_user_agents(
+                user_id=user_id, assistant_name=assistant_name
             )
 
             # Create initial user topics TODO: Refactor, verify if needed!

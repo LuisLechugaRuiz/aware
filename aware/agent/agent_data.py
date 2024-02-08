@@ -4,6 +4,14 @@ from dataclasses import dataclass
 # from aware.tools.profile import Profile
 
 
+# TODO :ADAPT! We need this info to fill the prompt.
+# For now we need:
+# {{ agent }} (name)
+# {{ agent_task }} (task)
+# {{ context }}
+
+
+# No need to save instructions as it will be stored as part of the process.
 @dataclass
 class AgentData:
     id: str
