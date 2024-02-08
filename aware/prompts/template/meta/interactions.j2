@@ -1,6 +1,11 @@
-{% if request -%}
+{% if outgoing_requests -%}
+Feedback on actions initiated by you and processed by other processes:
+{{ outgoing_requests }}
+{% endif -%}
+
+{% if incoming_request -%}
 Process this incoming request:
-{{ request }}
+{{ incoming_request }}
 {% endif -%}
 
 {% if event -%}
@@ -8,13 +13,7 @@ Handle this event notification:
 {{ event }}
 {% endif -%}
 
-{% if requested_actions -%}
-Feedback on actions initiated by you and processed by other processes:
-{% for action, feedback in requested_actions -%}
-- {{ action }} (Feedback: {{ feedback | default('Pending') }})
-{% endfor -%}
-{% endif -%}
-
+{# Pub sub var - TODO: Adjust #}
 {% for variable in variables -%}
 - {{ variable.0 }}: {{ variable.1 }}
 {% endfor -%}

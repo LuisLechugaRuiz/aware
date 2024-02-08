@@ -1,14 +1,46 @@
-from typing import List
-from aware.tools.tools import Tools
+from typing import List, Optional
+
+from aware.agent.agent_builder import AgentBuilder
+from aware.agent.agent_data import AgentData
+from aware.data.database.client_handlers import ClientHandlers
 from aware.process.process_ids import ProcessIds
+from aware.requests.request import Request
 from aware.requests.service import ServiceData
+from aware.tools.tools import Tools
+from aware.utils.logger.file_logger import FileLogger
+
+DEF_IDENTITY = """You are orchestrator, an advanced virtual assistant capable of managing multiple agents to solve complex tasks"""
+DEF_TASK = """Your task is to delegate atomic requests to the appropriate agents and manage the communication between them."""
 
 
 class Orchestrator(Tools):
     """As orchestrator your role is to manage the task distribution within the system. For this you can create new agents or create new requests for existing ones"""
 
-    def __init__(self, process_ids: ProcessIds):
-        super().__init__(process_ids=process_ids)
+    def __init__(
+        self,
+        client_handlers: "ClientHandlers",
+        process_ids: ProcessIds,
+        agent_data: AgentData,
+        request: Optional[Request],
+        run_remote: bool = False,
+    ):
+        super().__init__(
+            client_handlers=client_handlers,
+            process_ids=process_ids,
+            agent_data=agent_data,
+            request=request,
+            run_remote=run_remote,
+        )
+        self.agent_builder = AgentBuilder(client_handlers=self.client_handlers)
+        self.logger = FileLogger("orchestrator")
+
+    @classmethod
+    def get_identity(cls) -> str:
+        return DEF_IDENTITY
+
+    @classmethod
+    def get_task(cls) -> str:
+        return DEF_TASK
 
     def get_tools(self):
         return [
@@ -28,23 +60,27 @@ class Orchestrator(Tools):
             )
         ]
 
-    def create_agent(self, tools: str, name: str, task: str, instructions: str):
+    def create_agent(
+        self, name: str, tools: str, identity: str, task: str, instructions: str
+    ):
         """
         Use this tool to create a new agent in case none of the existent ones can fulfill the step to complete the task.
         Select tools only from the existing ones retrieved using find_tools.
 
         params:
          name (str): Agent's name, a specific variable name used to describe the agent, will be used to identify the agent. Should follow convention: lower followed by "_".
-         task (str): Agent's task, a highlevel description of his mission, should be general to solve similar requests.
          tools (str): The tools that the agent should use to accomplish the next step.
+         identity (str): A natural description of the agent's identity, should start with "You are {name}...".
+         task (str): Agent's task, a highlevel description of his mission, should be general to solve similar requests.
          instructions (str): Specific instructions or recommendations about possible combinations of tool executions that could be performed to satisfy the requests.
         """
         try:
-            self.client_handlers.create_agent(
-                user_id=self.process_data.ids.user_id,
+            self.agent_builder.create_agent(
+                user_id=self.process_ids.user_id,
                 name=name,
-                task=task,
                 tools_class=tools,
+                identity=identity,
+                task=task,
                 instructions=instructions,
             )
             return f"Agent {name} created successfully"

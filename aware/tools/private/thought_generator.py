@@ -1,26 +1,58 @@
-from typing import List
+from typing import List, Optional
 
+from aware.agent.agent_data import AgentData
+from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
-from aware.process.process_data import ProcessData
+from aware.process.process_ids import ProcessIds
 from aware.requests.service import ServiceData
+from aware.requests.request import Request
 from aware.tools.decorators import default_function
 from aware.tools.tools import Tools
 from aware.utils.logger.file_logger import FileLogger
+
+DEF_IDENTITY = """You are thought_generator, a process responsible for generating thoughts to optimize the performance of a specific agent."""
+DEF_TASK = """Your task is to optimize {{ agent }}'s performance in executing its task through strategic thought generation.
+{{ agent }}'s Task:
+{{ agent_task }}"""
+DEF_INSTRUCTIONS = """Thought Generation Steps:
+1. Gather task-relevant information.
+2. For complex tasks, apply intermediate_thought and refine as necessary.
+3. Finalize with a strategic final_thought to guide {{ agent }}.
+
+Operational Principles:
+- Prioritize backend processing without engaging in direct interactions.
+- Ensure thoughts are pertinent and flexible to the demands of {{ agent }}'s task."""
 
 
 class ThoughtGenerator(Tools):
     def __init__(
         self,
-        process_data: ProcessData,
+        client_handlers: "ClientHandlers",
+        process_ids: ProcessIds,
+        agent_data: AgentData,
+        request: Optional[Request],
+        run_remote: bool = False,
     ):
-        super().__init__(process_data)
+        super().__init__(
+            client_handlers=client_handlers,
+            process_ids=process_ids,
+            agent_data=agent_data,
+            request=request,
+            run_remote=run_remote,
+        )
+        self.logger = FileLogger("thought_generator")
 
-    def set_tools(self):
-        return [
-            self.intermediate_thought,
-            self.final_thought,
-            self.search,
-        ]
+    @classmethod
+    def get_identity(cls) -> str:
+        return DEF_IDENTITY
+
+    @classmethod
+    def get_task(cls, agent: str, agent_task: str) -> str:
+        return DEF_TASK.format(agent=agent, agent_task=agent_task)
+
+    @classmethod
+    def get_instructions(cls) -> str:
+        return DEF_INSTRUCTIONS
 
     @classmethod
     def get_services(self) -> List[ServiceData]:
@@ -32,9 +64,12 @@ class ThoughtGenerator(Tools):
             )
         ]
 
-    @classmethod
-    def get_process_name(self):
-        return "thought_generator"
+    def set_tools(self):
+        return [
+            self.intermediate_thought,
+            self.final_thought,
+            self.search,
+        ]
 
     def search(self, questions: List[str]):
         """Search for the answer to the questions in the memory.
@@ -43,7 +78,7 @@ class ThoughtGenerator(Tools):
             questions (List[str]): The questions to be answered.
         """
         memory_manager = MemoryManager(
-            user_id=self.process_data.ids.user_id,
+            user_id=self.process_ids.user_id,
             logger=FileLogger("user_memory_manager", should_print=False),
         )
 
@@ -70,5 +105,5 @@ class ThoughtGenerator(Tools):
         return "Final thought saved, stopping agent."
 
     def update_thought(self, thought: str):
-        self.process_data.agent_data.thought = thought
+        self.agent_data.thought = thought
         self.update_agent_data()

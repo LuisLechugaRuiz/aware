@@ -1,5 +1,5 @@
 from supabase import Client
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from aware.agent import AgentData
 from aware.chat.conversation_schemas import ChatMessage, JSONMessage
@@ -7,11 +7,14 @@ from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
 from aware.process.process_data import ProcessData
 from aware.process.process_ids import ProcessIds
-from aware.process.prompt_data import PromptData
+from aware.process.process import Process
 from aware.requests.request import Request, RequestData
 from aware.requests.service import Service, ServiceData
 from aware.tools.profile import Profile
 from aware.utils.logger.file_logger import FileLogger
+
+if TYPE_CHECKING:
+    from aware.data.database.client_handlers import ClientHandlers
 
 
 class SupabaseHandler:
@@ -53,34 +56,78 @@ class SupabaseHandler:
         self,
         user_id: str,
         name: str,
-        task: str,
-        tools_class: str,
-        instructions: Optional[str] = None,
-    ):
+    ) -> AgentData:
         logger = FileLogger("migration_tests")
         logger.info(f"DEBUG - Creating agent {name}")
-        response = (
-            self.client.rpc(
-                "create_agent",
+        data = (
+            self.client.table("agents")
+            .insert(
                 {
-                    "p_user_id": user_id,
-                    "p_name": name,
-                    "p_task": task,
-                    "p_tool_class": tools_class,
-                    "p_instructions": instructions,
-                },
+                    "user_id": user_id,
+                    "name": name,
+                }
             )
             .execute()
             .data
         )
+
         return AgentData(
-            id=response["id"],
-            name=response["name"],
-            task=response["task"],
-            instructions=response["instructions"],
-            thought=response["thought"],
-            context=response["context"],
+            id=data["id"],
+            name=data["name"],
+            context=data["context"],
         )
+
+    def create_process(
+        self,
+        user_id: str,
+        agent_id: str,
+        name: str,
+        tools_class: str,
+        identity: str,
+        task: str,
+        instructions: str,
+    ) -> ProcessData:
+        logger = FileLogger("migration_tests")
+        logger.info(f"DEBUG - Creating process {name}")
+        data = (
+            self.client.table("processes")
+            .insert(
+                {
+                    "user_id": user_id,
+                    "agent_id": agent_id,
+                    "name": name,
+                    "tools_class": tools_class,
+                    "identity": identity,
+                    "task": task,
+                    "instructions": instructions,
+                }
+            )
+            .execute()
+            .data
+        )
+        return ProcessData(
+            id=data["id"],
+            name=data["name"],
+            tools_class=data["tools"],
+            identity=data["identity"],
+            task=data["task"],
+            instructions=data["instructions"],
+        )
+
+    def create_subscription(
+        self,
+        process_id: str,
+        topic_name: str,
+    ):
+        logger = FileLogger("migration_tests")
+        logger.info(f"DEBUG - Creating subscription for process {process_id}")
+        self.client.rpc(
+            "create_subscription",
+            {
+                "p_process_id": process_id,
+                "p_topic_name": topic_name,
+            },
+        ).execute()
 
     def create_request(
         self,
@@ -252,6 +299,19 @@ class SupabaseHandler:
             return None
         return data[0]["tools_class"]
 
+    def get_subscribed_data(self, process_id: str) -> Optional[Dict[str, str]]:
+        data = (
+            self.client.rpc("get_subscribed_data", {"p_process_id": process_id})
+            .execute()
+            .data
+        )
+        if not data:
+            return None
+        subscribed_data = {}
+        for row in data:
+            subscribed_data[row["description"]] = row["content"]
+        return subscribed_data
+
     def get_requests(self, service_id: str) -> List[Request]:
         data = (
             (
@@ -270,6 +330,8 @@ class SupabaseHandler:
         for row in data:
             request_data = RequestData(
                 query=row["query"],
+                is_async=row["is_async"],
+                feedback=row["feedback"],
                 status=row["status"],
                 response=row["response"],
                 prompt_prefix=row["prompt_prefix"],
@@ -278,8 +340,46 @@ class SupabaseHandler:
                 Request(
                     request_id=row["id"],
                     service_id=service_id,
+                    service_process_id=row["service_process_id"],
                     client_process_id=row["client_process_id"],
-                    request_data=request_data,
+                    timestamp=row["created_at"],
+                    data=request_data,
+                )
+            )
+        return requests
+
+    def get_requests(self, key_process_id: str, process_id: str) -> List[Request]:
+        data = (
+            (
+                self.client.table("requests")
+                .select("*")
+                .eq(key_process_id, process_id)
+                .execute()
+                .data
+            )
+            .execute()
+            .data
+        )
+        requests = []
+        if not data:
+            return requests
+        for row in data:
+            request_data = RequestData(
+                query=row["query"],
+                is_async=row["is_async"],
+                feedback=row["feedback"],
+                status=row["status"],
+                response=row["response"],
+                prompt_prefix=row["prompt_prefix"],
+            )
+            requests.append(
+                Request(
+                    request_id=row["id"],
+                    service_id=row["service_id"],
+                    service_process_id=row["service_process_id"],
+                    client_process_id=row["client_process_id"],
+                    timestamp=row["created_at"],
+                    data=request_data,
                 )
             )
         return requests
@@ -303,7 +403,9 @@ class SupabaseHandler:
             requests.extend(self.get_requests(row["id"]))
         return requests
 
-    def get_process_data(self, process_ids: ProcessIds) -> Optional[ProcessData]:
+    def get_process(
+        self, client_handlers: "ClientHandlers", process_ids: ProcessIds
+    ) -> Optional[Process]:
         data = (
             self.client.table("processes")
             .select("*")
@@ -313,15 +415,32 @@ class SupabaseHandler:
         )
         if not data:
             return None
-        prompt_data = PromptData(
-            module_name=data[0]["module_name"], prompt_name=data[0]["prompt_name"]
+        data = data[0]
+        process_data = ProcessData(
+            name=data["name"],
+            tools_class=data["tools_class"],
+            identity=data["identity"],
+            task=data["task"],
+            instructions=data["instructions"],
         )
-        requests = self.get_process_service_requests(process_id=process_ids.process_id)
-        return ProcessData(
+        outgoing_requests = self.get_requests(
+            key_process_id="client_process_id", process_id=process_ids.process_id
+        )
+        incoming_requests = self.get_requests(
+            key_process_id="service_process_id", process_id=process_ids.process_id
+        )
+        if len(incoming_requests) > 0:
+            incoming_request = incoming_requests[0]
+        else:
+            incoming_request = None
+        # TODO: Add events!
+        return Process(
+            client_handlers=client_handlers,
             ids=process_ids,
+            process_data=process_data,
             agent_data=self.get_agent_data(process_ids.agent_id),
-            prompt_data=prompt_data,
-            requests=requests,
+            outgoing_requests=outgoing_requests,
+            incoming_request=incoming_request,
             # TODO: Add events!
         )
 

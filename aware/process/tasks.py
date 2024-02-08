@@ -79,13 +79,39 @@ def handle_assistant_message(assistant_message_event_json: str):
         log.error(f"Error: {e}")
 
 
-# TODO: We can merge both into a single process - Data Storage Manager, removing Context Manager and asking for that info on Stop!!
+@celery_app.task(name="process.trigger_thought_generator")
+def trigger_thought_generator(ids: ProcessIds):
+    thought_generator_ids = get_process_ids(
+        user_id=ids.user_id,
+        agent_id=ids.agent_id,
+        process_name="thought_generator",
+    )
+    preprocess.delay(thought_generator_ids.to_json())
+
+
+def thought_callback(
+    process_ids: ProcessIds,
+    thought_content: str,
+    trigger_main_process: bool = False,
+):
+    main_process_ids = get_process_ids(
+        process_ids.user_id, process_ids.agent_id, "main"
+    )
+    ClientHandlers().add_message(
+        user_id=main_process_ids.user_id,
+        process_id=main_process_ids.process_id,
+        json_message=UserMessage(name="thought_generator", content=thought_content),
+    )
+    if trigger_main_process:
+        preprocess.delay(process_ids.to_json())
+
+
 def manage_conversation_buffer(main_ids: ProcessIds):
     assistant_conversation_buffer = ConversationBuffer(process_id=main_ids.process_id)
 
     ClientHandlers().publish(
         user_id=main_ids.user_id,
-        topic_name="agent_interactions",
+        topic_name="agent_conversation",
         topic_data=assistant_conversation_buffer.to_string(),
     )
 

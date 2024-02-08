@@ -15,6 +15,7 @@ from aware.utils.logger.file_logger import FileLogger
 class Chat:
     """Main class to communicate with the models and update the conversation."""
 
+    # TODO: REFACTOR no module, no prompt name. Only meta prompt + specific info!
     def __init__(
         self,
         process_ids: ProcessIds,

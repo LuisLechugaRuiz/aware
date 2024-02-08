@@ -16,7 +16,7 @@ from aware.chat.conversation_schemas import (
 from aware.chat.call_info import CallInfo
 from aware.process.process_data import ProcessData
 from aware.process.process_ids import ProcessIds
-from aware.process.prompt_data import PromptData
+from aware.process.process import Process
 from aware.requests.request import Request
 from aware.requests.service import Service
 from aware.utils.helpers import (
@@ -77,44 +77,44 @@ class RedisHandler:
     def clear_conversation_buffer(self, process_id: str):
         self.client.delete(f"conversation_buffer:{process_id}")
 
-    def create_request(
-        self, service_process_id: str, service_id: str, request: Request
-    ):
+    def create_request(self, request: Request):
         # Key for storing the serialized request
-        request_data_key = f"service:{service_id}:request:{request.id}"
+        request_data_key = f"request:{request.id}"
 
         # Key for the sorted set to maintain the order of requests by timestamp
-        request_order_key = f"process:{service_process_id}:requests:order"
-
-        # Key for mapping request_id to service_id
-        request_service_map_key = f"request:{request.id}:service"
+        request_service_order_key = (
+            f"service_process:{request.service_process_id}:requests:order"
+        )
 
         # Convert the request to JSON and store it
         self.client.set(request_data_key, request.to_json())
 
-        # Store the mapping of request_id to service_id
-        self.client.set(request_service_map_key, service_id)
-
-        # Add the request ID to the sorted set with the timestamp as the score
+        # Add the request ID to the service process sorted set with the timestamp as the score
+        timestamp = convert_timestamp_to_epoch(request.timestamp)
         self.client.zadd(
-            request_order_key,
-            {request.id: convert_timestamp_to_epoch(request.timestamp)},
+            request_service_order_key,
+            {request.id: timestamp},
         )
 
-        if request.data.is_async:
-            request_client_map_key = (
-                f"client:{request.client_process_id}:request:{request.id}"
+        # Add the request ID to the client process sorted set if the request is async
+        if request.is_async():
+            request_client_order_key = (
+                f"client_process:{request.client_process_id}:request:order"
             )
-            self.client.set(request_client_map_key, request_data_key)
-            # TODO: When retrieving get request_data_key and then get the request data for the client.
+            self.client.zadd(
+                request_client_order_key,
+                {request.id: timestamp},
+            )
 
-    def delete_request(self, service_process_id: str, request_id: str):
-        service_id = self.client.get(f"request:{request_id}:service").decode("utf-8")
-        self.client.delete(f"service:{service_id}:request:{request_id}")
-        self.client.delete(f"request:{request_id}:service")
-        self.client.zrem(f"process:{service_process_id}:requests:order", request_id)
-        # TODO: Delete only if the request is async
-        self.client.delete(f"client:{service_process_id}:request:{request_id}")
+    def delete_request(self, request: Request):
+        self.client.delete(f"request:{request.id}")
+        self.client.zrem(
+            f"service_process:{request.service_process_id}:requests:order", request.id
+        )
+        if request.is_async():
+            self.client.zrem(
+                f"client_process:{request.client_process_id}:request:order", request.id
+            )
 
     def delete_message(self, process_id: str, message_id: str):
         # The key for the specific message
@@ -194,18 +194,36 @@ class RedisHandler:
 
         return messages
 
-    def get_process_data(self, process_ids: ProcessIds) -> Optional[ProcessData]:
+    def get_process(self, process_ids: ProcessIds) -> Optional[Process]:
+        process_data = self.get_process_data(process_id=process_ids.process_id)
         agent_data = self.get_agent_data(agent_id=process_ids.agent_id)
-        prompt_data = self.get_prompt_data(process_id=process_ids.process_id)
-        requests = self.get_requests(process_id=process_ids.process_id)
+        outgoing_requests = self.get_requests(
+            f"client_process:{process_ids.process_id}:request:order"
+        )
+        incoming_requests = self.get_requests(
+            f"service_process:{process_ids.process_id}:requests:order"
+        )
+        if len(incoming_requests) > 0:
+            incoming_request = incoming_requests[0]
+        else:
+            incoming_request = None
+        # TODO: events!
 
-        if agent_data and prompt_data:
-            return ProcessData(
+        if process_data and agent_data:
+            return Process(
+                client_handlers=self,
                 ids=process_ids,
+                process_data=process_data,
                 agent_data=agent_data,
-                prompt_data=prompt_data,
-                requests=requests,
+                outgoing_requests=outgoing_requests,
+                incoming_request=incoming_request,
             )
+        return None
+
+    def get_process_data(self, process_ids: ProcessIds) -> Optional[ProcessData]:
+        data = self.client.get(f"process_data:{process_ids}")
+        if data:
+            return ProcessData.from_json(data)
         return None
 
     def get_process_services(self, process_id: str) -> List[Service]:
@@ -215,16 +233,7 @@ class RedisHandler:
             for service_key in service_keys
         ]
 
-    def get_prompt_data(self, process_id: str) -> Optional[PromptData]:
-        data = self.client.get(f"prompt_data:{process_id}")
-        if data:
-            return PromptData.from_json(data)
-        return None
-
-    def get_requests(self, process_id: str) -> List[Request]:
-        # Key pattern for the sorted sets of requests for each service process
-        request_order_key = f"process:{process_id}:requests:order"
-
+    def get_requests(self, request_order_key: str):
         # Retrieve all request IDs from the sorted set, ordered by timestamp
         request_ids = self.client.zrange(request_order_key, 0, -1)
 
@@ -232,24 +241,12 @@ class RedisHandler:
         for request_id_bytes in request_ids:
             request_id = request_id_bytes.decode("utf-8")
 
-            request = self.get_request(request_id)
-            if request:
-                requests.append(request)
+            # Fetch the request data for each request ID and deserialize it
+            request_data_json = self.client.get(f"request:{request_id}")
+            if request_data_json:
+                requests.append(Request.from_json(request_data_json.decode("utf-8")))
 
         return requests
-
-    def get_request(self, request_id: str) -> Request:
-        # Retrieve the service_id for this request
-        service_id = self.client.get(f"request:{request_id}:service").decode("utf-8")
-
-        # Construct the key for the serialized request data
-        request_data_key = f"service:{service_id}:request:{request_id}"
-
-        # Fetch the request data for each request ID and deserialize it
-        request_data_json = self.client.get(request_data_key)
-        if request_data_json:
-            return Request.from_json(request_data_json.decode("utf-8"))
-        return None
 
     def get_service(
         self,
@@ -266,6 +263,7 @@ class RedisHandler:
             return UserData.from_json(data)
         return None
 
+    # TODO: Remove, should be part of process!
     def get_tools_class(self, process_id: str) -> Optional[str]:
         data = self.client.get(f"tools_class:{process_id}")
         if data:
@@ -297,20 +295,19 @@ class RedisHandler:
             agent_id,
         )
 
-    def set_prompt_data(self, process_id: str, prompt_data: PromptData):
+    def set_process_data(self, process_id: str, process_data: ProcessData):
         self.client.set(
-            f"prompt_data:{process_id}",
-            prompt_data.to_json(),
+            f"process_data:{process_id}",
+            process_data.to_json(),
         )
 
-    def set_process_data(self, process_data: ProcessData):
-        self.set_agent_data(process_data.ids.agent_id, process_data.agent_data)
-        self.set_prompt_data(process_data.ids.process_id, process_data.prompt_data)
-        self.set_requests(process_data.requests)
-
-    def set_requests(self, requests: List[Request]):
-        for request in requests:
-            self.create_request(request.service_id, request)
+    def set_process(self, process: Process):
+        self.set_process_data(process.ids.process_id, process.process_data)
+        self.set_agent_data(process.ids.agent_id, process.agent_data)
+        if process.incoming_request:
+            self.create_request(process.incoming_request)
+        for request in process.outgoing_requests:
+            self.create_request(request)
 
     def set_service(
         self,
@@ -321,6 +318,7 @@ class RedisHandler:
             service.to_json(),
         )
 
+    # TODO: Remove, should be part of process!
     def set_tools_class(self, process_id: str, tools_class: str):
         self.client.set(
             f"tools_class:{process_id}",
@@ -367,5 +365,4 @@ class RedisHandler:
         self.client.hmset(message_key, {"data": message_data})
 
     def update_request(self, request: Request):
-        service_id = self.client.get(f"request:{request.id}:service").decode("utf-8")
-        self.client.set(f"service:{service_id}:request:{request.id}", request.to_json())
+        self.client.set(f"request:{request.id}", request.to_json())
