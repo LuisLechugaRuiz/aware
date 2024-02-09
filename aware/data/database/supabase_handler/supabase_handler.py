@@ -3,13 +3,15 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from aware.agent import AgentData
 from aware.chat.conversation_schemas import ChatMessage, JSONMessage
+from aware.communications.requests.request import Request, RequestData
+from aware.communications.requests.service import Service, ServiceData
+from aware.communications.subscriptions.subscription import Subscription
 from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
 from aware.process.process_data import ProcessData
 from aware.process.process_ids import ProcessIds
+from aware.process.process_communications import ProcessCommunications
 from aware.process.process import Process
-from aware.requests.request import Request, RequestData
-from aware.requests.service import Service, ServiceData
 from aware.tools.profile import Profile
 from aware.utils.logger.file_logger import FileLogger
 
@@ -56,6 +58,7 @@ class SupabaseHandler:
         self,
         user_id: str,
         name: str,
+        task: str,
     ) -> AgentData:
         logger = FileLogger("migration_tests")
         logger.info(f"DEBUG - Creating agent {name}")
@@ -65,6 +68,7 @@ class SupabaseHandler:
                 {
                     "user_id": user_id,
                     "name": name,
+                    "task": task,
                 }
             )
             .execute()
@@ -74,6 +78,7 @@ class SupabaseHandler:
         return AgentData(
             id=data["id"],
             name=data["name"],
+            task=data["task"],
             context=data["context"],
         )
 
@@ -263,9 +268,7 @@ class SupabaseHandler:
             id=agent_id,
             name=data["name"],
             task=data["task"],
-            thought=data["thought"],
             context=data["context"],
-            # profile=Profile(profile=data["profile"]),
         )
 
     def get_agent_profile(self, agent_id: str) -> Optional[Profile]:
@@ -299,7 +302,7 @@ class SupabaseHandler:
             return None
         return data[0]["tools_class"]
 
-    def get_subscribed_data(self, process_id: str) -> Optional[Dict[str, str]]:
+    def get_subscriptions(self, process_id: str) -> List[Subscription]:
         data = (
             self.client.rpc("get_subscribed_data", {"p_process_id": process_id})
             .execute()
@@ -307,56 +310,24 @@ class SupabaseHandler:
         )
         if not data:
             return None
-        subscribed_data = {}
+        subscriptions: List[Subscription] = []
         for row in data:
-            subscribed_data[row["description"]] = row["content"]
-        return subscribed_data
-
-    def get_requests(self, service_id: str) -> List[Request]:
-        data = (
-            (
-                self.client.table("requests")
-                .select("*")
-                .eq("service_id", service_id)
-                .execute()
-                .data
-            )
-            .execute()
-            .data
-        )
-        requests = []
-        if not data:
-            return requests
-        for row in data:
-            request_data = RequestData(
-                query=row["query"],
-                is_async=row["is_async"],
-                feedback=row["feedback"],
-                status=row["status"],
-                response=row["response"],
-                prompt_prefix=row["prompt_prefix"],
-            )
-            requests.append(
-                Request(
-                    request_id=row["id"],
-                    service_id=service_id,
-                    service_process_id=row["service_process_id"],
-                    client_process_id=row["client_process_id"],
-                    timestamp=row["created_at"],
-                    data=request_data,
+            subscriptions.append(
+                Subscription(
+                    id=row["topic_id"],
+                    topic_name=row["name"],
+                    content=row["content"],
+                    description=row["description"],
+                    timestamp=row["updated_at"],
                 )
             )
-        return requests
+        return subscriptions
 
     def get_requests(self, key_process_id: str, process_id: str) -> List[Request]:
         data = (
-            (
-                self.client.table("requests")
-                .select("*")
-                .eq(key_process_id, process_id)
-                .execute()
-                .data
-            )
+            self.client.table("requests")
+            .select("*")
+            .eq(key_process_id, process_id)
             .execute()
             .data
         )
@@ -386,13 +357,9 @@ class SupabaseHandler:
 
     def get_process_service_requests(self, process_id: str) -> List[Request]:
         data = (
-            (
-                self.client.table("services")
-                .select("*")
-                .eq("process_id", process_id)
-                .execute()
-                .data
-            )
+            self.client.table("services")
+            .select("*")
+            .eq("process_id", process_id)
             .execute()
             .data
         )
@@ -400,29 +367,14 @@ class SupabaseHandler:
         if not data:
             return requests
         for row in data:
-            requests.extend(self.get_requests(row["id"]))
+            requests.extend(
+                self.get_requests(
+                    key_process_id="service_process_id", process_id=row["id"]
+                )
+            )
         return requests
 
-    def get_process(
-        self, client_handlers: "ClientHandlers", process_ids: ProcessIds
-    ) -> Optional[Process]:
-        data = (
-            self.client.table("processes")
-            .select("*")
-            .eq("id", process_ids.process_id)
-            .execute()
-            .data
-        )
-        if not data:
-            return None
-        data = data[0]
-        process_data = ProcessData(
-            name=data["name"],
-            tools_class=data["tools_class"],
-            identity=data["identity"],
-            task=data["task"],
-            instructions=data["instructions"],
-        )
+    def get_process_communications(self, process_ids: ProcessIds) -> Optional[ProcessCommunications]:
         outgoing_requests = self.get_requests(
             key_process_id="client_process_id", process_id=process_ids.process_id
         )
@@ -433,15 +385,46 @@ class SupabaseHandler:
             incoming_request = incoming_requests[0]
         else:
             incoming_request = None
+        subscriptions = self.get_subscriptions(process_ids.process_id)
         # TODO: Add events!
+        return ProcessCommunications(
+            outgoing_requests=outgoing_requests,
+            incoming_request=incoming_request,
+            subscriptions=subscriptions,
+        )
+
+    def get_process_data(self, process_ids: ProcessIds) -> Optional[ProcessData]:
+        data = (
+            self.client.table("processes")
+            .select("*")
+            .eq("id", process_ids.process_id)
+            .execute()
+            .data
+        )
+        if not data:
+            return None
+        data = data[0]
+        return ProcessData(
+            name=data["name"],
+            tools_class=data["tools_class"],
+            identity=data["identity"],
+            task=data["task"],
+            instructions=data["instructions"],
+        )
+
+    def get_process(
+        self, client_handlers: "ClientHandlers", process_ids: ProcessIds
+    ) -> Optional[Process]:
+        process_communications = self.get_process_communications(process_ids)
+        process_data = self.get_process_data(process_ids)
+        agent_data = self.get_agent_data(process_ids.agent_id)
+
         return Process(
             client_handlers=client_handlers,
             ids=process_ids,
+            process_communications=process_communications,
             process_data=process_data,
-            agent_data=self.get_agent_data(process_ids.agent_id),
-            outgoing_requests=outgoing_requests,
-            incoming_request=incoming_request,
-            # TODO: Add events!
+            agent_data=agent_data,
         )
 
     def get_user_profile(self, user_id: str):
@@ -542,3 +525,4 @@ class SupabaseHandler:
 
     def update_user_profile(self, user_id: str, profile: Dict[str, Any]):
         self.client.table("profiles").update(profile).eq("user_id", user_id).execute()
+        +

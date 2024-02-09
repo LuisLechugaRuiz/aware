@@ -48,6 +48,7 @@ class AgentBuilder:
             agent_data = self.client_handlers.create_agent(
                 user_id=user_id,
                 name=name,
+                task=task,
             )
             # Create the processes
             self.client_handlers.create_process(

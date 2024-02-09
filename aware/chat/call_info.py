@@ -33,9 +33,9 @@ class CallInfo:
 
     def to_dict(self):
         return {
-            "process_ids": self.process_ids.to_dict(),
             "call_id": self.call_id,
-            "agent_name": self.agent_name,
+            "process_ids": self.process_ids.to_dict(),
+            "process_name": self.process_name,
             "system_message": self.system_message,
             "functions": self.functions,
         }

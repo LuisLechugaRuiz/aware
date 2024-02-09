@@ -14,11 +14,13 @@ from aware.chat.conversation_schemas import (
     ToolCalls,
 )
 from aware.chat.call_info import CallInfo
+from aware.communications.requests.request import Request
+from aware.communications.requests.service import Service
+from aware.communications.subscriptions.subscription import Subscription
 from aware.process.process_data import ProcessData
 from aware.process.process_ids import ProcessIds
 from aware.process.process import Process
-from aware.requests.request import Request
-from aware.requests.service import Service
+from aware.process.process_communications import ProcessCommunications
 from aware.utils.helpers import (
     convert_timestamp_to_epoch,
 )
@@ -76,6 +78,21 @@ class RedisHandler:
 
     def clear_conversation_buffer(self, process_id: str):
         self.client.delete(f"conversation_buffer:{process_id}")
+
+    def create_subscription(self, process_id: str, subscription: Subscription):
+        # Key for storing the serialized subscription
+        subscription_key = f"subscription:{subscription.id}"
+
+        # Key for the sorted set to maintain the order of subscriptions by timestamp
+        subscription_process_order_key = f"process:{process_id}:subscriptions:order"
+
+        self.client.set(subscription_key, subscription.to_json())
+
+        timestamp = convert_timestamp_to_epoch(subscription.timestamp)
+        self.client.zadd(
+            subscription_process_order_key,
+            {subscription.id: timestamp},
+        )
 
     def create_request(self, request: Request):
         # Key for storing the serialized request
@@ -195,30 +212,43 @@ class RedisHandler:
         return messages
 
     def get_process(self, process_ids: ProcessIds) -> Optional[Process]:
+        process_communications = self.get_process_communications(
+            process_id=process_ids.process_id
+        )
         process_data = self.get_process_data(process_id=process_ids.process_id)
         agent_data = self.get_agent_data(agent_id=process_ids.agent_id)
-        outgoing_requests = self.get_requests(
-            f"client_process:{process_ids.process_id}:request:order"
-        )
-        incoming_requests = self.get_requests(
-            f"service_process:{process_ids.process_id}:requests:order"
-        )
-        if len(incoming_requests) > 0:
-            incoming_request = incoming_requests[0]
-        else:
-            incoming_request = None
-        # TODO: events!
 
         if process_data and agent_data:
             return Process(
                 client_handlers=self,
                 ids=process_ids,
+                process_communications=process_communications,
                 process_data=process_data,
                 agent_data=agent_data,
-                outgoing_requests=outgoing_requests,
-                incoming_request=incoming_request,
             )
         return None
+
+    def get_process_communications(
+        self, process_id: str
+    ) -> Optional[ProcessCommunications]:
+        outgoing_requests = self.get_requests(
+            f"client_process:{process_id}:request:order"
+        )
+        incoming_requests = self.get_requests(
+            f"service_process:{process_id}:requests:order"
+        )
+        if len(incoming_requests) > 0:
+            incoming_request = incoming_requests[0]
+        else:
+            incoming_request = None
+        subscriptions = self.get_subscriptions(process_id)
+        # TODO: Add events!
+        return ProcessCommunications(
+            outgoing_requests=outgoing_requests,
+            incoming_request=incoming_request,
+            incoming_event=None,
+            subscriptions=subscriptions,
+        )
 
     def get_process_data(self, process_ids: ProcessIds) -> Optional[ProcessData]:
         data = self.client.get(f"process_data:{process_ids}")
@@ -226,12 +256,23 @@ class RedisHandler:
             return ProcessData.from_json(data)
         return None
 
-    def get_process_services(self, process_id: str) -> List[Service]:
-        service_keys = self.client.keys(f"process:{process_id}:service:*")
-        return [
-            Service.from_json(self.client.get(service_key))
-            for service_key in service_keys
-        ]
+    def get_subscriptions(self, process_id: str) -> List[Subscription]:
+        subscription_order_key = f"process:{process_id}:subscriptions:order"
+        # Retrieve all subscriptions IDs from the sorted set, ordered by timestamp
+        subscription_ids = self.client.zrange(subscription_order_key, 0, -1)
+
+        subscriptions = []
+        for subscription_id_bytes in subscription_ids:
+            subscription_id = subscription_id_bytes.decode("utf-8")
+
+            # Fetch the subscription data for each subscription ID and deserialize it
+            subscription_data_json = self.client.get(f"subscription:{subscription_id}")
+            if subscription_data_json:
+                subscriptions.append(
+                    Subscription.from_json(subscription_data_json.decode("utf-8"))
+                )
+
+        return subscriptions
 
     def get_requests(self, request_order_key: str):
         # Retrieve all request IDs from the sorted set, ordered by timestamp
@@ -301,13 +342,23 @@ class RedisHandler:
             process_data.to_json(),
         )
 
+    def set_process_communications(
+        self, process_id: str, process_communications: ProcessCommunications
+    ):
+        if process_communications.incoming_request:
+            self.create_request(process_communications.incoming_request)
+        for request in process_communications.outgoing_requests:
+            self.create_request(request)
+        for subscription in process_communications.subscriptions:
+            self.create_subscription(process_id, subscription)
+        # TODO: Add events!
+
     def set_process(self, process: Process):
         self.set_process_data(process.ids.process_id, process.process_data)
+        self.set_process_communications(
+            process.ids.process_id, process.process_communications
+        )
         self.set_agent_data(process.ids.agent_id, process.agent_data)
-        if process.incoming_request:
-            self.create_request(process.incoming_request)
-        for request in process.outgoing_requests:
-            self.create_request(request)
 
     def set_service(
         self,

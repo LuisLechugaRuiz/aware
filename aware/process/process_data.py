@@ -24,3 +24,10 @@ class ProcessData:
     def from_json(json_str: str):
         data = json.loads(json_str)
         return ProcessData(**data)
+
+    def to_prompt_kwargs(self):
+        return {
+            "identity": self.identity,
+            "task": self.task,
+            "instructions": self.instructions,
+        }
