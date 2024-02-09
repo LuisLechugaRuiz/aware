@@ -1,4 +1,4 @@
-from aware.events.event import Event
+from aware.communications.events.event import Event
 from aware.process.process_ids import ProcessIds
 
 

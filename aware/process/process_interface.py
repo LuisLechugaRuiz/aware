@@ -1,10 +1,11 @@
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from aware.agent.agent_data import AgentData
+from aware.communications.requests.request import Request
 from aware.process.process_data import ProcessData
 from aware.process.process_ids import ProcessIds
-from aware.requests.request import Request
+from aware.process.process_communications import ProcessCommunications
 
 
 class ProcessInterface:
@@ -12,49 +13,29 @@ class ProcessInterface:
         self,
         ids: ProcessIds,
         process_data: ProcessData,
+        process_communications: ProcessCommunications,
         agent_data: AgentData,
-        outgoing_requests: List[Request],
-        incoming_request: Optional[Request],
     ):
         self.ids = ids
         self.process_data = process_data
+        self.process_communications = process_communications
         self.agent_data = agent_data
-        self.outgoing_requests = outgoing_requests
-        self.incoming_request = incoming_request
-
-    def get_meta_prompt_kwargs(self) -> Dict[str, Any]:
-        meta_kwargs = {}
-        if self.outgoing_requests:
-            # Add the feedback of all the outgoing requests
-            requests_feedback = "\n".join(
-                [request.feedback_to_string() for request in self.outgoing_requests]
-            )
-            meta_kwargs.update({"outgoing_requests": requests_feedback})
-        if self.incoming_request is not None:
-            # Add the query of the incoming request
-            meta_kwargs.update(
-                {"incoming_request": self.incoming_request.query_to_string()}
-            )
-
-        # TODO: Add here also events!
-        return meta_kwargs
 
     def get_prompt_kwargs(self) -> Dict[str, Any]:
-        return self.agent_data.to_dict()
+        prompt_kwargs = self.process_data.to_prompt_kwargs()
+        prompt_kwargs.update(self.process_communications.to_prompt_kwargs())
+        prompt_kwargs.update(self.agent_data.to_prompt_kwargs())
+        return prompt_kwargs
+
+    def get_current_request(self) -> Optional[Request]:
+        return self.process_communications.incoming_request
 
     def to_dict(self):
         return {
             "ids": self.ids.to_dict(),
             "process_data": self.process_data.to_dict(),
+            "process_communications": self.process_communications.to_dict(),
             "agent_data": json.loads(self.agent_data.to_json()),
-            "outgoing_requests": [
-                json.loads(request.to_json()) for request in self.outgoing_requests
-            ],
-            "incoming_request": (
-                json.loads(self.incoming_request.to_json())
-                if self.incoming_request
-                else None
-            ),
         }
 
     def to_json(self):
@@ -68,14 +49,8 @@ class ProcessInterface:
         data = json.loads(json_str)
         data["ids"] = ProcessIds.from_json(json.dumps(data["ids"]))
         data["process_data"] = ProcessData.from_json(json.dumps(data["prompt_data"]))
-        data["agent_data"] = AgentData.from_json(json.dumps(data["agent_data"]))
-        data["outgoing_requests"] = [
-            Request.from_json(json.dumps(request))
-            for request in data["outgoing_requests"]
-        ]
-        data["incoming_request"] = (
-            Request.from_json(json.dumps(data["incoming_request"]))
-            if data["incoming_request"]
-            else None
+        data["process_communications"] = ProcessCommunications.from_json(
+            json.dumps(data["process_communications"])
         )
+        data["agent_data"] = AgentData.from_json(json.dumps(data["agent_data"]))
         return ProcessData(**data)

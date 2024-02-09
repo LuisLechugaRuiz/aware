@@ -13,7 +13,7 @@ Handle this event notification:
 {{ event }}
 {% endif -%}
 
-{# Pub sub var - TODO: Adjust #}
-{% for variable in variables -%}
-- {{ variable.0 }}: {{ variable.1 }}
-{% endfor -%}
+{% if subscriptions -%}
+Data from topics you are subscribed to:
+{{ subscriptions }}
+{% endif -%}

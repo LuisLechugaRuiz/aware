@@ -58,45 +58,46 @@ def load_prompt_from_args(template_name: str, args: Dict[str, str]) -> str:
         raise Exception(f"Error loading or rendering template: {e}")
 
 
-def load_prompt_from_database(
-    template_name: str,
-    user_id: str,
-    module_name: str,
-    extra_kwargs: Optional[Dict[str, str]],
-) -> str:
-    """
-    Load and populate the specified template.
+# TODO: REMOVE on refactor, no need to fetch from supa as we are already including the subscriptions at process initialization.
+# def load_prompt_from_database(
+#     template_name: str,
+#     user_id: str,
+#     module_name: str,
+#     extra_kwargs: Optional[Dict[str, str]],
+# ) -> str:
+#     """
+#     Load and populate the specified template.
 
-    Args:
-        template (str): The name of the template to load.
+#     Args:
+#         template (str): The name of the template to load.
 
-    Returns:
-        str: The populated template.
-    """
-    try:
-        log = FileLogger("migration_tests")
-        template = get_template(template_name, module_name)
-        variables = get_variables(template_name, module_name)
-        log.info(f"DEBUG - Variables: {variables}")
-        log.info(f"DEBUG - extra_kwargs: {extra_kwargs}")
-        content: Dict[str, str] = {}
+#     Returns:
+#         str: The populated template.
+#     """
+#     try:
+#         log = FileLogger("migration_tests")
+#         template = get_template(template_name, module_name)
+#         variables = get_variables(template_name, module_name)
+#         log.info(f"DEBUG - Variables: {variables}")
+#         log.info(f"DEBUG - extra_kwargs: {extra_kwargs}")
+#         content: Dict[str, str] = {}
 
-        remaining_variables = variables.copy()
+#         remaining_variables = variables.copy()
 
-        if extra_kwargs:
-            for variable_name in variables:
-                extra_value = extra_kwargs.get(variable_name, None)
-                if extra_value is not None:
-                    content[variable_name] = extra_value
-                    remaining_variables.remove(variable_name)
+#         if extra_kwargs:
+#             for variable_name in variables:
+#                 extra_value = extra_kwargs.get(variable_name, None)
+#                 if extra_value is not None:
+#                     content[variable_name] = extra_value
+#                     remaining_variables.remove(variable_name)
 
-        log.info(f"DEBUG - content pre: {content}")
-        supabase_handler = ClientHandlers().get_supabase_handler()
-        for variable_name in remaining_variables:
-            content[variable_name] = supabase_handler.get_topic_content(
-                user_id=user_id, name=variable_name
-            )
-        log.info(f"DEBUG - content post: {content}")
-        return template.render(**content)
-    except Exception as e:
-        raise Exception(f"Error loading or rendering template: {e}")
+#         log.info(f"DEBUG - content pre: {content}")
+#         supabase_handler = ClientHandlers().get_supabase_handler()
+#         for variable_name in remaining_variables:
+#             content[variable_name] = supabase_handler.get_topic_content(
+#                 user_id=user_id, name=variable_name
+#             )
+#         log.info(f"DEBUG - content post: {content}")
+#         return template.render(**content)
+#     except Exception as e:
+#         raise Exception(f"Error loading or rendering template: {e}")

@@ -7,7 +7,7 @@ from aware.chat.conversation_schemas import ToolResponseMessage
 from aware.process.process_data import ProcessData
 from aware.process.process_ids import ProcessIds
 from aware.process.process_interface import ProcessInterface
-from aware.requests.request import Request
+from aware.process.process_communications import ProcessCommunications
 from aware.tools.tools_manager import ToolsManager
 from aware.tools.tools import FunctionCall, Tools
 from aware.utils.logger.file_logger import FileLogger
@@ -21,17 +21,15 @@ class Process(ProcessInterface):
         self,
         client_handlers: ClientHandlers,
         ids: ProcessIds,
+        process_communications: ProcessCommunications,
         process_data: ProcessData,
         agent_data: AgentData,
-        outgoing_requests: List[Request],
-        incoming_request: Optional[Request],
     ):
         super().__init__(
             ids=ids,
             process_data=process_data,
+            process_communications=process_communications,
             agent_data=agent_data,
-            outgoing_requests=outgoing_requests,
-            incoming_request=incoming_request,
         )
 
         self.client_handlers = client_handlers
@@ -49,25 +47,18 @@ class Process(ProcessInterface):
             client_handlers=self.client_handlers,
             process_ids=self.ids,
             agent_data=self.agent_data,
-            request=self.incoming_request,
+            request=self.get_current_request(),
         )
 
     def preprocess(
         self,
     ):
         prompt_kwargs = self.get_prompt_kwargs()
-        meta_prompt_kwargs = self.get_meta_prompt_kwargs()
-
-        # TODO: Refactor!
         chat = Chat(
             process_ids=self.ids,
             process_name=self.process_data.name,
-            agent_name=self.agent_data.name,
-            module_name=self.prompt_data.module_name,
-            prompt_name=self.prompt_data.prompt_name,
-            logger=self.get_logger(),
             prompt_kwargs=prompt_kwargs,
-            meta_prompt_kwargs=meta_prompt_kwargs,
+            logger=self.get_logger(),
         )
         chat.request_response(self.tools.get_tools())
         return self

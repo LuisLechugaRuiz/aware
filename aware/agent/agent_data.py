@@ -17,8 +17,6 @@ class AgentData:
     id: str
     name: str
     task: str
-    instructions: str
-    thought: str
     context: str
     # profile: Profile
 
@@ -29,9 +27,6 @@ class AgentData:
         return {
             "id": self.id,
             "name": self.name,
-            "task": self.task,
-            "instructions": self.instructions,
-            "thought": self.thought,
             "context": self.context,
             # "profile": json.loads(self.profile.to_json()),
         }
@@ -45,3 +40,10 @@ class AgentData:
         #     else Profile(profile=data["profile"])
         # )
         return cls(**data)
+
+    def to_prompt_kwargs(self):
+        return {
+            "agent": self.name,
+            "agent_task": self.task,
+            "context": self.context,
+        }

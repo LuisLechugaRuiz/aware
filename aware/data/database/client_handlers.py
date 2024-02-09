@@ -6,22 +6,22 @@ from typing import Optional
 
 from aware.agent.agent_data import AgentData
 from aware.agent.agent_builder import AgentBuilder
-from aware.memory.user.user_data import UserData
 from aware.chat.conversation_schemas import (
     JSONMessage,
     ToolResponseMessage,
     UserMessage,
 )
+from aware.communications.requests.request import Request
 from aware.config.config import Config
 from aware.data.database.supabase_handler.supabase_handler import SupabaseHandler
 from aware.data.database.redis_handler.redis_handler import RedisHandler
 from aware.data.database.redis_handler.async_redis_handler import AsyncRedisHandler
 from aware.data.database.data import get_topics
 from aware.memory.memory_manager import MemoryManager
+from aware.memory.user.user_data import UserData
 from aware.process.process_ids import ProcessIds
 from aware.process.process_data import ProcessData
 from aware.process.process import Process
-from aware.requests.request import Request
 from aware.server.tasks import preprocess
 from aware.tools.tools_manager import ToolsManager
 from aware.utils.logger.file_logger import FileLogger
@@ -76,11 +76,6 @@ class ClientHandlers:
         redis_handlers.add_message(process_id=process_id, chat_message=chat_message)
         return chat_message
 
-    def create_subscription(self, process_id: str, topic_name: str):
-        self.supabase_handler.create_subscription(process_id, topic_name)
-        # TODO: Add redis!!
-        self.redis_handler.create_subscription(process_id, topic_name)
-
     def create_agent(
         self,
         user_id: str,
@@ -121,7 +116,6 @@ class ClientHandlers:
         self.create_services(user_id, tools_class)
         return process_data
 
-    # TODO: Move to Client? - Three classes: Service, Client and Request. (Async and Sync Clients!)
     def create_request(
         self,
         process_ids: ProcessIds,
@@ -169,6 +163,7 @@ class ClientHandlers:
 
     def create_subscription(self, process_id: str, topic_name: str):
         self.supabase_handler.create_subscription(process_id, topic_name)
+        self.redis_handler.create_subscription(process_id, topic_name)
         self.logger.info(f"DEBUG - Created subscription {topic_name}")
 
     def create_topic(self, user_id: str, topic_name: str, topic_description: str):
@@ -315,18 +310,16 @@ class ClientHandlers:
             agent_id = self.redis_handler.get_agent_id_by_process_id(
                 request.service_process_id
             )
-            agent_data = self.get_agent_data(agent_id)
             # Get process name.
-            process_data = self.get_process_data(
+            process_data = self.redis_handler.get_process_data(
                 ProcessIds(
                     user_id=user_id,
                     agent_id=request.service_id,
                     process_id=request.service_process_id,
                 )
             )
-            agent_name = process_data.name
             user_message = UserMessage(
-                name=agent_data.name, content=request.data.response
+                name=process_data.name, content=request.data.response
             )
             self.add_message(
                 user_id=user_id,
