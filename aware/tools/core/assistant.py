@@ -1,13 +1,11 @@
 from typing import Optional
 
 from aware.agent.agent_data import AgentData
-from aware.assistant.tasks import handle_assistant_message
 from aware.chat.conversation_schemas import AssistantMessage
+from aware.communications.requests.request import Request
 from aware.config.config import Config
 from aware.data.database.client_handlers import ClientHandlers
-from aware.events.assistant_message import AssistantMessageEvent
 from aware.process.process_ids import ProcessIds
-from aware.requests.request import Request
 from aware.utils.logger.file_logger import FileLogger
 from aware.tools.decorators import default_function
 from aware.tools.tools import Tools
@@ -82,20 +80,13 @@ class Assistant(Tools):
         )
         logger.info(f"Sending message to user: {assistant_message.to_string()}")
         ClientHandlers().get_supabase_handler().send_message_to_user(
-            user_id=self.process_data.ids.user_id,
-            process_id=self.process_data.ids.process_id,
+            user_id=self.process_ids.user_id,
+            process_id=self.process_ids.process_id,
             message_type=assistant_message.__class__.__name__,
             role=assistant_message.role,
             name=assistant_message.name,
             content=assistant_message.content,
         )
-        assistant_message_event = AssistantMessageEvent(
-            process_ids=self.process_data.ids,
-            assistant_name=assistant_message.name,
-            message=message,
-        )
-        handle_assistant_message.delay(assistant_message_event.to_json())
-
         self.stop_agent()
         return "Message sent to the user."
 

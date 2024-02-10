@@ -8,6 +8,31 @@
             }
         }
     },
+    "Agent": {
+        "description": "A specific agent",
+        "properties": {
+            "user": {
+                "type": "User",
+                "description": "The user id of the agent"
+            },
+            "name": {
+                "type": "text",
+                "description": "The name of the user"
+            },
+            "identity": {
+                "type": "text",
+                "description": "The identity of the agent"
+            },
+            "tasks": {
+                "type": "Task",
+                "description": "The tasks that the agent should perform"
+            },
+            "instructions": {
+                "type": "text",
+                "description": "The instructions for the agent"
+            }
+        }
+    },
     "Conversation": {
         "description": "A conversation between users and the assistant",
         "properties": {

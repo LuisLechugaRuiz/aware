@@ -1,5 +1,6 @@
 from typing import Dict, List
 
+from aware.agent.agent_data import AgentData
 from aware.data.database.weaviate.weaviate import WeaviateDB, WeaviateResult
 from aware.utils.logger.file_logger import FileLogger
 
@@ -12,8 +13,35 @@ class MemoryManager:
         self.logger = logger
         self.weaviate_db = WeaviateDB()
 
+    def create_agent(self, user_id: str, agent_data: AgentData) -> WeaviateResult:
+        return self.weaviate_db.create_agent(user_id=user_id, agent_data=agent_data)
+
     def create_user(self, user_id: str, user_name: str) -> WeaviateResult:
         return self.weaviate_db.create_user(user_id=user_id, user_name=user_name)
+
+    def find_agents(self, task: str):
+        """
+        Finds agents in the Weaviate database based on the task they should perform.
+
+        Args:
+            task (str): The agent's task to be found.
+        Returns:
+            List[str]: A list of agents' description found in the database.
+        """
+        return self.weaviate_db.search_agent(
+            task=task, user_id=self.user_id, num_relevant=3
+        )
+
+    def find_tools(self, description: str):
+        """
+        Finds tools in the Weaviate database based on a description.
+
+        Args:
+            description (str): The description of the tool to be found.
+        Returns:
+            List[WeaviateTool]: A list of tools found in the database.
+        """
+        return self.weaviate_db.search_tool(description)
 
     def search_data(self, queries: List[str]):
         """

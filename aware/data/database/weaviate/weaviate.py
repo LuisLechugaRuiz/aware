@@ -7,6 +7,7 @@ from typing import List
 import weaviate
 import weaviate.classes as wvc
 
+from aware.agent.agent_data import AgentData
 from aware.config.config import Config
 from aware.data.database.weaviate.helpers import (
     WeaviateTool,
@@ -103,6 +104,27 @@ class WeaviateDB(object):
                 references=references,
             )
 
+    def create_agent(self, user_id: str, agent_data: AgentData) -> WeaviateResult:
+        try:
+            agent_collection = self.client.collections.get("Agent")
+            existing_agent = agent_collection.query.fetch_object_by_id(user_id)
+            if existing_agent is not None:
+                return WeaviateResult(error="Agent already exists!!!")
+            agent_uuid = agent_collection.data.insert(
+                properties={
+                    "name": agent_data.name,
+                    "identity": agent_data.identity,
+                    "task": agent_data.task,
+                    "instructions": agent_data.instructions,
+                },
+                references={"User": wvc.Reference.to(uuids=user_id)},
+                uuid=user_id,
+                vector=self.get_ada_embedding(agent_data.task),
+            )
+            return WeaviateResult(data=agent_uuid)
+        except Exception as err:
+            return WeaviateResult(error=str(err))
+
     def create_user(self, user_id: str, user_name: str) -> WeaviateResult:
         try:
             if self.user_exists(user_id):
@@ -124,6 +146,34 @@ class WeaviateDB(object):
         if existing_users is None:
             return False
         return True
+
+    def search_agent(
+        self, task: str, user_id: str, num_relevant=2, certainty=0.7
+    ) -> List[str]:
+        """Search for a agent in the database"""
+        try:
+            filters = wvc.Filter.by_ref("user").by_id().equal(user_id)
+            query_vector = self.get_ada_embedding(task)
+            # Get the most similar content
+            agent_collection = self.client.collections.get("Agent")
+            agent_objects = agent_collection.query.near_vector(
+                near_vector=query_vector,
+                certainty=certainty,
+                limit=num_relevant,
+                filters=filters,
+            ).objects
+            agents_data = [
+                AgentData().create_description(
+                    name=agent_object.properties["name"],
+                    identity=agent_object.properties["identity"],
+                    task=agent_object.properties["task"],
+                )
+                for agent_object in agent_objects
+            ]
+            return WeaviateResult(data=agents_data)
+        except Exception as err:
+            print(f"Unexpected error {err} when searching agent")
+            return WeaviateResult(error=str(err))
 
     def search_info(
         self,
@@ -151,7 +201,6 @@ class WeaviateDB(object):
             print(f"Unexpected error {err} when searching info")
             return WeaviateResult(error=str(err))
 
-    # TODO: Return a specific class with Data, errors.. to differentiatate between string and error
     def store_info(
         self, user_id: str, data: str, potential_query: str
     ) -> WeaviateResult:

@@ -6,6 +6,7 @@ from typing import Optional
 
 from aware.agent.agent_data import AgentData
 from aware.agent.agent_builder import AgentBuilder
+from aware.agent.agent_state_machine import AgentState
 from aware.chat.conversation_schemas import (
     JSONMessage,
     ToolResponseMessage,
@@ -60,30 +61,41 @@ class ClientHandlers:
 
     def add_message(
         self,
-        user_id: str,
-        process_id: str,
+        process_ids: ProcessIds,
         json_message: JSONMessage,
     ):
         redis_handlers = self.get_redis_handler()
         supabase_handlers = self.get_supabase_handler()
         self.logger.info("Adding to supa")
         chat_message = supabase_handlers.add_message(
-            process_id=process_id,
-            user_id=user_id,
+            process_id=process_ids.process_id,
+            user_id=process_ids.user_id,
             json_message=json_message,
         )
         self.logger.info("Adding to redis")
-        redis_handlers.add_message(process_id=process_id, chat_message=chat_message)
+        redis_handlers.add_message(
+            process_id=process_ids.process_id, chat_message=chat_message
+        )
         return chat_message
 
     def create_agent(
         self,
         user_id: str,
         name: str,
+        tools_class: str,
+        identity: str,
+        task: str,
+        instructions: str,
+        thought_generator_mode: str,
     ) -> AgentData:
         agent_data = self.supabase_handler.create_agent(
             user_id=user_id,
             name=name,
+            tools_class=tools_class,
+            identity=identity,
+            task=task,
+            instructions=instructions,
+            thought_generator_mode=thought_generator_mode,
         )
         self.redis_handler.set_agent_data(agent_data)
         return agent_data
@@ -122,7 +134,7 @@ class ClientHandlers:
         service_name: str,
         query: str,
         is_async: bool,
-    ):
+    ) -> Request:
         request = self.supabase_handler.create_request(
             user_id=process_ids.user_id,
             client_process_id=process_ids.process_id,
@@ -130,27 +142,12 @@ class ClientHandlers:
             query=query,
             is_async=is_async,
         )
-
-        service = self.redis_handler.get_service(service_id=request.service_id)
         self.redis_handler.create_request(
-            service_process_id=service.process_id,
+            service_process_id=request.service_process_id,
             service_id=request.service_id,
             request=request,
         )
-
-        # Get agent id from process_id
-        service_agent_id = self.redis_handler.get_agent_id_by_process_id(
-            service.process_id
-        )
-        server_process_ids = ProcessIds(
-            user_id=process_ids.user_id,
-            agent_id=service_agent_id,
-            process_id=service.process_id,
-        )
-        if not self.redis_handler.is_process_active(server_process_ids):
-            # Start server process if not running
-            preprocess.delay(process_ids)
-        return request.id
+        return request
 
     def create_services(self, user_id: str, tools_class: str):
         """Create initial user services"""
@@ -294,57 +291,9 @@ class ClientHandlers:
     def send_feedback(self, request: Request):
         self.redis_handler.update_request(request)
 
-    # TODO: This should:
-    # - remove the request
-    # - trigger new task to set the response as tool_ids.
-    # - retrigger the client process.
-    # TODO: Move to service?
-    def set_request_completed(self, user_id: str, request: Request):
-        # 1. Remove request from redis and supabase
+    def set_request_completed(self, request: Request):
         self.redis_handler.delete_request(request.id)
         self.supabase_handler.set_request_completed(request.id, request.data.response)
-
-        # 2. Process request completed.
-        if request.is_async():
-            # - Async requests: Add new message with the response.
-            agent_id = self.redis_handler.get_agent_id_by_process_id(
-                request.service_process_id
-            )
-            # Get process name.
-            process_data = self.redis_handler.get_process_data(
-                ProcessIds(
-                    user_id=user_id,
-                    agent_id=request.service_id,
-                    process_id=request.service_process_id,
-                )
-            )
-            user_message = UserMessage(
-                name=process_data.name, content=request.data.response
-            )
-            self.add_message(
-                user_id=user_id,
-                process_id=request.client_process_id,
-                json_message=user_message,
-            )
-        else:
-            # - Sync requests: Update last conversation message with the response.
-            client_conversation_with_keys = (
-                self.redis_handler.get_conversation_with_keys(request.client_process_id)
-            )
-            message_key, message = client_conversation_with_keys[-1]
-            if not isinstance(message, ToolResponseMessage):
-                raise ValueError("Last message is not a tool response message.")
-            message.content = request.data.response
-            self.redis_handler.update_message(message_key, message)
-
-        # 3. Trigger client process.
-        agent_id = self.redis_handler.get_agent_id_by_process_id(
-            request.client_process_id
-        )
-        process_ids = ProcessIds(
-            user_id=user_id, agent_id=agent_id, process_id=request.client_process_id
-        )
-        preprocess.delay(process_ids.to_json())
 
     def update_agent_data(self, agent_data: AgentData):
         try:
@@ -372,8 +321,8 @@ class ClientHandlers:
             )
         try:
             assistant_name = "aware"  # TODO: GET FROM SUPABASE!
-            AgentBuilder(client_handlers=self).initialize_user_agents(
-                user_id=user_id, assistant_name=assistant_name
+            AgentBuilder(user_id=user_id, client_handlers=self).initialize_user_agents(
+                assistant_name=assistant_name
             )
 
             # Create initial user topics TODO: Refactor, verify if needed!
