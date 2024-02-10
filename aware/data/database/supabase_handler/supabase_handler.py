@@ -1,7 +1,7 @@
 from supabase import Client
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
-from aware.agent import AgentData
+from aware.agent.agent_data import AgentData, AgentState, ThoughtGeneratorMode
 from aware.chat.conversation_schemas import ChatMessage, JSONMessage
 from aware.communications.requests.request import Request, RequestData
 from aware.communications.requests.service import Service, ServiceData
@@ -58,7 +58,11 @@ class SupabaseHandler:
         self,
         user_id: str,
         name: str,
+        tools_class: str,
+        identity: str,
         task: str,
+        instructions: str,
+        thought_generator_mode: str,
     ) -> AgentData:
         logger = FileLogger("migration_tests")
         logger.info(f"DEBUG - Creating agent {name}")
@@ -68,7 +72,11 @@ class SupabaseHandler:
                 {
                     "user_id": user_id,
                     "name": name,
+                    "tools_class": tools_class,
+                    "identity": identity,
                     "task": task,
+                    "instructions": instructions,
+                    "thought_generator_mode": thought_generator_mode,
                 }
             )
             .execute()
@@ -78,8 +86,13 @@ class SupabaseHandler:
         return AgentData(
             id=data["id"],
             name=data["name"],
-            task=data["task"],
             context=data["context"],
+            tools_class=data["tools_class"],
+            identity=data["identity"],
+            task=data["task"],
+            instructions=data["instructions"],
+            state=AgentState(data["state"]),
+            thought_generator_mode=ThoughtGeneratorMode(data["thought_generator_mode"]),
         )
 
     def create_process(
@@ -269,6 +282,8 @@ class SupabaseHandler:
             name=data["name"],
             task=data["task"],
             context=data["context"],
+            state=AgentState(data["state"]),
+            thought_generator_mode=ThoughtGeneratorMode(data["thought_generator_mode"]),
         )
 
     def get_agent_profile(self, agent_id: str) -> Optional[Profile]:

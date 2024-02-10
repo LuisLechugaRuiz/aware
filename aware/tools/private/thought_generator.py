@@ -1,11 +1,13 @@
 from typing import List, Optional
 
 from aware.agent.agent_data import AgentData
+from aware.chat.conversation_schemas import AssistantMessage
+from aware.communications.requests.service import ServiceData
+from aware.communications.requests.request import Request
 from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
 from aware.process.process_ids import ProcessIds
-from aware.requests.service import ServiceData
-from aware.requests.request import Request
+from aware.process.process_handler import ProcessHandler
 from aware.tools.decorators import default_function
 from aware.tools.tools import Tools
 from aware.utils.logger.file_logger import FileLogger
@@ -90,7 +92,6 @@ class ThoughtGenerator(Tools):
         Args:
             thought (str): The thought to be processed.
         """
-        self.update_thought(thought)
         return "Intermediate thought saved."
 
     @default_function
@@ -100,10 +101,9 @@ class ThoughtGenerator(Tools):
         Args:
             thought (str): The thought to be processed.
         """
-        self.update_thought(thought)
+        process_handler = ProcessHandler(process_ids=self.process_ids)
+        process_handler.add_message(
+            AssistantMessage(name="thought", content=thought),
+        )
         self.stop_agent()
         return "Final thought saved, stopping agent."
-
-    def update_thought(self, thought: str):
-        self.agent_data.thought = thought
-        self.update_agent_data()

@@ -7,6 +7,7 @@ from aware.chat.conversation_schemas import (
 )
 from aware.data.database.client_handlers import ClientHandlers
 from aware.process.process_ids import ProcessIds
+from aware.process.process_handler import ProcessHandler
 from aware.server.celery_app import celery_app
 from aware.utils.logger.file_logger import FileLogger
 
@@ -30,7 +31,10 @@ def postprocess(response_str: str, call_info_str: str):
     try:
         # 1. Get process.
         call_info = CallInfo.from_json(call_info_str)
-        process = ClientHandlers().get_process(process_ids.process_id)
+
+        process = ClientHandlers().get_process(call_info.process_ids.process_id)
+        process_handler = ProcessHandler(process_ids=call_info.process_ids)
+
         process.postprocess()
 
         # 2. Reconstruct response.
@@ -56,11 +60,7 @@ def postprocess(response_str: str, call_info_str: str):
 
         logger.info("Adding message to redis and supabase")
         # 3. Upload message to Supabase and Redis.
-        ClientHandlers().add_message(
-            user_id=call_info.process_ids.user_id,
-            process_id=call_info.process_ids.process_id,
-            json_message=new_message,
-        )
+        process_handler.add_message(message=new_message)
 
         logger.info("Getting function calls")
         # 4. Get function calls
@@ -73,11 +73,7 @@ def postprocess(response_str: str, call_info_str: str):
                 logger.info("Executing function calls")
                 tools_response = process.execute_tools(function_calls)
                 for tool_response in tools_response:
-                    ClientHandlers().add_message(
-                        user_id=call_info.process_ids.user_id,
-                        process_id=call_info.process_ids.process_id,
-                        json_message=tool_response,
-                    )
+                    process_handler.add_message(message=tool_response)
 
         # 5. Check if agent is running or should be stopped.
         if process.is_sync_request_scheduled():
@@ -87,15 +83,9 @@ def postprocess(response_str: str, call_info_str: str):
             return
 
         if process.is_running():
-            preprocess.delay(call_info.process_ids.to_json())
+            process_handler.loop()
         else:
-            # Check if has requests and schedule the newest one or just stop it!
-            new_request = ClientHandlers().get_request(call_info.process_ids)
-            if new_request is None:
-                ClientHandlers().remove_active_process(call_info.process_ids)
-            else:
-                # Schedule it again to complete new request.
-                preprocess.delay(call_info.process_ids.to_json())
+            process_handler.on_transition()
 
     except Exception as e:
         logger.error(f"Error in process_response: {e}")

@@ -10,9 +10,12 @@ import uuid
 import inspect
 
 from aware.agent.agent_data import AgentData
+from aware.chat.conversation_schemas import UserMessage, ToolResponseMessage
+from aware.communications.requests.request import Request
+from aware.communications.requests.service import ServiceData
 from aware.process.process_ids import ProcessIds
-from aware.requests.request import Request
-from aware.requests.service import ServiceData
+from aware.process.process_data import ProcessData
+from aware.process.process_handler import ProcessHandler
 
 if TYPE_CHECKING:
     from aware.data.database.client_handlers import ClientHandlers
@@ -24,6 +27,7 @@ class Tools(ABC):
         self,
         client_handlers: "ClientHandlers",
         process_ids: ProcessIds,
+        process_data: ProcessData,
         agent_data: AgentData,
         request: Optional[Request],
         run_remote: bool = False,
@@ -31,6 +35,7 @@ class Tools(ABC):
         self.client_handlers = client_handlers
 
         self.process_ids = process_ids
+        self.process_data = process_data
         self.agent_data = agent_data
         self.request = request
 
@@ -62,6 +67,29 @@ class Tools(ABC):
             is_async=False,
         )
 
+    def _create_request(self, service_name: str, query: str, is_async: bool):
+        request = self.client_handlers.create_request(
+            process_ids=self.process_ids,
+            service_name=service_name,
+            query=query,
+            is_async=is_async,
+        )
+        redis_handler = ClientHandlers().get_redis_handler()
+        # Get agent id from process_id
+        service_agent_id = redis_handler.get_agent_id_by_process_id(
+            request.service_process_id
+        )
+        server_process_ids = ProcessIds(
+            user_id=self.process_ids.user_id,
+            agent_id=service_agent_id,
+            process_id=request.service_process_id,
+        )
+        if not redis_handler.is_process_active(server_process_ids):
+            # Start server process if not running
+            server_process_handler = ProcessHandler(process_ids=server_process_ids)
+            # TODO: Verify we want to call on_transition or explicitely start!
+            server_process_handler.on_transition()
+
     def _construct_arguments_dict(self, func: Callable, content: str):
         signature = inspect.signature(func)
         args = list(signature.parameters.keys())
@@ -69,7 +97,7 @@ class Tools(ABC):
             raise ValueError("Default function must have one argument.")
         if len(args) > 1:
             raise ValueError(
-                f"Default function must have only one argument, {len(args)} were given."
+                f"Default function must have only one argument, {len(args)} wer1e given."
             )
         return {args[0]: content}
 
@@ -77,7 +105,7 @@ class Tools(ABC):
         default_tools = []
         if self.request is not None:
             default_tools.append(self.set_request_completed)
-            if self.request.data.is_async:
+            if self.request.is_async():
                 default_tools.append(self.send_feedback)
         # TODO: Do the same with events!!
         return default_tools
@@ -157,8 +185,38 @@ class Tools(ABC):
         self.request.data.response = response
         self.request.data.status = "completed"
 
-        return self.client_handlers.set_request_completed(
+        redis_handler = ClientHandlers().get_redis_handler()
+        client_agent_id = redis_handler.get_agent_id_by_process_id(
+            self.request.client_process_id
+        )
+        client_process_ids = ProcessIds(
             user_id=self.process_ids.user_id,
+            agent_id=client_agent_id,
+            process_id=self.request.client_process_id,
+        )
+        client_process_handler = ProcessHandler(process_ids=client_process_ids)
+
+        # Add message to client process.
+        if self.request.is_async():
+            # - Async requests: Add new message with the response.
+            client_process_handler.add_message(
+                json_message=UserMessage(name=self.process_data.name, content=response)
+            )
+        else:
+            # - Sync requests: Update last conversation message with the response.
+            client_conversation_with_keys = redis_handler.get_conversation_with_keys(
+                self.request.client_process_id
+            )
+            message_key, message = client_conversation_with_keys[-1]
+            if not isinstance(message, ToolResponseMessage):
+                raise ValueError("Last message is not a tool response message.")
+            message.content = self.request.data.response
+            redis_handler.update_message(message_key, message)
+
+        # TODO: Verify this. On transition will change the state of the process even if it is already running...
+        client_process_handler.on_transition()
+
+        return self.client_handlers.set_request_completed(
             request=self.request,
         )
 
