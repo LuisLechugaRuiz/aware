@@ -14,9 +14,10 @@ from aware.chat.conversation_schemas import (
     ToolCalls,
 )
 from aware.chat.call_info import CallInfo
+from aware.communications.events.event import Event
 from aware.communications.requests.request import Request
 from aware.communications.requests.service import Service
-from aware.communications.subscriptions.subscription import Subscription
+from aware.communications.topics.subscription import TopicSubscription
 from aware.process.process_data import ProcessData
 from aware.process.process_ids import ProcessIds
 from aware.process.process import Process
@@ -79,19 +80,31 @@ class RedisHandler:
     def clear_conversation_buffer(self, process_id: str):
         self.client.delete(f"conversation_buffer:{process_id}")
 
-    def create_subscription(self, process_id: str, subscription: Subscription):
+    def create_event(self, user_id: str, event: Event):
+        event_key = f"user_id:{user_id}:event:{event.name}"
+        self.client.set(event_key, event.to_json())
+
+    def create_event_subscription(self, user_id: str, process_id: str, event: Event):
+        event_subscription_key = f"user_id:{user_id}:event_subscription:{event.name}"
+        self.client.sadd(event_subscription_key, process_id)
+
+    def create_topic_subscription(
+        self, process_id: str, topic_subscription: TopicSubscription
+    ):
         # Key for storing the serialized subscription
-        subscription_key = f"subscription:{subscription.id}"
+        topic_subscription_key = f"topic_subscription:{topic_subscription.id}"
 
         # Key for the sorted set to maintain the order of subscriptions by timestamp
-        subscription_process_order_key = f"process:{process_id}:subscriptions:order"
+        topic_subscription_process_order_key = (
+            f"process:{process_id}:topic_subscriptions:order"
+        )
 
-        self.client.set(subscription_key, subscription.to_json())
+        self.client.set(topic_subscription_key, topic_subscription.to_json())
 
-        timestamp = convert_timestamp_to_epoch(subscription.timestamp)
+        timestamp = convert_timestamp_to_epoch(topic_subscription.timestamp)
         self.client.zadd(
-            subscription_process_order_key,
-            {subscription.id: timestamp},
+            topic_subscription_process_order_key,
+            {topic_subscription.id: timestamp},
         )
 
     def create_request(self, request: Request):
@@ -241,13 +254,11 @@ class RedisHandler:
             incoming_request = incoming_requests[0]
         else:
             incoming_request = None
-        subscriptions = self.get_subscriptions(process_id)
-        # TODO: Add events!
+        topic_subscriptions = self.get_topic_subscriptions(process_id)
         return ProcessCommunications(
             outgoing_requests=outgoing_requests,
             incoming_request=incoming_request,
-            incoming_event=None,
-            subscriptions=subscriptions,
+            topic_subscriptions=topic_subscriptions,
         )
 
     def get_process_data(self, process_ids: ProcessIds) -> Optional[ProcessData]:
@@ -256,8 +267,13 @@ class RedisHandler:
             return ProcessData.from_json(data)
         return None
 
-    def get_subscriptions(self, process_id: str) -> List[Subscription]:
-        subscription_order_key = f"process:{process_id}:subscriptions:order"
+    def get_processes_ids_by_event(self, user_id: str, event: Event) -> List[str]:
+        event_subscription_key = f"user_id:{user_id}:event_subscription:{event.name}"
+        process_ids = self.client.smembers(event_subscription_key)
+        return process_ids
+
+    def get_topic_subscriptions(self, process_id: str) -> List[TopicSubscription]:
+        subscription_order_key = f"process:{process_id}:topic_subscriptions:order"
         # Retrieve all subscriptions IDs from the sorted set, ordered by timestamp
         subscription_ids = self.client.zrange(subscription_order_key, 0, -1)
 
@@ -269,7 +285,7 @@ class RedisHandler:
             subscription_data_json = self.client.get(f"subscription:{subscription_id}")
             if subscription_data_json:
                 subscriptions.append(
-                    Subscription.from_json(subscription_data_json.decode("utf-8"))
+                    TopicSubscription.from_json(subscription_data_json.decode("utf-8"))
                 )
 
         return subscriptions
@@ -350,7 +366,7 @@ class RedisHandler:
         for request in process_communications.outgoing_requests:
             self.create_request(request)
         for subscription in process_communications.subscriptions:
-            self.create_subscription(process_id, subscription)
+            self.create_topic_subscription(process_id, subscription)
         # TODO: Add events!
 
     def set_process(self, process: Process):
@@ -382,10 +398,10 @@ class RedisHandler:
             user_data.to_json(),
         )
 
-    def set_topic_data(self, user_id: str, topic_name, topic_data: str):
+    def set_topic_content(self, user_id: str, topic_name, content: str):
         self.client.set(
             f"user_id:{user_id}:topic:{topic_name}",
-            topic_data,
+            content,
         )
 
     def remove_active_process(self, process_id: str):

@@ -1,11 +1,10 @@
 import json
 import inspect
-from typing import Callable, Dict, List, Optional, Type, TYPE_CHECKING
+from typing import Callable, List, Optional, Type
 from openai.types.chat import ChatCompletionMessageToolCall
 
 from aware.chat.conversation_schemas import ToolResponseMessage
 from aware.utils.logger.file_logger import FileLogger
-from aware.requests.service import ServiceData
 from aware.tools.tools import FunctionCall, Tools
 from aware.tools.tools_registry import ToolsRegistry
 
@@ -22,10 +21,6 @@ class ToolsManager:
         for tool_call in tool_calls:
             tool_call.function.name = tool_call.function.name.replace(".", "_")
         return tool_calls
-
-    def discover_services(self, tools_class: str) -> List[ServiceData]:
-        """Discover the services for the given tools class."""
-        return self.tools_registry.tools[tools_class].get_services()
 
     def get_tools(self, name: str) -> Optional[Type[Tools]]:
         self.logger.info(f"Getting tools for name: {name}")

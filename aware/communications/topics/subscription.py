@@ -3,7 +3,7 @@ import json
 
 
 @dataclass
-class Subscription:
+class TopicSubscription:
     def __init__(
         self,
         id: str,

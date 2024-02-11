@@ -55,10 +55,6 @@ class DataStorageManager(Tools):
     def get_instructions(cls, agent: str) -> str:
         return DEF_INSTRUCTIONS.format(agent=agent)
 
-    @classmethod
-    def get_process_name(self):
-        return "data_storage_manager"
-
     def set_tools(self):
         return [
             # self.append_profile,
@@ -106,7 +102,7 @@ class DataStorageManager(Tools):
             potential_query (str): A related query for future data retrieval, should be a question.
         """
         memory_manager = MemoryManager(
-            user_id=self.process_data.ids.user_id,
+            user_id=self.process_ids.user_id,
             logger=self.logger,
         )
 
@@ -121,8 +117,8 @@ class DataStorageManager(Tools):
         logger = FileLogger("migration_tests")
         logger.info("Stopping data storage.")
 
-        self.process_data.agent_data.context = new_context
+        self.agent_data.context = new_context
         self.update_agent_data()
 
-        self.stop_agent()
+        self.finish_process()
         return "Context updated, agent stopped."

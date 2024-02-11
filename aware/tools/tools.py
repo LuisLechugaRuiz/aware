@@ -10,7 +10,6 @@ import uuid
 import inspect
 
 from aware.agent.agent_data import AgentData
-from aware.chat.conversation_schemas import UserMessage, ToolResponseMessage
 from aware.communications.requests.request import Request
 from aware.communications.requests.service import ServiceData
 from aware.process.process_ids import ProcessIds
@@ -40,17 +39,19 @@ class Tools(ABC):
         self.request = request
 
         self.default_tools = self._get_default_tools()
+        self.process_handler = ProcessHandler(process_ids=self.process_ids)
 
         self.run_remote = run_remote
-        self.running = True
+        self.finished = False
         self.async_request_scheduled = False
         self.sync_request_scheduled = False
 
     def create_async_request(self, service_name: str, query: str):
         self.async_request_scheduled = True
 
-        self.client_handlers.create_request(
-            process_ids=self.process_ids,
+        self.process_handler.create_request(
+            client_process_name=self.get_process_name(),
+            client_process_ids=self.process_ids,
             service_name=service_name,
             query=query,
             is_async=True,
@@ -60,35 +61,13 @@ class Tools(ABC):
     def create_request(self, service_name: str, query: str):
         self.sync_request_scheduled = True
 
-        return self.client_handlers.create_request(
-            process_ids=self.process_ids,
+        return self.process_handler.create_request(
+            client_process_name=self.get_process_name(),
+            client_process_ids=self.process_ids,
             service_name=service_name,
             query=query,
             is_async=False,
         )
-
-    def _create_request(self, service_name: str, query: str, is_async: bool):
-        request = self.client_handlers.create_request(
-            process_ids=self.process_ids,
-            service_name=service_name,
-            query=query,
-            is_async=is_async,
-        )
-        redis_handler = ClientHandlers().get_redis_handler()
-        # Get agent id from process_id
-        service_agent_id = redis_handler.get_agent_id_by_process_id(
-            request.service_process_id
-        )
-        server_process_ids = ProcessIds(
-            user_id=self.process_ids.user_id,
-            agent_id=service_agent_id,
-            process_id=request.service_process_id,
-        )
-        if not redis_handler.is_process_active(server_process_ids):
-            # Start server process if not running
-            server_process_handler = ProcessHandler(process_ids=server_process_ids)
-            # TODO: Verify we want to call on_transition or explicitely start!
-            server_process_handler.on_transition()
 
     def _construct_arguments_dict(self, func: Callable, content: str):
         signature = inspect.signature(func)
@@ -107,8 +86,12 @@ class Tools(ABC):
             default_tools.append(self.set_request_completed)
             if self.request.is_async():
                 default_tools.append(self.send_feedback)
-        # TODO: Do the same with events!!
         return default_tools
+
+    def get_process_name(self) -> str:
+        if self.process_data.name == "main":
+            return self.agent_data.name
+        return self.get_tool_name()
 
     def get_tools(self) -> List[Callable]:
         process_tools = self.set_tools()
@@ -116,14 +99,10 @@ class Tools(ABC):
         return process_tools
 
     @classmethod
-    def get_process_name(cls):
+    def get_tool_name(cls):
         # Convert from CamelCase to snake_case
         name = re.sub(r"(?<!^)(?=[A-Z])", "_", cls.__class__.__name__).lower()
         return name
-
-    @classmethod
-    def get_services(self) -> List[ServiceData]:
-        return []
 
     def get_default_tool_call(
         self, content: str
@@ -145,8 +124,8 @@ class Tools(ABC):
                 return function_call
         return None
 
-    def is_running(self) -> bool:
-        return self.running
+    def is_process_finished(self) -> bool:
+        return self.finished
 
     def is_async_request_scheduled(self) -> bool:
         return self.async_request_scheduled
@@ -182,46 +161,12 @@ class Tools(ABC):
         Args:
             response (str): The response to the request.
         """
-        self.request.data.response = response
-        self.request.data.status = "completed"
-
-        redis_handler = ClientHandlers().get_redis_handler()
-        client_agent_id = redis_handler.get_agent_id_by_process_id(
-            self.request.client_process_id
-        )
-        client_process_ids = ProcessIds(
-            user_id=self.process_ids.user_id,
-            agent_id=client_agent_id,
-            process_id=self.request.client_process_id,
-        )
-        client_process_handler = ProcessHandler(process_ids=client_process_ids)
-
-        # Add message to client process.
-        if self.request.is_async():
-            # - Async requests: Add new message with the response.
-            client_process_handler.add_message(
-                json_message=UserMessage(name=self.process_data.name, content=response)
-            )
-        else:
-            # - Sync requests: Update last conversation message with the response.
-            client_conversation_with_keys = redis_handler.get_conversation_with_keys(
-                self.request.client_process_id
-            )
-            message_key, message = client_conversation_with_keys[-1]
-            if not isinstance(message, ToolResponseMessage):
-                raise ValueError("Last message is not a tool response message.")
-            message.content = self.request.data.response
-            redis_handler.update_message(message_key, message)
-
-        # TODO: Verify this. On transition will change the state of the process even if it is already running...
-        client_process_handler.on_transition()
-
-        return self.client_handlers.set_request_completed(
-            request=self.request,
+        self.process_handler.set_request_completed(
+            request=self.request, response=response
         )
 
-    def stop_agent(self):
-        self.running = False
+    def finish_process(self):
+        self.finished = True
 
 
 class FunctionCall:

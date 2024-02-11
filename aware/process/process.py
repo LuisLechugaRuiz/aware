@@ -94,11 +94,11 @@ class Process(ProcessInterface):
     def is_sync_request_scheduled(self) -> bool:
         return self.tools.is_sync_request_scheduled()
 
-    def is_running(self) -> bool:
-        return self.tools.is_running()
+    def is_process_finished(self) -> bool:
+        return self.tools.is_process_finished()
 
     def should_run_remote(self) -> bool:
         return self.tools.run_remote
 
-    def stop_agent(self):
-        self.tools.stop_agent()
+    def finish_process(self):
+        self.tools.finish_process()

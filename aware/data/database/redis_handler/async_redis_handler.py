@@ -4,12 +4,8 @@ from typing import List, Optional, Tuple
 
 from aware.memory.user.user_data import UserData
 from aware.chat.conversation_schemas import (
+    to_json_message,
     JSONMessage,
-    UserMessage,
-    AssistantMessage,
-    SystemMessage,
-    ToolResponseMessage,
-    ToolCalls,
 )
 from aware.chat.call_info import CallInfo
 
@@ -51,18 +47,7 @@ class AsyncRedisHandler:
         message_type = message_data_json["type"]
         message_json_str = message_data_json["data"]
 
-        message_class: JSONMessage = {
-            "UserMessage": UserMessage,
-            "AssistantMessage": AssistantMessage,
-            "SystemMessage": SystemMessage,
-            "ToolResponseMessage": ToolResponseMessage,
-            "ToolCalls": ToolCalls,
-        }.get(message_type)
-
-        if message_class:
-            return message_class.from_json(message_json_str)
-        else:
-            raise ValueError(f"Unknown message type: {message_type}")
+        return to_json_message(message_type, message_json_str)
 
     async def get_api_key(self, user_id: str) -> Optional[str]:
         user_data = await self.get_user_data(user_id)
@@ -72,9 +57,9 @@ class AsyncRedisHandler:
 
     async def get_call_info(self, process_id: str) -> CallInfo:
         data = CallInfo.from_json(await self.client.get(f"call_info:{process_id}"))
-        data.set_conversation(await self.get_conversation(data.process_id))
+        data.set_conversation(await self.get_conversation(data.process_ids.process_id))
 
-        data.set_api_key(await self.get_api_key(data.user_id))
+        data.set_api_key(await self.get_api_key(data.process_ids.user_id))
         return data
 
     async def get_user_data(self, user_id: str) -> Optional[UserData]:
