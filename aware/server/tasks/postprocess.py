@@ -6,20 +6,9 @@ from aware.chat.conversation_schemas import (
     ToolCalls,
 )
 from aware.data.database.client_handlers import ClientHandlers
-from aware.process.process_ids import ProcessIds
 from aware.process.process_handler import ProcessHandler
 from aware.server.celery_app import celery_app
 from aware.utils.logger.file_logger import FileLogger
-
-
-# ENTRY POINT!
-@celery_app.task(name="server.preprocess")
-def preprocess(process_ids_str: str):
-    process_ids = ProcessIds.from_json(process_ids_str)
-
-    ClientHandlers().add_active_process(process_ids.process_id)
-    process = ClientHandlers().get_process(process_ids.process_id)
-    process.preprocess()
 
 
 @celery_app.task(name="server.postprocess")
@@ -31,9 +20,7 @@ def postprocess(response_str: str, call_info_str: str):
     try:
         # 1. Get process.
         call_info = CallInfo.from_json(call_info_str)
-
         process = ClientHandlers().get_process(call_info.process_ids.process_id)
-        process.postprocess()
 
         # 2. Reconstruct response.
         openai_response = ChatCompletionMessage.model_validate_json(response_str)
@@ -58,7 +45,8 @@ def postprocess(response_str: str, call_info_str: str):
 
         logger.info("Adding message to redis and supabase")
         # 3. Upload message to Supabase and Redis.
-        ProcessHandler().add_message(
+        process_handler = ProcessHandler(ClientHandlers())
+        process_handler.add_message(
             process_ids=call_info.process_ids, message=new_message
         )
 
@@ -73,7 +61,7 @@ def postprocess(response_str: str, call_info_str: str):
                 logger.info("Executing function calls")
                 tools_response = process.execute_tools(function_calls)
                 for tool_response in tools_response:
-                    ProcessHandler().add_message(
+                    process_handler.add_message(
                         process_ids=call_info.process_ids, message=tool_response
                     )
 
@@ -84,7 +72,7 @@ def postprocess(response_str: str, call_info_str: str):
             )
             return
 
-        ProcessHandler().step(
+        process_handler.step(
             process_ids=call_info.process_ids,
             is_process_finished=process.is_process_finished(),
         )

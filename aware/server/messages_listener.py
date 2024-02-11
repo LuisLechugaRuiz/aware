@@ -7,6 +7,7 @@ from typing import Optional
 
 from aware.config.config import Config
 from aware.data.database.client_handlers import ClientHandlers
+from aware.memory.user.user_builder import UserBuilder
 from aware.process.process_handler import ProcessHandler
 from aware.utils.logger.file_logger import FileLogger
 
@@ -37,9 +38,9 @@ class MessagesListener:
 
             user_id = data["user_id"]
             content = data["content"]
-            user_data = ClientHandlers().get_user_data(user_id)
+            user_data = UserBuilder(user_id).get_user_data()
             logger.info(f"Processing new user message: {content}")
-            ProcessHandler().create_event(
+            ProcessHandler(ClientHandlers()).create_event(
                 user_id=user_id,
                 event_name="user_message",
                 message_name=user_data.user_name,

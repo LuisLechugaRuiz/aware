@@ -11,7 +11,6 @@ import inspect
 
 from aware.agent.agent_data import AgentData
 from aware.communications.requests.request import Request
-from aware.communications.requests.service import ServiceData
 from aware.process.process_ids import ProcessIds
 from aware.process.process_data import ProcessData
 from aware.process.process_handler import ProcessHandler
@@ -39,7 +38,7 @@ class Tools(ABC):
         self.request = request
 
         self.default_tools = self._get_default_tools()
-        self.process_handler = ProcessHandler(process_ids=self.process_ids)
+        self.process_handler = ProcessHandler(client_handlers=self.client_handlers)
 
         self.run_remote = run_remote
         self.finished = False

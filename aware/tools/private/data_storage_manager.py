@@ -1,13 +1,14 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from aware.agent.agent_data import AgentData
 from aware.communications.requests.request import Request
-from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
 from aware.process.process_ids import ProcessIds
 from aware.tools.tools import Tools
 from aware.utils.logger.file_logger import FileLogger
 
+if TYPE_CHECKING:
+    from aware.data.database.client_handlers import ClientHandlers
 
 DEF_IDENTITY = """You are data_storage_manager, a process responsible for storing relevant data to ensure optimal performance of a specific agent."""
 DEF_TASK = """Your task is to store relevant data to be retrieved in the future to optimize {{ agent }}'s performance.

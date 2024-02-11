@@ -1,14 +1,15 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
 
 from aware.agent.agent_builder import AgentBuilder
 from aware.agent.agent_data import AgentData
 from aware.communications.requests.request import Request
-from aware.communications.requests.service import ServiceData
-from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
 from aware.process.process_ids import ProcessIds
 from aware.tools.tools import Tools
 from aware.utils.logger.file_logger import FileLogger
+
+if TYPE_CHECKING:
+    from aware.data.database.client_handlers import ClientHandlers
 
 DEF_IDENTITY = """You are orchestrator, an advanced virtual assistant capable of managing multiple agents to solve complex tasks"""
 DEF_TASK = """Your task is to delegate atomic requests to the appropriate agents and manage the communication between them."""

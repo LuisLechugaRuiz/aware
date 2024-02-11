@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, TYPE_CHECKING
 
 from aware.config.config import Config
 from aware.data.data_saver import DataSaver
@@ -9,21 +9,23 @@ from aware.chat.conversation_schemas import (
     ToolCalls,
     ToolResponseMessage,
 )
-from aware.data.database.client_handlers import ClientHandlers
 from aware.utils.logger.file_logger import FileLogger
+
+if TYPE_CHECKING:
+    from aware.data.database.client_handlers import ClientHandlers
 
 
 class Conversation:
     """Conversation class to keep track of the messages and the current state of the conversation."""
 
-    def __init__(self, process_id: str):
+    def __init__(self, client_handlers: "ClientHandlers", process_id: str):
         log = FileLogger("migration_tests", should_print=True)
         log.info(f"Starting new conversation for process_id: {process_id}")
         self.process_id = process_id
 
         self.model_name = Config().openai_model  # TODO: Enable more models.
-        self.redis_handler = ClientHandlers().get_redis_handler()
-        self.supabase_handler = ClientHandlers().get_supabase_handler()
+        self.redis_handler = client_handlers.get_redis_handler()
+        self.supabase_handler = client_handlers.get_supabase_handler()
         conversation_messages = self.redis_handler.get_conversation(process_id)
         for index, message in enumerate(conversation_messages):
             log.info(f"REDIS MESSAGE {index}: {message.to_string()}")
