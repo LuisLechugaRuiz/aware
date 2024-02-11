@@ -8,11 +8,9 @@ class ServiceData:
         self,
         name: str,
         description: str,
-        prompt_prefix: str,
     ):
         self.name = name
         self.description = description
-        self.prompt_prefix = prompt_prefix
 
     def to_json(self):
         return json.dumps(self.__dict__)

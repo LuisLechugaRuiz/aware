@@ -33,8 +33,6 @@ def postprocess(response_str: str, call_info_str: str):
         call_info = CallInfo.from_json(call_info_str)
 
         process = ClientHandlers().get_process(call_info.process_ids.process_id)
-        process_handler = ProcessHandler(process_ids=call_info.process_ids)
-
         process.postprocess()
 
         # 2. Reconstruct response.
@@ -56,11 +54,13 @@ def postprocess(response_str: str, call_info_str: str):
                 new_message = AssistantMessage(
                     name=call_info.agent_name, content=openai_response.content
                 )
-                process.stop_agent()
+                process.finish_process()
 
         logger.info("Adding message to redis and supabase")
         # 3. Upload message to Supabase and Redis.
-        process_handler.add_message(message=new_message)
+        ProcessHandler().add_message(
+            process_ids=call_info.process_ids, message=new_message
+        )
 
         logger.info("Getting function calls")
         # 4. Get function calls
@@ -73,7 +73,9 @@ def postprocess(response_str: str, call_info_str: str):
                 logger.info("Executing function calls")
                 tools_response = process.execute_tools(function_calls)
                 for tool_response in tools_response:
-                    process_handler.add_message(message=tool_response)
+                    ProcessHandler().add_message(
+                        process_ids=call_info.process_ids, message=tool_response
+                    )
 
         # 5. Check if agent is running or should be stopped.
         if process.is_sync_request_scheduled():
@@ -82,10 +84,10 @@ def postprocess(response_str: str, call_info_str: str):
             )
             return
 
-        if process.is_running():
-            process_handler.loop()
-        else:
-            process_handler.on_transition()
+        ProcessHandler().step(
+            process_ids=call_info.process_ids,
+            is_process_finished=process.is_process_finished(),
+        )
 
     except Exception as e:
         logger.error(f"Error in process_response: {e}")

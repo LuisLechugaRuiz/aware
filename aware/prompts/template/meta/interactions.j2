@@ -8,12 +8,7 @@ Process this incoming request:
 {{ incoming_request }}
 {% endif -%}
 
-{% if event -%}
-Handle this event notification:
-{{ event }}
-{% endif -%}
-
-{% if subscriptions -%}
+{% if topic_subscriptions -%}
 Data from topics you are subscribed to:
-{{ subscriptions }}
+{{ topic_subscriptions }}
 {% endif -%}

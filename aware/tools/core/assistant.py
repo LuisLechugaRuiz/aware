@@ -60,7 +60,7 @@ class Assistant(Tools):
         Returns:
             None
         """
-        self.create_async_request("orchestrate", request)
+        self.create_async_request("orchestrator", request)
         return "Request sent to the system; the status will be updated soon."
 
     @default_function
@@ -100,4 +100,4 @@ class Assistant(Tools):
         Returns:
             str
         """
-        return self.create_request("search", query)
+        return self.create_request("thought_generator", query)

@@ -5,9 +5,9 @@ import threading
 from typing import Optional
 
 
-from aware.assistant.tasks import handle_user_message
 from aware.config.config import Config
 from aware.data.database.client_handlers import ClientHandlers
+from aware.process.process_handler import ProcessHandler
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -21,8 +21,10 @@ class Channel:
 class MessagesListener:
     def __init__(self):
         self.channels: List[Channel] = []
-        self.realtime_url: str = f"{Config().supabase_url}/realtime/v1/websocket?apikey={Config().supabase_key}&vsn=1.0.0".replace(
-            "http", "ws"
+        self.realtime_url: str = (
+            f"{Config().supabase_url}/realtime/v1/websocket?apikey={Config().supabase_key}&vsn=1.0.0".replace(
+                "http", "ws"
+            )
         )
         self.listen_task: Optional[threading.Thread] = None
 
@@ -32,7 +34,18 @@ class MessagesListener:
         try:
             data = payload["record"]
             logger.info(f"Handling new message: {data}")
-            handle_user_message.delay(data)
+
+            user_id = data["user_id"]
+            content = data["content"]
+            user_data = ClientHandlers().get_user_data(user_id)
+            logger.info(f"Processing new user message: {content}")
+            ProcessHandler().create_event(
+                user_id=user_id,
+                event_name="user_message",
+                message_name=user_data.user_name,
+                content=content,
+            )
+
             supabase_handler = ClientHandlers().get_supabase_handler()
             supabase_handler.remove_frontend_message(data["id"])
         except Exception as e:

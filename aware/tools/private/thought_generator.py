@@ -2,7 +2,6 @@ from typing import List, Optional
 
 from aware.agent.agent_data import AgentData
 from aware.chat.conversation_schemas import AssistantMessage
-from aware.communications.requests.service import ServiceData
 from aware.communications.requests.request import Request
 from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
@@ -56,16 +55,6 @@ class ThoughtGenerator(Tools):
     def get_instructions(cls) -> str:
         return DEF_INSTRUCTIONS
 
-    @classmethod
-    def get_services(self) -> List[ServiceData]:
-        return [
-            ServiceData(
-                name="search",
-                description="Search for an answer on semantic database.",
-                prompt_prefix="Received the following question:",
-            )
-        ]
-
     def set_tools(self):
         return [
             self.intermediate_thought,
@@ -101,9 +90,6 @@ class ThoughtGenerator(Tools):
         Args:
             thought (str): The thought to be processed.
         """
-        process_handler = ProcessHandler(process_ids=self.process_ids)
-        process_handler.add_message(
-            AssistantMessage(name="thought", content=thought),
-        )
-        self.stop_agent()
+        ProcessHandler().add_thought(process_ids=self.process_ids, thought=thought)
+        self.finish_process()
         return "Final thought saved, stopping agent."

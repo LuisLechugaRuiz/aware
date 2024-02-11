@@ -1,14 +1,30 @@
 import json
-
-from aware.process.process_ids import ProcessIds
+from typing import List
 
 
 class Event:
-    def __init__(self, process_ids: ProcessIds):
-        self.process_ids = process_ids
+    def __init__(
+        self,
+        id: str,
+        name: str,
+        content: str,
+        timestamp: str,
+        subscribed_processes: List[str],
+    ):
+        self.id = id
+        self.name = name
+        self.content = content
+        self.timestamp = timestamp
+        self.subscribed_processes = subscribed_processes
 
     def to_dict(self):
-        return self.__dict__
+        return {
+            "id": self.id,
+            "name": self.name,
+            "content": self.content,
+            "timestamp": self.timestamp,
+            "subscribed_processes": self.subscribed_processes,
+        }
 
     def to_json(self):
         return json.dumps(self.to_dict())

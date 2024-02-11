@@ -3,16 +3,14 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from aware.communications.requests.request import Request
-from aware.communications.events.event import Event
-from aware.communications.subscriptions.subscription import Subscription
+from aware.communications.topics.subscription import TopicSubscription
 
 
 @dataclass
 class ProcessCommunications:
     outgoing_requests: List[Request]
     incoming_request: Optional[Request]
-    incoming_event: Optional[Event]
-    subscriptions: List[Subscription]
+    topic_subscriptions: List[TopicSubscription]
 
     def to_dict(self):
         return {
@@ -22,11 +20,9 @@ class ProcessCommunications:
             "incoming_request": (
                 self.incoming_request.to_dict() if self.incoming_request else None
             ),
-            "incoming_event": (
-                self.incoming_event.to_dict() if self.incoming_event else None
-            ),
-            "subscriptions": [
-                subscription.to_dict() for subscription in self.subscriptions
+            "topic_subscriptions": [
+                topic_subscriptions.to_dict()
+                for topic_subscriptions in self.topic_subscriptions
             ],
         }
 
@@ -41,10 +37,9 @@ class ProcessCommunications:
         ]
         if data["incoming_request"]:
             data["incoming_request"] = Request(**data["incoming_request"])
-        if data["incoming_event"]:
-            data["incoming_event"] = Event(**data["incoming_event"])
-        data["subscriptions"] = [
-            Subscription(**subscription) for subscription in data["subscriptions"]
+        data["topic_subscriptions"] = [
+            TopicSubscription(**topic_subscriptions)
+            for topic_subscriptions in data["topic_subscriptions"]
         ]
         return ProcessCommunications(**data)
 
@@ -61,10 +56,12 @@ class ProcessCommunications:
             prompt_kwargs.update(
                 {"incoming_request": self.incoming_request.query_to_string()}
             )
-        # TODO: Add events!
-        if self.subscriptions:
-            subscriptions_info = "\n".join(
-                [subscription.to_string() for subscription in self.subscriptions]
+        if self.topic_subscriptions:
+            topic_subscriptions_info = "\n".join(
+                [
+                    topic_subscriptions.to_string()
+                    for topic_subscriptions in self.topic_subscriptions
+                ]
             )
-            prompt_kwargs.update({"subscriptions": subscriptions_info})
+            prompt_kwargs.update({"topic_subscriptions": topic_subscriptions_info})
         return prompt_kwargs

@@ -3,9 +3,10 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from aware.agent.agent_data import AgentData, AgentState, ThoughtGeneratorMode
 from aware.chat.conversation_schemas import ChatMessage, JSONMessage
+from aware.communications.events.event import Event
 from aware.communications.requests.request import Request, RequestData
 from aware.communications.requests.service import Service, ServiceData
-from aware.communications.subscriptions.subscription import Subscription
+from aware.communications.topics.subscription import TopicSubscription
 from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
 from aware.process.process_data import ProcessData
@@ -132,15 +133,51 @@ class SupabaseHandler:
             instructions=data["instructions"],
         )
 
-    def create_subscription(
+    def create_event(self, user_id: str, event_name: str, content: str) -> Event:
+        logger = FileLogger("migration_tests")
+        logger.info(f"DEBUG - Creating event {event_name} for user {user_id}")
+        response = (
+            self.client.table("events")
+            .insert(
+                {
+                    "user_id": user_id,
+                    "name": event_name,
+                    "content": content,
+                }
+            )
+            .execute()
+            .data
+        )
+        return Event(
+            id=response["id"],
+            name=event_name,
+            content=content,
+            timestamp=response["created_at"],
+        )
+
+    def create_event_subscription(self, user_id: str, process_id: str, event_name: str):
+        logger = FileLogger("migration_tests")
+        logger.info(
+            f"DEBUG - Creating subscription to event: {event_name} for user: {user_id} and process: {process_id}"
+        )
+        self.client.rpc(
+            "create_event_subscription",
+            {
+                "p_user_id": user_id,
+                "p_process_id": process_id,
+                "p_event_name": event_name,
+            },
+        ).execute()
+
+    def create_topic_subscription(
         self,
         process_id: str,
         topic_name: str,
     ):
         logger = FileLogger("migration_tests")
-        logger.info(f"DEBUG - Creating subscription for process {process_id}")
+        logger.info(f"DEBUG - Creating topic subscription for process {process_id}")
         self.client.rpc(
-            "create_subscription",
+            "create_topic_subscription",
             {
                 "p_process_id": process_id,
                 "p_topic_name": topic_name,
@@ -178,7 +215,6 @@ class SupabaseHandler:
             feedback=response["feedback"],
             status=response["status"],
             response=response["response"],
-            prompt_prefix=response["prompt_prefix"],
         )
         return Request(
             request_id=response["id"],
@@ -202,7 +238,6 @@ class SupabaseHandler:
                     "p_tool_class": tools_class,
                     "p_name": service_data.name,
                     "p_description": service_data.description,
-                    "p_prompt_prefix": service_data.prompt_prefix,
                 },
             )
             .execute()
@@ -317,7 +352,7 @@ class SupabaseHandler:
             return None
         return data[0]["tools_class"]
 
-    def get_subscriptions(self, process_id: str) -> List[Subscription]:
+    def get_topic_subscriptions(self, process_id: str) -> List[TopicSubscription]:
         data = (
             self.client.rpc("get_subscribed_data", {"p_process_id": process_id})
             .execute()
@@ -325,10 +360,10 @@ class SupabaseHandler:
         )
         if not data:
             return None
-        subscriptions: List[Subscription] = []
+        subscriptions: List[TopicSubscription] = []
         for row in data:
             subscriptions.append(
-                Subscription(
+                TopicSubscription(
                     id=row["topic_id"],
                     topic_name=row["name"],
                     content=row["content"],
@@ -356,7 +391,6 @@ class SupabaseHandler:
                 feedback=row["feedback"],
                 status=row["status"],
                 response=row["response"],
-                prompt_prefix=row["prompt_prefix"],
             )
             requests.append(
                 Request(
@@ -389,7 +423,9 @@ class SupabaseHandler:
             )
         return requests
 
-    def get_process_communications(self, process_ids: ProcessIds) -> Optional[ProcessCommunications]:
+    def get_process_communications(
+        self, process_ids: ProcessIds
+    ) -> Optional[ProcessCommunications]:
         outgoing_requests = self.get_requests(
             key_process_id="client_process_id", process_id=process_ids.process_id
         )
@@ -400,12 +436,12 @@ class SupabaseHandler:
             incoming_request = incoming_requests[0]
         else:
             incoming_request = None
-        subscriptions = self.get_subscriptions(process_ids.process_id)
+        topic_subscriptions = self.get_topic_subscriptions(process_ids.process_id)
         # TODO: Add events!
         return ProcessCommunications(
             outgoing_requests=outgoing_requests,
             incoming_request=incoming_request,
-            subscriptions=subscriptions,
+            subscriptions=topic_subscriptions,
         )
 
     def get_process_data(self, process_ids: ProcessIds) -> Optional[ProcessData]:
@@ -540,4 +576,3 @@ class SupabaseHandler:
 
     def update_user_profile(self, user_id: str, profile: Dict[str, Any]):
         self.client.table("profiles").update(profile).eq("user_id", user_id).execute()
-        +

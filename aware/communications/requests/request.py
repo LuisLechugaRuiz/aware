@@ -11,14 +11,12 @@ class RequestData:
         feedback: str,
         status: str,
         response: str,
-        prompt_prefix: str,
     ):
         self.query = query
         self.is_async = is_async
         self.status = status
         self.feedback = feedback
         self.response = response
-        self.prompt_prefix = prompt_prefix
 
     def to_json(self):
         return json.dumps(self.__dict__)
@@ -32,7 +30,7 @@ class RequestData:
         return f"Query: {self.query}\nFeedback: {self.feedback}"
 
     def query_to_string(self):
-        return f"{self.prompt_prefix} {self.query}"
+        return f"Request: {self.query}"
 
 
 @dataclass

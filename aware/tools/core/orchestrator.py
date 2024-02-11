@@ -54,16 +54,6 @@ class Orchestrator(Tools):
             self.find_tools,
         ]
 
-    @classmethod
-    def get_services(self) -> List[ServiceData]:
-        return [
-            ServiceData(
-                name="orchestrate",
-                description="Orchestrate the agents to solve complex tasks.",
-                prompt_prefix="Received the following task:",
-            )
-        ]
-
     def create_agent(
         self, name: str, tools: str, identity: str, task: str, instructions: str
     ):
@@ -91,7 +81,9 @@ class Orchestrator(Tools):
         except Exception as e:
             return f"Error creating agent {name}: {e}"
 
-    def create_request(self, agent_name: str, request_details: str):
+    def create_request(
+        self, agent_name: str, request_details: str, is_async: bool = False
+    ):
         """
         Create a new request that should be accomplished by an existing agent.
         Select an agent only from the existing ones retrieved using find_agent.
@@ -99,11 +91,18 @@ class Orchestrator(Tools):
         Args:
             agent_name (str): Agent's name matching one of the retrieved ones.
             request_details (str): A very detailed description about the request that the agent should pursue and some validations that it should verify before providing a final response.
+            is_async (bool): If the request should be performed asynchronously or not.
         """
 
-        return super().create_request(
-            agent_name=agent_name, request_details=request_details
-        )
+        # TODO: Solve this as we need to send EXTERNAL request - To other agent, split between internal and external, don't assume service_name = agent_name.
+        if is_async:
+            return super().create_async_request(
+                service_name=agent_name, request_details=request_details
+            )
+        else:
+            return super().create_request(
+                service_name=agent_name, request_details=request_details
+            )
 
     # TODO: Should we add edit_agent?
 
@@ -143,3 +142,13 @@ class Orchestrator(Tools):
             for name, description in potential_tools.items()
         )
         return f"Found available tools:\n{tools_str}"
+
+    def wait(self, reason: str):
+        """
+        Use this tool to wait for a specific reason, specially if a request should be completed or waiting for a response from an agent.
+
+        Args:
+            reason (str): The reason for waiting.
+        """
+        self.finish_process()
+        return "Waiting..."

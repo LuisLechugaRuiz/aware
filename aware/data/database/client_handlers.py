@@ -6,13 +6,12 @@ from typing import Optional
 
 from aware.agent.agent_data import AgentData
 from aware.agent.agent_builder import AgentBuilder
-from aware.agent.agent_state_machine import AgentState
 from aware.chat.conversation_schemas import (
     JSONMessage,
-    ToolResponseMessage,
-    UserMessage,
 )
+from aware.communications.events.event import Event
 from aware.communications.requests.request import Request
+from aware.communications.requests.service import ServiceData
 from aware.config.config import Config
 from aware.data.database.supabase_handler.supabase_handler import SupabaseHandler
 from aware.data.database.redis_handler.redis_handler import RedisHandler
@@ -23,7 +22,6 @@ from aware.memory.user.user_data import UserData
 from aware.process.process_ids import ProcessIds
 from aware.process.process_data import ProcessData
 from aware.process.process import Process
-from aware.server.tasks import preprocess
 from aware.tools.tools_manager import ToolsManager
 from aware.utils.logger.file_logger import FileLogger
 
@@ -112,6 +110,7 @@ class ClientHandlers:
         identity: str,
         task: str,
         instructions: str,
+        service_name: Optional[str],
     ) -> ProcessData:
         process_data = self.supabase_handler.create_process(
             user_id=user_id,
@@ -125,8 +124,29 @@ class ClientHandlers:
         self.redis_handler.set_process_data(
             process_id=process_data.id, process_data=process_data
         )
-        self.create_services(user_id, tools_class)
+        if service_name is None:
+            service_name = name  # Use the name of the process, otherwise the name of the Agent. TODO: Solve this by internal and external requests.
+        self.create_service(
+            user_id=user_id, tools_class=tools_class, name=name, description=task
+        )
         return process_data
+
+    def create_event(self, user_id: str, event_name: str, content: str) -> Event:
+        event = self.supabase_handler.create_event(
+            user_id=user_id,
+            event_name=event_name,
+            content=content,
+        )
+        self.redis_handler.create_event(
+            user_id=user_id,
+            event=event,
+        )
+        return event
+
+    def create_event_subscription(self, user_id: str, process_id: str, event_name: str):
+        self.supabase_handler.create_event_subscription(user_id, process_id, event_name)
+        self.redis_handler.create_event_subscription(user_id, process_id, event_name)
+        self.logger.info(f"DEBUG - Created event subscription {event_name}")
 
     def create_request(
         self,
@@ -149,23 +169,28 @@ class ClientHandlers:
         )
         return request
 
-    def create_services(self, user_id: str, tools_class: str):
-        """Create initial user services"""
-        services_data = ToolsManager(logger=self.logger).discover_services(tools_class)
-        for service_data in services_data:
-            service = self.supabase_handler.create_service(
-                user_id=user_id, tools_class=tools_class, service_data=service_data
-            )
-            self.redis_handler.set_service(service=service)
+    def create_service(
+        self, user_id: str, tools_class: str, name: str, description: str
+    ):
+        """Create new service"""
+        service_data = ServiceData(name=name, description=description)
+        service = self.supabase_handler.create_service(
+            user_id=user_id, tools_class=tools_class, service_data=service_data
+        )
+        self.redis_handler.set_service(service=service)
 
-    def create_subscription(self, process_id: str, topic_name: str):
-        self.supabase_handler.create_subscription(process_id, topic_name)
-        self.redis_handler.create_subscription(process_id, topic_name)
-        self.logger.info(f"DEBUG - Created subscription {topic_name}")
+    def create_topic_subscription(self, process_id: str, topic_name: str):
+        self.supabase_handler.create_topic_subscription(process_id, topic_name)
+        self.redis_handler.create_topic_subscription(process_id, topic_name)
+        self.logger.info(f"DEBUG - Created topic subscription {topic_name}")
 
     def create_topic(self, user_id: str, topic_name: str, topic_description: str):
         self.supabase_handler.create_topic(user_id, topic_name, topic_description)
         self.logger.info(f"DEBUG - Created topic {topic_name}")
+
+    # TODO: fetch from supabase as fallback
+    def get_agent_id_by_process_id(self, process_id: str) -> str:
+        return self.redis_handler.get_agent_id_by_process_id(process_id)
 
     def get_supabase_handler(self):
         return self._instance.supabase_handler
@@ -218,6 +243,9 @@ class ClientHandlers:
             self.logger.info("Agent process id found in Redis")
 
         return process_id
+
+    def get_processes_ids_by_event(self, user_id: str, event: Event):
+        return self.redis_handler.get_processes_ids_by_event(user_id, event)
 
     def get_process(self, process_ids: ProcessIds) -> Process:
         process = self.redis_handler.get_process(process_ids)
@@ -276,12 +304,12 @@ class ClientHandlers:
 
         return user_data
 
-    def publish(self, user_id: str, topic_name: str, topic_data: str):
+    def publish(self, user_id: str, topic_name: str, content: str):
         self.supabase_handler.set_topic_content(
-            user_id=user_id, name=topic_name, content=topic_data
+            user_id=user_id, name=topic_name, content=content
         )
-        self.redis_handler.set_topic_data(
-            user_id=user_id, topic_name=topic_name, topic_data=topic_data
+        self.redis_handler.set_topic_content(
+            user_id=user_id, topic_name=topic_name, content=content
         )
 
     def remove_active_process(self, process_id: str):

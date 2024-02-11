@@ -7,6 +7,21 @@ from openai.types.chat.chat_completion_message_tool_call import (
 from typing import Any, Dict, List
 
 
+def to_json_message(message_type: str, message_json_str: str):
+    message_class: JSONMessage = {
+        "UserMessage": UserMessage,
+        "AssistantMessage": AssistantMessage,
+        "SystemMessage": SystemMessage,
+        "ToolResponseMessage": ToolResponseMessage,
+        "ToolCalls": ToolCalls,
+    }.get(message_type)
+
+    if message_class:
+        return message_class.from_json(message_json_str)
+    else:
+        raise ValueError(f"Unknown message type: {message_type}")
+
+
 class JSONMessage(abc.ABC):
     def to_json(self):
         return json.dumps(self.to_dict())
