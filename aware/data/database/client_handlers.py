@@ -5,7 +5,6 @@ import threading
 from typing import Optional
 
 from aware.agent.agent_data import AgentData
-from aware.agent.agent_builder import AgentBuilder
 from aware.chat.conversation_schemas import (
     JSONMessage,
 )
@@ -16,13 +15,9 @@ from aware.config.config import Config
 from aware.data.database.supabase_handler.supabase_handler import SupabaseHandler
 from aware.data.database.redis_handler.redis_handler import RedisHandler
 from aware.data.database.redis_handler.async_redis_handler import AsyncRedisHandler
-from aware.data.database.data import get_topics
-from aware.memory.memory_manager import MemoryManager
-from aware.memory.user.user_data import UserData
 from aware.process.process_ids import ProcessIds
 from aware.process.process_data import ProcessData
 from aware.process.process import Process
-from aware.tools.tools_manager import ToolsManager
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -244,7 +239,7 @@ class ClientHandlers:
 
         return process_id
 
-    def get_processes_ids_by_event(self, user_id: str, event: Event):
+    def get_processes_ids_by_event(self, user_id: str, event: Event) -> List[str]:
         return self.redis_handler.get_processes_ids_by_event(user_id, event)
 
     def get_process(self, process_ids: ProcessIds) -> Process:
@@ -257,7 +252,7 @@ class ClientHandlers:
                 client_handlers=self, process_ids=process_ids
             )
             if process is None:
-                raise Exception("Process data not found")
+                raise Exception("Process data not found in supabase!")
 
             self.redis_handler.set_process(process)
         else:
@@ -270,39 +265,6 @@ class ClientHandlers:
         if len(requests) > 0:
             return requests[0]
         return None
-
-    def get_user_data(self, user_id: str) -> UserData:
-        user_data = self.redis_handler.get_user_data(user_id)
-
-        if user_data is None:
-            self.logger.info("User data not found in Redis")
-            # Fetch user profile from Supabase
-            user_profile = self.supabase_handler.get_user_profile(user_id)
-            if user_profile is None:
-                raise Exception("User profile not found")
-
-            if not user_profile["initialized"]:
-                try:
-                    self.initialize_user(
-                        user_id=user_id, user_name=user_profile["display_name"]
-                    )
-                    user_profile["initialized"] = True
-                    self.supabase_handler.update_user_profile(user_id, user_profile)
-                except Exception as e:
-                    self.logger.error(f"Error while initializing user: {e}")
-                    raise e
-
-            # Store user data in redis
-            user_data = UserData(
-                user_id=user_id,
-                user_name=user_profile["display_name"],
-                api_key=user_profile["openai_api_key"],
-            )
-            self.redis_handler.set_user_data(user_data)
-        else:
-            self.logger.info("User data found in Redis")
-
-        return user_data
 
     def publish(self, user_id: str, topic_name: str, content: str):
         self.supabase_handler.set_topic_content(
@@ -330,38 +292,3 @@ class ClientHandlers:
             return "Success"
         except Exception as e:
             return f"Failure: {str(e)}"
-
-    def initialize_user(self, user_id: str, user_name: str):
-        # Create user on Weaviate
-        try:
-            memory_manager = MemoryManager(user_id=user_id, logger=self.logger)
-            result = memory_manager.create_user(user_id=user_id, user_name=user_name)
-        except Exception as e:
-            self.logger.error(f"Error while creating weaviate user: {e}")
-            raise e
-        if result.error:
-            self.logger.info(
-                f"DEBUG - error creating weaviate user result: {result.error}"
-            )
-        else:
-            self.logger.info(
-                f"DEBUG - success creating weaviate user result: {result.data}"
-            )
-        try:
-            assistant_name = "aware"  # TODO: GET FROM SUPABASE!
-            AgentBuilder(user_id=user_id, client_handlers=self).initialize_user_agents(
-                assistant_name=assistant_name
-            )
-
-            # Create initial user topics TODO: Refactor, verify if needed!
-            topics_data = get_topics()
-            if topics_data is None:
-                self.logger.error("DEBUG - No topics data")
-                raise Exception("No topics data")
-            self.logger.info(f"DEBUG - Got topics data: {topics_data}")
-            for topic_name, topic_description in topics_data.items():
-                self.create_topic(user_id, topic_name, topic_description)
-
-        except Exception as e:
-            self.logger.error(f"Error while updating agent profile: {e}")
-            raise e

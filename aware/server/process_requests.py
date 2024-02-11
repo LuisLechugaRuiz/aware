@@ -2,7 +2,7 @@ import asyncio
 
 from aware.data.database.client_handlers import ClientHandlers
 from aware.models.private.openai.openai import OpenAIModel
-from aware.server.tasks import postprocess
+from aware.server.tasks.postprocess import postprocess
 from aware.utils.logger.file_logger import FileLogger
 
 

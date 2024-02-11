@@ -2,7 +2,6 @@ from jinja2 import Environment, FileSystemLoader, Template, meta
 from pathlib import Path
 from typing import Dict, Optional
 
-from aware.data.database.client_handlers import ClientHandlers
 from aware.utils.logger.file_logger import FileLogger
 
 

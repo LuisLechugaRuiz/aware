@@ -1,15 +1,17 @@
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, Dict, List, Tuple, TYPE_CHECKING
 import uuid
 
 from aware.chat.call_info import CallInfo
 from aware.chat.conversation import Conversation
 from aware.chat.conversation_schemas import SystemMessage
 from aware.chat.parser.pydantic_parser import PydanticParser
-from aware.data.database.client_handlers import ClientHandlers
 from aware.prompts.load import load_prompt_from_args
 from aware.process.process_ids import ProcessIds
 from aware.utils.helpers import get_current_date
 from aware.utils.logger.file_logger import FileLogger
+
+if TYPE_CHECKING:
+    from aware.data.database.client_handlers import ClientHandlers
 
 
 class Chat:
@@ -17,6 +19,7 @@ class Chat:
 
     def __init__(
         self,
+        client_handlers: "ClientHandlers",
         process_ids: ProcessIds,
         process_name: str,
         prompt_kwargs: Dict[str, str],
@@ -28,8 +31,10 @@ class Chat:
         self.system_message = self.get_system(
             prompt_kwargs=prompt_kwargs,
         )
-        self.conversation = Conversation(process_id=self.process_ids.process_id)
-        self.redis_handler = ClientHandlers().get_redis_handler()
+        self.conversation = Conversation(
+            client_handlers=client_handlers, process_id=self.process_ids.process_id
+        )
+        self.redis_handler = client_handlers.get_redis_handler()
 
         self.logger = logger
 

@@ -1,14 +1,16 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from aware.agent.agent_data import AgentData
 from aware.chat.conversation_schemas import AssistantMessage
 from aware.communications.requests.request import Request
 from aware.config.config import Config
-from aware.data.database.client_handlers import ClientHandlers
 from aware.process.process_ids import ProcessIds
 from aware.utils.logger.file_logger import FileLogger
 from aware.tools.decorators import default_function
 from aware.tools.tools import Tools
+
+if TYPE_CHECKING:
+    from aware.data.database.client_handlers import ClientHandlers
 
 DEF_IDENTITY = """You are {{ name }}, an advanced virtual assistant within a comprehensive AI system."""
 DEF_TASK = """Your task is to assist users by providing tailored responses or generating requests for the orchestrator,
@@ -79,7 +81,7 @@ class Assistant(Tools):
             name=Config().assistant_name, content=message
         )
         logger.info(f"Sending message to user: {assistant_message.to_string()}")
-        ClientHandlers().get_supabase_handler().send_message_to_user(
+        self.client_handlers.get_supabase_handler().send_message_to_user(
             user_id=self.process_ids.user_id,
             process_id=self.process_ids.process_id,
             message_type=assistant_message.__class__.__name__,
@@ -87,7 +89,7 @@ class Assistant(Tools):
             name=assistant_message.name,
             content=assistant_message.content,
         )
-        self.stop_agent()
+        self.finish_process()
         return "Message sent to the user."
 
     def search_info(self, query: str):

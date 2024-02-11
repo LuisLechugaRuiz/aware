@@ -55,16 +55,13 @@ class Process(ProcessInterface):
     ):
         prompt_kwargs = self.get_prompt_kwargs()
         chat = Chat(
+            client_handlers=self.client_handlers,
             process_ids=self.ids,
             process_name=self.process_data.name,
             prompt_kwargs=prompt_kwargs,
             logger=self.get_logger(),
         )
         chat.request_response(self.tools.get_tools())
-        return self
-
-    def postprocess(self):
-        self.initialized_for_postprocessing = True
         return self
 
     def get_default_tool_call(

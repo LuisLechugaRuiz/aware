@@ -1,15 +1,16 @@
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from aware.agent.agent_data import AgentData
-from aware.chat.conversation_schemas import AssistantMessage
 from aware.communications.requests.request import Request
-from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
 from aware.process.process_ids import ProcessIds
 from aware.process.process_handler import ProcessHandler
 from aware.tools.decorators import default_function
 from aware.tools.tools import Tools
 from aware.utils.logger.file_logger import FileLogger
+
+if TYPE_CHECKING:
+    from aware.data.database.client_handlers import ClientHandlers
 
 DEF_IDENTITY = """You are thought_generator, a process responsible for generating thoughts to optimize the performance of a specific agent."""
 DEF_TASK = """Your task is to optimize {{ agent }}'s performance in executing its task through strategic thought generation.
@@ -90,6 +91,6 @@ class ThoughtGenerator(Tools):
         Args:
             thought (str): The thought to be processed.
         """
-        ProcessHandler().add_thought(process_ids=self.process_ids, thought=thought)
+        self.process_handler.add_thought(process_ids=self.process_ids, thought=thought)
         self.finish_process()
         return "Final thought saved, stopping agent."
