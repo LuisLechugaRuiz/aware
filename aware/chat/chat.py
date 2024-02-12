@@ -19,7 +19,6 @@ class Chat:
 
     def __init__(
         self,
-        client_handlers: "ClientHandlers",
         process_ids: ProcessIds,
         process_name: str,
         prompt_kwargs: Dict[str, str],
@@ -31,10 +30,8 @@ class Chat:
         self.system_message = self.get_system(
             prompt_kwargs=prompt_kwargs,
         )
-        self.conversation = Conversation(
-            client_handlers=client_handlers, process_id=self.process_ids.process_id
-        )
-        self.redis_handler = client_handlers.get_redis_handler()
+        self.conversation = Conversation(process_id=self.process_ids.process_id)
+        self.redis_handler = ClientHandlers().get_redis_handler()
 
         self.logger = logger
 

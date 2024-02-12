@@ -5,13 +5,23 @@ from aware.chat.conversation_schemas import (
     AssistantMessage,
     ToolCalls,
 )
-from aware.data.database.client_handlers import ClientHandlers
 from aware.process.process_handler import ProcessHandler
-from aware.server.celery_app import celery_app
+from aware.process.process import Process
+from aware.process.process_ids import ProcessIds
+from aware.server.celery_app import app
+from aware.server.task_executor import TaskExecutor
 from aware.utils.logger.file_logger import FileLogger
 
 
-@celery_app.task(name="server.postprocess")
+# ENTRY POINT!
+@app.task(name="server.preprocess")
+def preprocess(process_ids_str: str):
+    process_ids = ProcessIds.from_json(process_ids_str)
+    process = Process(process_ids.process_id)
+    process.preprocess()
+
+
+@app.task(name="server.postprocess")
 def postprocess(response_str: str, call_info_str: str):
     # we need to check if have tool_calls at the processes
     logger = FileLogger("migration_tests")
@@ -20,7 +30,7 @@ def postprocess(response_str: str, call_info_str: str):
     try:
         # 1. Get process.
         call_info = CallInfo.from_json(call_info_str)
-        process = ClientHandlers().get_process(call_info.process_ids.process_id)
+        process = Process(call_info.process_ids)
 
         # 2. Reconstruct response.
         openai_response = ChatCompletionMessage.model_validate_json(response_str)
@@ -45,7 +55,7 @@ def postprocess(response_str: str, call_info_str: str):
 
         logger.info("Adding message to redis and supabase")
         # 3. Upload message to Supabase and Redis.
-        process_handler = ProcessHandler(ClientHandlers())
+        process_handler = ProcessHandler()
         process_handler.add_message(
             process_ids=call_info.process_ids, message=new_message
         )
@@ -82,6 +92,10 @@ def postprocess(response_str: str, call_info_str: str):
 
 
 # TODO: Can have multiple tools.
-@celery_app.task(name="server.process_tool_feedback")
+@app.task(name="server.process_tool_feedback")
 def process_tool_feedback(tool_name: str, feedback: str, call_info: CallInfo):
     pass
+
+
+TaskExecutor().register_task("preprocess", preprocess)
+TaskExecutor().register_task("postprocess", postprocess)

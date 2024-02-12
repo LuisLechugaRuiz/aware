@@ -40,7 +40,7 @@ class MessagesListener:
             content = data["content"]
             user_data = UserBuilder(user_id).get_user_data()
             logger.info(f"Processing new user message: {content}")
-            ProcessHandler(ClientHandlers()).create_event(
+            ProcessHandler().create_event(
                 user_id=user_id,
                 event_name="user_message",
                 message_name=user_data.user_name,

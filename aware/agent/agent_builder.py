@@ -1,22 +1,17 @@
-from typing import TYPE_CHECKING
-
 from aware.agent.agent_data import ThoughtGeneratorMode
+from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
 from aware.process.process_data import ProcessData
-from aware.tools.core.assistant import Assistant
-from aware.tools.core.orchestrator import Orchestrator
-from aware.tools.private.data_storage_manager import DataStorageManager
-from aware.tools.private.thought_generator import ThoughtGenerator
+from aware.tools.default_data.assistant_data import Assistant
+from aware.tools.default_data.orchestrator_data import Orchestrator
+from aware.tools.default_data.data_storage_manager_data import DataStorageManager
+from aware.tools.default_data.thought_generator_data import ThoughtGenerator
 from aware.utils.logger.file_logger import FileLogger
-
-if TYPE_CHECKING:
-    from aware.data.database.client_handlers import ClientHandlers
 
 
 class AgentBuilder:
-    def __init__(self, user_id: str, client_handlers: "ClientHandlers"):
+    def __init__(self, user_id: str):
         self.user_id = user_id
-        self.client_handlers = client_handlers
         self.memory_manager = MemoryManager(user_id=user_id, logger=self.logger)
         self.logger = FileLogger("agent_builder")
 
@@ -27,8 +22,8 @@ class AgentBuilder:
             tools_class=Assistant.__name__,
             identity=Assistant.get_identity(assistant_name=assistant_name),
             task=Assistant.get_task(),
-            instructions="",  # TODO: Fill me!
-            thought_generator_mode=ThoughtGeneratorMode.PRE,
+            instructions=Assistant.get_instructions(),
+            thought_generator_mode=ThoughtGeneratorMode.POST,
         )
         # TODO: Should we add a get_event for each tool? We want both: Flexible events, but some can be attached directly to tool? TBD.
         ClientHandlers().create_event_subscription(
@@ -42,8 +37,8 @@ class AgentBuilder:
             tools_class=Orchestrator.__name__,
             identity=Orchestrator.get_identity(),
             task=Orchestrator.get_task(),
-            instructions="",  # TODO: Fill me!
-            thought_generator_mode=ThoughtGeneratorMode.POST,
+            instructions=Orchestrator.get_instructions(),
+            thought_generator_mode=ThoughtGeneratorMode.PRE,
         )
 
     def create_agent(
@@ -53,11 +48,11 @@ class AgentBuilder:
         identity: str,
         task: str,
         instructions: str,
-        thought_generator_mode: ThoughtGeneratorMode = ThoughtGeneratorMode.POST,
+        thought_generator_mode: ThoughtGeneratorMode = ThoughtGeneratorMode.PRE,
     ) -> ProcessData:
         """Create a new agent"""
         try:
-            agent_data = self.client_handlers.create_agent(
+            agent_data = ClientHandlers().create_agent(
                 user_id=self.user_id,
                 name=name,
                 tools_class=tools_class,
@@ -72,7 +67,7 @@ class AgentBuilder:
             )
 
             # Create the processes
-            main_process_data = self.client_handlers.create_process(
+            main_process_data = ClientHandlers().create_process(
                 user_id=self.user_id,
                 agent_id=agent_data.id,
                 name="main",
@@ -83,7 +78,7 @@ class AgentBuilder:
                 service_name=name,  # Use the name of the agent as service name, TODO: Fix me using internal and external requests.
             )
             # Create thought generator process
-            self.client_handlers.create_process(
+            ClientHandlers().create_process(
                 user_id=self.user_id,
                 agent_id=agent_data.id,
                 name=ThoughtGenerator.get_tool_name(),
@@ -93,7 +88,7 @@ class AgentBuilder:
                 instructions=ThoughtGenerator.get_instructions(),
             )
             # Create data storage manager process
-            data_storage_process_data = self.client_handlers.create_process(
+            data_storage_process_data = ClientHandlers().create_process(
                 user_id=self.user_id,
                 agent_id=agent_data.id,
                 name=DataStorageManager.get_tool_name(),
@@ -103,12 +98,12 @@ class AgentBuilder:
                 instructions=DataStorageManager.get_instructions(agent=name),
             )
             # TODO: Here we need differentiation between internal topics - between processes of same agent and external topics between agents... otherwise here agent_interactions would be any.
-            self.client_handlers.create_topic(
+            ClientHandlers().create_topic(
                 user_id=self.user_id,
                 topic_name="agent_interactions",
                 topic_description="Agent interactions:",
             )
-            self.client_handlers.create_topic_subscription(
+            ClientHandlers().create_topic_subscription(
                 process_id=data_storage_process_data.id, topic_name="agent_interactions"
             )
             return main_process_data

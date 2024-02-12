@@ -19,8 +19,6 @@ from aware.communications.requests.request import Request
 from aware.communications.requests.service import Service
 from aware.communications.topics.subscription import TopicSubscription
 from aware.process.process_data import ProcessData
-from aware.process.process_ids import ProcessIds
-from aware.process.process import Process
 from aware.process.process_communications import ProcessCommunications
 from aware.utils.helpers import (
     convert_timestamp_to_epoch,
@@ -224,26 +222,7 @@ class RedisHandler:
 
         return messages
 
-    def get_process(self, process_ids: ProcessIds) -> Optional[Process]:
-        process_communications = self.get_process_communications(
-            process_id=process_ids.process_id
-        )
-        process_data = self.get_process_data(process_id=process_ids.process_id)
-        agent_data = self.get_agent_data(agent_id=process_ids.agent_id)
-
-        if process_data and agent_data:
-            return Process(
-                client_handlers=self,
-                ids=process_ids,
-                process_communications=process_communications,
-                process_data=process_data,
-                agent_data=agent_data,
-            )
-        return None
-
-    def get_process_communications(
-        self, process_id: str
-    ) -> Optional[ProcessCommunications]:
+    def get_process_communications(self, process_id: str) -> ProcessCommunications:
         outgoing_requests = self.get_requests(
             f"client_process:{process_id}:request:order"
         )
@@ -261,8 +240,8 @@ class RedisHandler:
             topic_subscriptions=topic_subscriptions,
         )
 
-    def get_process_data(self, process_ids: ProcessIds) -> Optional[ProcessData]:
-        data = self.client.get(f"process_data:{process_ids}")
+    def get_process_data(self, process_id: str) -> Optional[ProcessData]:
+        data = self.client.get(f"process_data:{process_id}")
         if data:
             return ProcessData.from_json(data)
         return None
@@ -365,16 +344,8 @@ class RedisHandler:
             self.create_request(process_communications.incoming_request)
         for request in process_communications.outgoing_requests:
             self.create_request(request)
-        for subscription in process_communications.subscriptions:
+        for subscription in process_communications.topic_subscriptions:
             self.create_topic_subscription(process_id, subscription)
-        # TODO: Add events!
-
-    def set_process(self, process: Process):
-        self.set_process_data(process.ids.process_id, process.process_data)
-        self.set_process_communications(
-            process.ids.process_id, process.process_communications
-        )
-        self.set_agent_data(process.ids.agent_id, process.agent_data)
 
     def set_service(
         self,

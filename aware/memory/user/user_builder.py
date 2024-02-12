@@ -64,9 +64,9 @@ class UserBuilder:
             )
         try:
             assistant_name = "aware"  # TODO: GET FROM SUPABASE!
-            AgentBuilder(
-                user_id=self.user_id, client_handlers=self
-            ).initialize_user_agents(assistant_name=assistant_name)
+            AgentBuilder(user_id=self.user_id).initialize_user_agents(
+                assistant_name=assistant_name
+            )
 
             # Create initial user topics TODO: Refactor, verify if needed!
             topics_data = get_topics()

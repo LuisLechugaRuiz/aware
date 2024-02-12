@@ -2,7 +2,6 @@ from aware.agent.agent_data import AgentData, AgentState, ThoughtGeneratorMode
 from aware.process.process_communications import ProcessCommunications
 
 
-# TODO: make this cleaner, a small self.state machine to decide which process run first.
 class AgentStateMachine:
     def __init__(
         self,

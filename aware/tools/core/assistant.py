@@ -1,49 +1,16 @@
-from typing import Optional, TYPE_CHECKING
-
-from aware.agent.agent_data import AgentData
 from aware.chat.conversation_schemas import AssistantMessage
-from aware.communications.requests.request import Request
-from aware.config.config import Config
-from aware.process.process_ids import ProcessIds
-from aware.utils.logger.file_logger import FileLogger
+from aware.data.database.client_handlers import ClientHandlers
+from aware.process.process_info import ProcessInfo
 from aware.tools.decorators import default_function
 from aware.tools.tools import Tools
-
-if TYPE_CHECKING:
-    from aware.data.database.client_handlers import ClientHandlers
-
-DEF_IDENTITY = """You are {{ name }}, an advanced virtual assistant within a comprehensive AI system."""
-DEF_TASK = """Your task is to assist users by providing tailored responses or generating requests for the orchestrator,
-which oversees a multi-agent system. Additionally, you're responsible for notifying users of updates or responses.
-Ensure seamless integration of user requests, provide direct assistance, delegate tasks efficiently, and transfer unsolvable chat requests to the system.
-Maintain a seamless user experience by avoiding mentioning system limitations. Optionally utilize search user data for personalized responses."""
 
 
 class Assistant(Tools):
     def __init__(
         self,
-        client_handlers: "ClientHandlers",
-        process_ids: ProcessIds,
-        agent_data: AgentData,
-        request: Optional[Request],
-        run_remote: bool = False,
+        process_info: ProcessInfo,
     ):
-        super().__init__(
-            client_handlers=client_handlers,
-            process_ids=process_ids,
-            agent_data=agent_data,
-            request=request,
-            run_remote=run_remote,
-        )
-        self.logger = FileLogger("assistant")
-
-    @classmethod
-    def get_identity(cls, assistant_name: str) -> str:
-        return DEF_IDENTITY.format(name=assistant_name)
-
-    @classmethod
-    def get_task(cls) -> str:
-        return DEF_TASK.format()
+        super().__init__(process_info=process_info)
 
     def get_tools(self):
         return [
@@ -76,12 +43,9 @@ class Assistant(Tools):
         Returns:
             str
         """
-        logger = FileLogger("migration_tests")
-        assistant_message = AssistantMessage(
-            name=Config().assistant_name, content=message
-        )
-        logger.info(f"Sending message to user: {assistant_message.to_string()}")
-        self.client_handlers.get_supabase_handler().send_message_to_user(
+        assistant_message = AssistantMessage(name=self.agent_data.name, content=message)
+        self.logger.info(f"Sending message to user: {assistant_message.to_string()}")
+        ClientHandlers().get_supabase_handler().send_message_to_user(
             user_id=self.process_ids.user_id,
             process_id=self.process_ids.process_id,
             message_type=assistant_message.__class__.__name__,

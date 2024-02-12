@@ -2,7 +2,7 @@ from supabase import create_client
 from redis import asyncio as aioredis
 import redis
 import threading
-from typing import Optional
+from typing import List, Optional
 
 from aware.agent.agent_data import AgentData
 from aware.chat.conversation_schemas import (
@@ -16,8 +16,9 @@ from aware.data.database.supabase_handler.supabase_handler import SupabaseHandle
 from aware.data.database.redis_handler.redis_handler import RedisHandler
 from aware.data.database.redis_handler.async_redis_handler import AsyncRedisHandler
 from aware.process.process_ids import ProcessIds
+from aware.process.process_communications import ProcessCommunications
 from aware.process.process_data import ProcessData
-from aware.process.process import Process
+from aware.process.process_info import ProcessInfo
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -242,23 +243,58 @@ class ClientHandlers:
     def get_processes_ids_by_event(self, user_id: str, event: Event) -> List[str]:
         return self.redis_handler.get_processes_ids_by_event(user_id, event)
 
-    def get_process(self, process_ids: ProcessIds) -> Process:
-        process = self.redis_handler.get_process(process_ids)
+    def get_process_data(self, process_id: str) -> ProcessData:
+        process_data = self.redis_handler.get_process_data(process_id)
 
-        if process is None:
-            self.logger.info("Process not found in Redis")
-            # Fetch process from Supabase
-            process = self.supabase_handler.get_process(
-                client_handlers=self, process_ids=process_ids
+        if process_data is None:
+            self.logger.info("Process data not found in Redis")
+            # Fetch agent data from Supabase
+            process_data = self.supabase_handler.get_process_data(process_id)
+            if process_data is None:
+                raise Exception("Process data not found on Supabase")
+
+            self.redis_handler.set_process_data(
+                process_id=process_id, process_data=process_data
             )
-            if process is None:
-                raise Exception("Process data not found in supabase!")
-
-            self.redis_handler.set_process(process)
         else:
             self.logger.info("Process data found in Redis")
 
-        return process
+        return process_data
+
+    def get_process_communications(self, process_id: str) -> ProcessCommunications:
+        process_communications = self.redis_handler.get_process_communications(
+            process_id=process_id,
+        )
+
+        if process_communications is None:
+            self.logger.info("Process Communications not found in Redis")
+            # Fetch agent data from Supabase
+            process_communications = self.supabase_handler.get_process_communications(
+                process_id=process_id
+            )
+            if process_communications is None:
+                raise Exception("Process Communications not found on Supabase")
+
+            self.redis_handler.set_process_communications(
+                process_id=process_id, process_communications=process_communications
+            )
+        else:
+            self.logger.info("Process Communications found in Redis")
+
+        return process_communications
+
+    def get_process_info(self, process_ids: ProcessIds) -> ProcessInfo:
+        agent_data = self.get_agent_data(agent_id=process_ids.agent_id)
+        process_data = self.get_process_data(process_id=process_ids.process_id)
+        process_communications = self.get_process_communications(
+            process_id=process_ids.process_id
+        )
+        return ProcessInfo(
+            agent_data=agent_data,
+            process_ids=process_ids,
+            process_data=process_data,
+            process_communications=process_communications,
+        )
 
     def get_request(self, process_id: str) -> Optional[Request]:
         requests = self.redis_handler.get_requests(process_id=process_id)

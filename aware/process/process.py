@@ -1,53 +1,46 @@
 from openai.types.chat import ChatCompletionMessageToolCall
-from typing import List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional
 
-from aware.agent.agent_data import AgentData
 from aware.chat.chat import Chat
 from aware.chat.conversation_schemas import ToolResponseMessage
-from aware.process.process_data import ProcessData
+from aware.data.database.client_handlers import ClientHandlers
 from aware.process.process_ids import ProcessIds
-from aware.process.process_interface import ProcessInterface
-from aware.process.process_communications import ProcessCommunications
+from aware.process.process_info import ProcessInfo
 from aware.tools.tools_manager import ToolsManager
 from aware.tools.tools import FunctionCall, Tools
 from aware.utils.logger.file_logger import FileLogger
 
-if TYPE_CHECKING:
-    from aware.data.database.client_handlers import ClientHandlers
 
-
-class Process(ProcessInterface):
+class Process:
     def __init__(
         self,
-        client_handlers: ClientHandlers,
         ids: ProcessIds,
-        process_communications: ProcessCommunications,
-        process_data: ProcessData,
-        agent_data: AgentData,
     ):
-        super().__init__(
-            ids=ids,
-            process_data=process_data,
-            process_communications=process_communications,
-            agent_data=agent_data,
-        )
+        process_info = ClientHandlers().get_process_info(process_ids=ids)
 
-        self.client_handlers = client_handlers
+        # Get process info
+        self.ids = ids
+        self.agent_data = process_info.agent_data
+        self.process_data = process_info.process_data
+        self.process_communications = process_info.process_communications
+
+        # Initialize tool
         self.tools_manager = ToolsManager(self.get_logger())
-        self.tools = self._get_tools()
+        self.tools = self._get_tools(process_info=process_info)
 
-    def _get_tools(self) -> Tools:
-        tools_class = self.client_handlers.get_tools_class(
-            process_id=self.ids.process_id
-        )
+    def get_prompt_kwargs(self) -> Dict[str, Any]:
+        prompt_kwargs = self.process_data.to_prompt_kwargs()
+        prompt_kwargs.update(self.process_communications.to_prompt_kwargs())
+        prompt_kwargs.update(self.agent_data.to_prompt_kwargs())
+        return prompt_kwargs
+
+    def _get_tools(self, process_info: ProcessInfo) -> Tools:
+        tools_class = ClientHandlers().get_tools_class(process_id=self.ids.process_id)
         tools_class_type = self.tools_manager.get_tools(name=tools_class)
         if tools_class_type is None:
             raise Exception("Tools class not found")
         return tools_class_type(
-            client_handlers=self.client_handlers,
-            process_ids=self.ids,
-            agent_data=self.agent_data,
-            request=self.get_current_request(),
+            process_info=process_info,
         )
 
     def preprocess(
@@ -55,7 +48,6 @@ class Process(ProcessInterface):
     ):
         prompt_kwargs = self.get_prompt_kwargs()
         chat = Chat(
-            client_handlers=self.client_handlers,
             process_ids=self.ids,
             process_name=self.process_data.name,
             prompt_kwargs=prompt_kwargs,
