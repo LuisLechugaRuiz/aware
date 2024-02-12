@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import json
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Optional
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
     Function,
@@ -9,41 +9,35 @@ import re
 import uuid
 import inspect
 
-from aware.agent.agent_data import AgentData
-from aware.communications.requests.request import Request
-from aware.process.process_ids import ProcessIds
-from aware.process.process_data import ProcessData
+from aware.data.database.client_handlers import ClientHandlers
+from aware.memory.memory_manager import MemoryManager
+from aware.process.process_info import ProcessInfo
 from aware.process.process_handler import ProcessHandler
-
-if TYPE_CHECKING:
-    from aware.data.database.client_handlers import ClientHandlers
+from aware.utils.logger.file_logger import FileLogger
 
 
-# TODO: Run remote should be a decorator.
 class Tools(ABC):
     def __init__(
         self,
-        client_handlers: "ClientHandlers",
-        process_ids: ProcessIds,
-        process_data: ProcessData,
-        agent_data: AgentData,
-        request: Optional[Request],
-        run_remote: bool = False,
+        process_info: ProcessInfo,
     ):
-        self.client_handlers = client_handlers
-
-        self.process_ids = process_ids
-        self.process_data = process_data
-        self.agent_data = agent_data
-        self.request = request
+        self.agent_data = process_info.agent_data
+        self.process_ids = process_info.process_ids
+        self.process_data = process_info.process_data
+        self.request = process_info.process_communications.incoming_request
 
         self.default_tools = self._get_default_tools()
-        self.process_handler = ProcessHandler(client_handlers=self.client_handlers)
+        self.memory_manager = MemoryManager(
+            user_id=self.process_ids.user_id, logger=self.logger
+        )
+        self.process_handler = ProcessHandler()
 
-        self.run_remote = run_remote
+        self.run_remote = False  # TODO: Make this a decorator for each function!
         self.finished = False
         self.async_request_scheduled = False
         self.sync_request_scheduled = False
+
+        self.logger = FileLogger(self.get_process_name())
 
     def create_async_request(self, service_name: str, query: str):
         self.async_request_scheduled = True
@@ -99,8 +93,13 @@ class Tools(ABC):
 
     @classmethod
     def get_tool_name(cls):
+        # Convert class name to snake_case
+        return cls.get_snake_case_name(__class__.__name__)
+
+    @classmethod
+    def get_snake_case_name(cls, name: str):
         # Convert from CamelCase to snake_case
-        name = re.sub(r"(?<!^)(?=[A-Z])", "_", cls.__class__.__name__).lower()
+        name = re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
         return name
 
     def get_default_tool_call(
@@ -133,7 +132,7 @@ class Tools(ABC):
         return self.sync_request_scheduled
 
     def update_agent_data(self):
-        return self.client_handlers.update_agent_data(
+        return ClientHandlers().update_agent_data(
             agent_id=self.process_ids.agent_id,
             agent_data=self.agent_data,
         )
@@ -150,7 +149,7 @@ class Tools(ABC):
         """
         self.request.data.feedback = feedback
 
-        return self.client_handlers.send_feedback(
+        return ClientHandlers().send_feedback(
             request=self.request,
         )
 

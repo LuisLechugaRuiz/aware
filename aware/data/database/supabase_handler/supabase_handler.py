@@ -1,5 +1,5 @@
 from supabase import Client
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional
 
 from aware.agent.agent_data import AgentData, AgentState, ThoughtGeneratorMode
 from aware.chat.conversation_schemas import ChatMessage, JSONMessage
@@ -10,14 +10,9 @@ from aware.communications.topics.subscription import TopicSubscription
 from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
 from aware.process.process_data import ProcessData
-from aware.process.process_ids import ProcessIds
 from aware.process.process_communications import ProcessCommunications
-from aware.process.process import Process
 from aware.tools.profile import Profile
 from aware.utils.logger.file_logger import FileLogger
-
-if TYPE_CHECKING:
-    from aware.data.database.client_handlers import ClientHandlers
 
 
 class SupabaseHandler:
@@ -423,32 +418,29 @@ class SupabaseHandler:
             )
         return requests
 
-    def get_process_communications(
-        self, process_ids: ProcessIds
-    ) -> Optional[ProcessCommunications]:
+    def get_process_communications(self, process_id: str) -> ProcessCommunications:
         outgoing_requests = self.get_requests(
-            key_process_id="client_process_id", process_id=process_ids.process_id
+            key_process_id="client_process_id", process_id=process_id
         )
         incoming_requests = self.get_requests(
-            key_process_id="service_process_id", process_id=process_ids.process_id
+            key_process_id="service_process_id", process_id=process_id
         )
         if len(incoming_requests) > 0:
             incoming_request = incoming_requests[0]
         else:
             incoming_request = None
-        topic_subscriptions = self.get_topic_subscriptions(process_ids.process_id)
-        # TODO: Add events!
+        topic_subscriptions = self.get_topic_subscriptions(process_id)
         return ProcessCommunications(
             outgoing_requests=outgoing_requests,
             incoming_request=incoming_request,
             subscriptions=topic_subscriptions,
         )
 
-    def get_process_data(self, process_ids: ProcessIds) -> Optional[ProcessData]:
+    def get_process_data(self, process_id: str) -> Optional[ProcessData]:
         data = (
             self.client.table("processes")
             .select("*")
-            .eq("id", process_ids.process_id)
+            .eq("id", process_id)
             .execute()
             .data
         )
@@ -461,21 +453,6 @@ class SupabaseHandler:
             identity=data["identity"],
             task=data["task"],
             instructions=data["instructions"],
-        )
-
-    def get_process(
-        self, client_handlers: "ClientHandlers", process_ids: ProcessIds
-    ) -> Optional[Process]:
-        process_communications = self.get_process_communications(process_ids)
-        process_data = self.get_process_data(process_ids)
-        agent_data = self.get_agent_data(process_ids.agent_id)
-
-        return Process(
-            client_handlers=client_handlers,
-            ids=process_ids,
-            process_communications=process_communications,
-            process_data=process_data,
-            agent_data=agent_data,
         )
 
     def get_user_profile(self, user_id: str):

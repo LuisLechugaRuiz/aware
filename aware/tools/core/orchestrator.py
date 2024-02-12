@@ -1,18 +1,8 @@
-from typing import Dict, List, Optional, TYPE_CHECKING
+from typing import Dict, List
 
 from aware.agent.agent_builder import AgentBuilder
-from aware.agent.agent_data import AgentData
-from aware.communications.requests.request import Request
-from aware.memory.memory_manager import MemoryManager
-from aware.process.process_ids import ProcessIds
+from aware.process.process_info import ProcessInfo
 from aware.tools.tools import Tools
-from aware.utils.logger.file_logger import FileLogger
-
-if TYPE_CHECKING:
-    from aware.data.database.client_handlers import ClientHandlers
-
-DEF_IDENTITY = """You are orchestrator, an advanced virtual assistant capable of managing multiple agents to solve complex tasks"""
-DEF_TASK = """Your task is to delegate atomic requests to the appropriate agents and manage the communication between them."""
 
 
 class Orchestrator(Tools):
@@ -20,32 +10,10 @@ class Orchestrator(Tools):
 
     def __init__(
         self,
-        client_handlers: "ClientHandlers",
-        process_ids: ProcessIds,
-        agent_data: AgentData,
-        request: Optional[Request],
-        run_remote: bool = False,
+        process_info: ProcessInfo,
     ):
-        super().__init__(
-            client_handlers=client_handlers,
-            process_ids=process_ids,
-            agent_data=agent_data,
-            request=request,
-            run_remote=run_remote,
-        )
-        self.agent_builder = AgentBuilder(client_handlers=self.client_handlers)
-        self.memory_manager = MemoryManager(
-            user_id=self.process_ids.user_id, logger=self.logger
-        )
-        self.logger = FileLogger("orchestrator")
-
-    @classmethod
-    def get_identity(cls) -> str:
-        return DEF_IDENTITY
-
-    @classmethod
-    def get_task(cls) -> str:
-        return DEF_TASK
+        super().__init__(process_info=process_info)
+        self.agent_builder = AgentBuilder(user_id=self.process_ids.user_id)
 
     def get_tools(self):
         return [
@@ -71,7 +39,6 @@ class Orchestrator(Tools):
         """
         try:
             self.agent_builder.create_agent(
-                user_id=self.process_ids.user_id,
                 name=name,
                 tools_class=tools,
                 identity=identity,
