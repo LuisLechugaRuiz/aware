@@ -12,6 +12,7 @@ from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
 from aware.memory.user.user_data import UserData
 from aware.process.process_data import ProcessData
+from aware.process.process_ids import ProcessIds
 from aware.process.process_communications import ProcessCommunications
 from aware.tools.profile import Profile
 from aware.utils.logger.file_logger import FileLogger
@@ -158,16 +159,16 @@ class SupabaseHandler:
             timestamp=response["created_at"],
         )
 
-    def create_event_subscription(self, user_id: str, process_id: str, event_name: str):
+    def create_event_subscription(self, process_ids: ProcessIds, event_name: str):
         logger = FileLogger("migration_tests")
         logger.info(
-            f"DEBUG - Creating subscription to event: {event_name} for user: {user_id} and process: {process_id}"
+            f"DEBUG - Creating subscription to event: {event_name} for user: {process_ids.user_id} and process: {process_ids.process_id}"
         )
         self.client.rpc(
             "create_event_subscription",
             {
-                "p_user_id": user_id,
-                "p_process_id": process_id,
+                "p_user_id": process_ids.user_id,
+                "p_process_id": process_ids.process_id,
                 "p_event_name": event_name,
             },
         ).execute()

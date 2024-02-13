@@ -20,6 +20,7 @@ from aware.communications.requests.service import Service
 from aware.communications.topics.topic import Topic
 from aware.communications.topics.subscription import TopicSubscription
 from aware.process.process_data import ProcessData
+from aware.process.process_ids import ProcessIds
 from aware.process.process_communications import ProcessCommunications
 from aware.utils.helpers import convert_timestamp_to_epoch, get_current_date_iso8601
 
@@ -81,9 +82,11 @@ class RedisHandler:
         event_key = f"user_id:{user_id}:event:{event.name}"
         self.client.set(event_key, event.to_json())
 
-    def create_event_subscription(self, user_id: str, process_id: str, event_name: str):
-        event_subscription_key = f"user_id:{user_id}:event_subscription:{event_name}"
-        self.client.sadd(event_subscription_key, process_id)
+    def create_event_subscription(self, process_ids: ProcessIds, event_name: str):
+        event_subscription_key = (
+            f"user_id:{process_ids.user_id}:event_subscription:{event_name}"
+        )
+        self.client.sadd(event_subscription_key, process_ids.to_json())
 
     def create_topic(self, topic: Topic):
         self.client.set(
@@ -226,11 +229,11 @@ class RedisHandler:
             incoming_request = incoming_requests[0]
         else:
             incoming_request = None
-        topic_subscriptions = self.get_topic_subscriptions(process_id)
+        topics = self.get_topic_subscriptions(process_id)
         return ProcessCommunications(
             outgoing_requests=outgoing_requests,
             incoming_request=incoming_request,
-            topic_subscriptions=topic_subscriptions,
+            topics=topics,
         )
 
     def get_process_data(self, process_id: str) -> Optional[ProcessData]:
@@ -239,9 +242,14 @@ class RedisHandler:
             return ProcessData.from_json(data)
         return None
 
-    def get_processes_ids_by_event(self, user_id: str, event: Event) -> List[str]:
+    def get_processes_ids_by_event(
+        self, user_id: str, event: Event
+    ) -> List[ProcessIds]:
         event_subscription_key = f"user_id:{user_id}:event_subscription:{event.name}"
-        process_ids = self.client.smembers(event_subscription_key)
+        process_ids = [
+            ProcessIds.from_json(process_id)
+            for process_id in self.client.smembers(event_subscription_key)
+        ]
         return process_ids
 
     def get_topic_subscriptions(self, process_id: str) -> List[Topic]:
@@ -283,7 +291,7 @@ class RedisHandler:
         return None
 
     def get_user_data(self, user_id: str) -> Optional[UserData]:
-        data = self.client.get(f"user_id:data:{user_id}")
+        data = self.client.get(f"user_id:{user_id}:data")
         if data:
             return UserData.from_json(data)
         return None

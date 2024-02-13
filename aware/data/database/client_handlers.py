@@ -143,9 +143,9 @@ class ClientHandlers:
         )
         return event
 
-    def create_event_subscription(self, user_id: str, process_id: str, event_name: str):
-        self.supabase_handler.create_event_subscription(user_id, process_id, event_name)
-        self.redis_handler.create_event_subscription(user_id, process_id, event_name)
+    def create_event_subscription(self, process_ids: ProcessIds, event_name: str):
+        self.supabase_handler.create_event_subscription(process_ids, event_name)
+        self.redis_handler.create_event_subscription(process_ids, event_name)
         self.logger.info(f"DEBUG - Created event subscription {event_name}")
 
     def create_request(
@@ -249,7 +249,9 @@ class ClientHandlers:
 
         return process_id
 
-    def get_processes_ids_by_event(self, user_id: str, event: Event) -> List[str]:
+    def get_processes_ids_by_event(
+        self, user_id: str, event: Event
+    ) -> List[ProcessIds]:
         return self.redis_handler.get_processes_ids_by_event(user_id, event)
 
     def get_process_data(self, process_id: str) -> ProcessData:
@@ -313,7 +315,7 @@ class ClientHandlers:
         if user_data is None:
             self.logger.info("User data not found in Redis")
             # Fetch user profile from Supabase
-            user_data = supabase_handler.get_user_data(self.user_id)
+            user_data = supabase_handler.get_user_data(user_id)
             if user_data is None:
                 raise Exception("User data not found")
 
