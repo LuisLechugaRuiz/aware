@@ -17,12 +17,11 @@ from aware.chat.call_info import CallInfo
 from aware.communications.events.event import Event
 from aware.communications.requests.request import Request
 from aware.communications.requests.service import Service
+from aware.communications.topics.topic import Topic
 from aware.communications.topics.subscription import TopicSubscription
 from aware.process.process_data import ProcessData
 from aware.process.process_communications import ProcessCommunications
-from aware.utils.helpers import (
-    convert_timestamp_to_epoch,
-)
+from aware.utils.helpers import convert_timestamp_to_epoch, get_current_date_iso8601
 
 
 class RedisHandler:
@@ -82,27 +81,21 @@ class RedisHandler:
         event_key = f"user_id:{user_id}:event:{event.name}"
         self.client.set(event_key, event.to_json())
 
-    def create_event_subscription(self, user_id: str, process_id: str, event: Event):
-        event_subscription_key = f"user_id:{user_id}:event_subscription:{event.name}"
+    def create_event_subscription(self, user_id: str, process_id: str, event_name: str):
+        event_subscription_key = f"user_id:{user_id}:event_subscription:{event_name}"
         self.client.sadd(event_subscription_key, process_id)
+
+    def create_topic(self, topic: Topic):
+        self.client.set(
+            f"user_id:{topic.user_id}:topic:{topic.topic_name}",
+            topic.to_json(),
+        )
 
     def create_topic_subscription(
         self, process_id: str, topic_subscription: TopicSubscription
     ):
-        # Key for storing the serialized subscription
-        topic_subscription_key = f"topic_subscription:{topic_subscription.id}"
-
-        # Key for the sorted set to maintain the order of subscriptions by timestamp
-        topic_subscription_process_order_key = (
-            f"process:{process_id}:topic_subscriptions:order"
-        )
-
-        self.client.set(topic_subscription_key, topic_subscription.to_json())
-
-        timestamp = convert_timestamp_to_epoch(topic_subscription.timestamp)
-        self.client.zadd(
-            topic_subscription_process_order_key,
-            {topic_subscription.id: timestamp},
+        self.client.sadd(
+            f"process:{process_id}:topic_subscriptions", topic_subscription.to_json()
         )
 
     def create_request(self, request: Request):
@@ -251,23 +244,19 @@ class RedisHandler:
         process_ids = self.client.smembers(event_subscription_key)
         return process_ids
 
-    def get_topic_subscriptions(self, process_id: str) -> List[TopicSubscription]:
-        subscription_order_key = f"process:{process_id}:topic_subscriptions:order"
-        # Retrieve all subscriptions IDs from the sorted set, ordered by timestamp
-        subscription_ids = self.client.zrange(subscription_order_key, 0, -1)
-
-        subscriptions = []
-        for subscription_id_bytes in subscription_ids:
-            subscription_id = subscription_id_bytes.decode("utf-8")
-
-            # Fetch the subscription data for each subscription ID and deserialize it
-            subscription_data_json = self.client.get(f"subscription:{subscription_id}")
-            if subscription_data_json:
-                subscriptions.append(
-                    TopicSubscription.from_json(subscription_data_json.decode("utf-8"))
-                )
-
-        return subscriptions
+    def get_topic_subscriptions(self, process_id: str) -> List[Topic]:
+        topic_subscriptions = self.client.smembers(
+            f"process:{process_id}:topic_subscriptions"
+        )
+        topics = []
+        for topic_subscription_str in topic_subscriptions:
+            topic_subscription = TopicSubscription.from_json(topic_subscription_str)
+            topic = self.get_topic(
+                user_id=topic_subscription.user_id,
+                topic_name=topic_subscription.topic_name,
+            )
+            topics.append(topic)
+        return topics
 
     def get_requests(self, request_order_key: str):
         # Retrieve all request IDs from the sorted set, ordered by timestamp
@@ -306,10 +295,10 @@ class RedisHandler:
             return data.decode()
         return None
 
-    def get_topic_data(self, user_id: str, topic_name: str) -> Optional[str]:
+    def get_topic(self, user_id: str, topic_name: str) -> Optional[Topic]:
         data = self.client.get(f"user_id:{user_id}:topic:{topic_name}")
         if data:
-            return data.decode()
+            return Topic.from_json(data)
         return None
 
     def is_process_active(self, process_id: str) -> bool:
@@ -352,7 +341,7 @@ class RedisHandler:
         service: Service,
     ):
         self.client.set(
-            f"service:{service.id}",
+            f"service:{service.service_id}",
             service.to_json(),
         )
 
@@ -369,10 +358,14 @@ class RedisHandler:
             user_data.to_json(),
         )
 
-    def set_topic_content(self, user_id: str, topic_name, content: str):
+    def set_topic_data(self, user_id: str, topic_name: str, content: str):
+        topic = self.get_topic(user_id, topic_name)
+        topic.content = content
+        topic.timestamp = get_current_date_iso8601()
+
         self.client.set(
             f"user_id:{user_id}:topic:{topic_name}",
-            content,
+            topic.to_json(),
         )
 
     def remove_active_process(self, process_id: str):

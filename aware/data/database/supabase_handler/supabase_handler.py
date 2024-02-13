@@ -6,9 +6,11 @@ from aware.chat.conversation_schemas import ChatMessage, JSONMessage
 from aware.communications.events.event import Event
 from aware.communications.requests.request import Request, RequestData
 from aware.communications.requests.service import Service, ServiceData
+from aware.communications.topics.topic import Topic
 from aware.communications.topics.subscription import TopicSubscription
 from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
+from aware.memory.user.user_data import UserData
 from aware.process.process_data import ProcessData
 from aware.process.process_communications import ProcessCommunications
 from aware.tools.profile import Profile
@@ -78,7 +80,9 @@ class SupabaseHandler:
             .execute()
             .data
         )
-
+        data = data[0]
+        logger.info(f"Agent: {name}, created. Initializing agent data")
+        logger.info(f"DEBUG - Data: {data}")
         return AgentData(
             id=data["id"],
             name=data["name"],
@@ -119,10 +123,13 @@ class SupabaseHandler:
             .execute()
             .data
         )
+        data = data[0]
+        logger.info(f"Process: {name}, created. Initializing process data")
+        logger.info(f"DEBUG - Data: {data}")
         return ProcessData(
             id=data["id"],
             name=data["name"],
-            tools_class=data["tools"],
+            tools_class=data["tools_class"],
             identity=data["identity"],
             task=data["task"],
             instructions=data["instructions"],
@@ -143,6 +150,7 @@ class SupabaseHandler:
             .execute()
             .data
         )
+        response = response[0]
         return Event(
             id=response["id"],
             name=event_name,
@@ -168,16 +176,29 @@ class SupabaseHandler:
         self,
         process_id: str,
         topic_name: str,
-    ):
+    ) -> TopicSubscription:
         logger = FileLogger("migration_tests")
         logger.info(f"DEBUG - Creating topic subscription for process {process_id}")
-        self.client.rpc(
-            "create_topic_subscription",
-            {
-                "p_process_id": process_id,
-                "p_topic_name": topic_name,
-            },
-        ).execute()
+        response = (
+            self.client.rpc(
+                "create_topic_subscription",
+                {
+                    "p_process_id": process_id,
+                    "p_topic_name": topic_name,
+                },
+            )
+            .execute()
+            .data[0]
+        )
+        logger.info(
+            f"Process {process_id} subscribed to topic {topic_name}. Subscription: {response}"
+        )
+        return TopicSubscription(
+            user_id=response["returned_user_id"],
+            process_id=process_id,
+            topic_id=response["returned_topic_id"],
+            topic_name=topic_name,
+        )
 
     def create_request(
         self,
@@ -221,16 +242,16 @@ class SupabaseHandler:
         )
 
     def create_service(
-        self, user_id: str, tools_class: str, service_data: ServiceData
+        self, user_id: str, process_id: str, service_data: ServiceData
     ) -> Service:
         logger = FileLogger("migration_tests")
         logger.info(f"DEBUG - Creating service {service_data.name}")
-        response = (
+        service_id = (
             self.client.rpc(
                 "create_service",
                 {
                     "p_user_id": user_id,
-                    "p_tool_class": tools_class,
+                    "p_process_id": process_id,
                     "p_name": service_data.name,
                     "p_description": service_data.description,
                 },
@@ -238,15 +259,14 @@ class SupabaseHandler:
             .execute()
             .data
         )
-        return (
-            Service(
-                service_id=response["returned_id"],
-                process_id=response["returned_process_id"],
-                data=service_data,
-            ),
+        logger.info(
+            f"New service created at supabase. Name: {service_data.name}, id: {service_id}"
         )
+        return Service(service_id=service_id, process_id=process_id, data=service_data)
 
-    def create_topic(self, user_id: str, topic_name: str, topic_description: str):
+    def create_topic(
+        self, user_id: str, topic_name: str, topic_description: str
+    ) -> Topic:
         logger = FileLogger("migration_tests")
         existing_topic = (
             self.client.table("topics")
@@ -258,14 +278,28 @@ class SupabaseHandler:
         logger.info(f"DEBUG - Got existing topic: {existing_topic}")
         if not existing_topic:
             logger.info(f"DEBUG - Creating topic {topic_name}")
-            self.client.table("topics").insert(
-                {
-                    "user_id": user_id,
-                    "name": topic_name,
-                    "content": "",
-                    "description": topic_description,
-                }
-            ).execute()
+            existing_topic = (
+                self.client.table("topics")
+                .insert(
+                    {
+                        "user_id": user_id,
+                        "name": topic_name,
+                        "description": topic_description,
+                        "content": "",
+                    }
+                )
+                .execute()
+                .data
+            )
+        existing_topic = existing_topic[0]
+        return Topic(
+            id=existing_topic["id"],
+            user_id=user_id,
+            topic_name=topic_name,
+            description=topic_description,
+            content=existing_topic["content"],
+            timestamp=existing_topic["updated_at"],
+        )
 
     def delete_message(self, message_id):
         invoke_options = {"p_message_id": message_id}
@@ -335,7 +369,44 @@ class SupabaseHandler:
             return None
         return data[0]["id"]
 
-    def get_tools_class(self, process_id: str) -> Optional[str]:
+    def get_process_service_requests(self, process_id: str) -> List[Request]:
+        data = (
+            self.client.table("services")
+            .select("*")
+            .eq("process_id", process_id)
+            .execute()
+            .data
+        )
+        requests = []
+        if not data:
+            return requests
+        for row in data:
+            requests.extend(
+                self.get_requests(
+                    key_process_id="service_process_id", process_id=row["id"]
+                )
+            )
+        return requests
+
+    def get_process_communications(self, process_id: str) -> ProcessCommunications:
+        outgoing_requests = self.get_requests(
+            key_process_id="client_process_id", process_id=process_id
+        )
+        incoming_requests = self.get_requests(
+            key_process_id="service_process_id", process_id=process_id
+        )
+        if len(incoming_requests) > 0:
+            incoming_request = incoming_requests[0]
+        else:
+            incoming_request = None
+        topics = self.get_topic_subscriptions(process_id)
+        return ProcessCommunications(
+            outgoing_requests=outgoing_requests,
+            incoming_request=incoming_request,
+            topics=topics,
+        )
+
+    def get_process_data(self, process_id: str) -> Optional[ProcessData]:
         data = (
             self.client.table("processes")
             .select("*")
@@ -345,28 +416,14 @@ class SupabaseHandler:
         )
         if not data:
             return None
-        return data[0]["tools_class"]
-
-    def get_topic_subscriptions(self, process_id: str) -> List[TopicSubscription]:
-        data = (
-            self.client.rpc("get_subscribed_data", {"p_process_id": process_id})
-            .execute()
-            .data
+        data = data[0]
+        return ProcessData(
+            name=data["name"],
+            tools_class=data["tools_class"],
+            identity=data["identity"],
+            task=data["task"],
+            instructions=data["instructions"],
         )
-        if not data:
-            return None
-        subscriptions: List[TopicSubscription] = []
-        for row in data:
-            subscriptions.append(
-                TopicSubscription(
-                    id=row["topic_id"],
-                    topic_name=row["name"],
-                    content=row["content"],
-                    description=row["description"],
-                    timestamp=row["updated_at"],
-                )
-            )
-        return subscriptions
 
     def get_requests(self, key_process_id: str, process_id: str) -> List[Request]:
         data = (
@@ -399,44 +456,7 @@ class SupabaseHandler:
             )
         return requests
 
-    def get_process_service_requests(self, process_id: str) -> List[Request]:
-        data = (
-            self.client.table("services")
-            .select("*")
-            .eq("process_id", process_id)
-            .execute()
-            .data
-        )
-        requests = []
-        if not data:
-            return requests
-        for row in data:
-            requests.extend(
-                self.get_requests(
-                    key_process_id="service_process_id", process_id=row["id"]
-                )
-            )
-        return requests
-
-    def get_process_communications(self, process_id: str) -> ProcessCommunications:
-        outgoing_requests = self.get_requests(
-            key_process_id="client_process_id", process_id=process_id
-        )
-        incoming_requests = self.get_requests(
-            key_process_id="service_process_id", process_id=process_id
-        )
-        if len(incoming_requests) > 0:
-            incoming_request = incoming_requests[0]
-        else:
-            incoming_request = None
-        topic_subscriptions = self.get_topic_subscriptions(process_id)
-        return ProcessCommunications(
-            outgoing_requests=outgoing_requests,
-            incoming_request=incoming_request,
-            subscriptions=topic_subscriptions,
-        )
-
-    def get_process_data(self, process_id: str) -> Optional[ProcessData]:
+    def get_tools_class(self, process_id: str) -> Optional[str]:
         data = (
             self.client.table("processes")
             .select("*")
@@ -446,26 +466,29 @@ class SupabaseHandler:
         )
         if not data:
             return None
-        data = data[0]
-        return ProcessData(
-            name=data["name"],
-            tools_class=data["tools_class"],
-            identity=data["identity"],
-            task=data["task"],
-            instructions=data["instructions"],
-        )
+        return data[0]["tools_class"]
 
-    def get_user_profile(self, user_id: str):
+    def get_topic_subscriptions(self, process_id: str) -> List[Topic]:
         data = (
-            self.client.table("profiles")
-            .select("*")
-            .eq("user_id", user_id)
+            self.client.rpc("get_subscribed_data", {"p_process_id": process_id})
             .execute()
             .data
         )
         if not data:
             return None
-        return data[0]
+        topics: List[Topic] = []
+        for row in data:
+            topics.append(
+                Topic(
+                    id=row["topic_id"],
+                    user_id=row["user_id"],
+                    topic_name=row["name"],
+                    description=row["description"],
+                    content=row["content"],
+                    timestamp=row["updated_at"],
+                )
+            )
+        return topics
 
     def get_topic_content(self, user_id: str, name: str):
         data = (
@@ -480,6 +503,23 @@ class SupabaseHandler:
             return None
         data = data[0]
         return data["content"]
+
+    def get_user_data(self, user_id: str) -> Optional[UserData]:
+        data = (
+            self.client.table("profiles")
+            .select("*")
+            .eq("user_id", user_id)
+            .execute()
+            .data
+        )
+        if not data:
+            return None
+        user_profile = data[0]
+        return UserData(
+            user_id=user_id,
+            user_name=user_profile["display_name"],
+            api_key=user_profile["openai_api_key"],
+        )
 
     def remove_frontend_message(self, message_id: str):
         self.client.table("frontend_messages").delete().eq("id", message_id).execute()

@@ -11,61 +11,21 @@ class UserBuilder:
         self.user_id = user_id
         self.logger = FileLogger("user_builder")
 
-    def get_user_data(self) -> UserData:
-        redis_handler = ClientHandlers().get_redis_handler()
-        supabase_handler = ClientHandlers().get_supabase_handler()
-        user_data = redis_handler.get_user_data(self.user_id)
-
-        if user_data is None:
-            self.logger.info("User data not found in Redis")
-            # Fetch user profile from Supabase
-            user_profile = supabase_handler.get_user_profile(self.user_id)
-            if user_profile is None:
-                raise Exception("User profile not found")
-
-            if not user_profile["initialized"]:
-                try:
-                    self.initialize_user(user_name=user_profile["display_name"])
-                    user_profile["initialized"] = True
-                    supabase_handler.update_user_profile(self.user_id, user_profile)
-                except Exception as e:
-                    self.logger.error(f"Error while initializing user: {e}")
-                    raise e
-
-            # Store user data in redis
-            user_data = UserData(
-                user_id=self.user_id,
-                user_name=user_profile["display_name"],
-                api_key=user_profile["openai_api_key"],
-            )
-            redis_handler.set_user_data(user_data)
-        else:
-            self.logger.info("User data found in Redis")
-
-        return user_data
-
-    def initialize_user(self, user_name: str):
+    def initialize_user(self, user_name: str, api_key: str):
         # Create user on Weaviate
         try:
             memory_manager = MemoryManager(user_id=self.user_id, logger=self.logger)
-            result = memory_manager.create_user(
-                user_id=self.user_id, user_name=user_name
-            )
+            memory_manager.create_user(user_id=self.user_id, user_name=user_name)
         except Exception as e:
             self.logger.error(f"Error while creating weaviate user: {e}")
             raise e
-        if result.error:
-            self.logger.info(
-                f"DEBUG - error creating weaviate user result: {result.error}"
-            )
-        else:
-            self.logger.info(
-                f"DEBUG - success creating weaviate user result: {result.data}"
-            )
         try:
             assistant_name = "aware"  # TODO: GET FROM SUPABASE!
             AgentBuilder(user_id=self.user_id).initialize_user_agents(
                 assistant_name=assistant_name
+            )
+            ClientHandlers().set_user_data(
+                UserData(user_id=self.user_id, user_name=user_name, api_key=api_key)
             )
 
             # Create initial user topics TODO: Refactor, verify if needed!
@@ -80,5 +40,5 @@ class UserBuilder:
                 )
 
         except Exception as e:
-            self.logger.error(f"Error while updating agent profile: {e}")
+            self.logger.error(f"Error while initializing user: {e}")
             raise e

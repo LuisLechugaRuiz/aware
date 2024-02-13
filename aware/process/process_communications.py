@@ -3,14 +3,14 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from aware.communications.requests.request import Request
-from aware.communications.topics.subscription import TopicSubscription
+from aware.communications.topics.topic import Topic
 
 
 @dataclass
 class ProcessCommunications:
     outgoing_requests: List[Request]
     incoming_request: Optional[Request]
-    topic_subscriptions: List[TopicSubscription]
+    topics: List[Topic]
 
     def to_dict(self):
         return {
@@ -20,10 +20,7 @@ class ProcessCommunications:
             "incoming_request": (
                 self.incoming_request.to_dict() if self.incoming_request else None
             ),
-            "topic_subscriptions": [
-                topic_subscriptions.to_dict()
-                for topic_subscriptions in self.topic_subscriptions
-            ],
+            "topics": [topic.to_dict() for topic in self.topics],
         }
 
     def to_json(self):
@@ -37,10 +34,7 @@ class ProcessCommunications:
         ]
         if data["incoming_request"]:
             data["incoming_request"] = Request(**data["incoming_request"])
-        data["topic_subscriptions"] = [
-            TopicSubscription(**topic_subscriptions)
-            for topic_subscriptions in data["topic_subscriptions"]
-        ]
+        data["topics"] = [Topic(**topic) for topic in data["topics"]]
         return ProcessCommunications(**data)
 
     def to_prompt_kwargs(self):
@@ -56,12 +50,7 @@ class ProcessCommunications:
             prompt_kwargs.update(
                 {"incoming_request": self.incoming_request.query_to_string()}
             )
-        if self.topic_subscriptions:
-            topic_subscriptions_info = "\n".join(
-                [
-                    topic_subscriptions.to_string()
-                    for topic_subscriptions in self.topic_subscriptions
-                ]
-            )
-            prompt_kwargs.update({"topic_subscriptions": topic_subscriptions_info})
+        if self.topics:
+            topics_info = "\n".join([topic.to_string() for topic in self.topics])
+            prompt_kwargs.update({"topics": topics_info})
         return prompt_kwargs

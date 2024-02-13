@@ -11,9 +11,9 @@ from aware.utils.logger.file_logger import FileLogger
 
 class AgentBuilder:
     def __init__(self, user_id: str):
+        self.logger = FileLogger("agent_builder")
         self.user_id = user_id
         self.memory_manager = MemoryManager(user_id=user_id, logger=self.logger)
-        self.logger = FileLogger("agent_builder")
 
     def initialize_user_agents(self, assistant_name: str):
         """Create the initial agents for the user"""
@@ -33,7 +33,7 @@ class AgentBuilder:
         )
 
         self.create_agent(
-            name=Orchestrator.get_tool_name(),
+            name=Orchestrator.get_name(),
             tools_class=Orchestrator.__name__,
             identity=Orchestrator.get_identity(),
             task=Orchestrator.get_task(),
@@ -61,6 +61,7 @@ class AgentBuilder:
                 instructions=instructions,
                 thought_generator_mode=thought_generator_mode.value,
             )
+            self.logger.info(f"Agent created on database, uuid: {agent_data.id}")
             # Store agent on Weaviate
             self.memory_manager.create_agent(
                 user_id=self.user_id, agent_data=agent_data
@@ -81,7 +82,7 @@ class AgentBuilder:
             ClientHandlers().create_process(
                 user_id=self.user_id,
                 agent_id=agent_data.id,
-                name=ThoughtGenerator.get_tool_name(),
+                name=ThoughtGenerator.get_name(),
                 tools_class=ThoughtGenerator.__name__,
                 identity=ThoughtGenerator.get_identity(),
                 task=ThoughtGenerator.get_task(agent=name, agent_task=task),
@@ -91,7 +92,7 @@ class AgentBuilder:
             data_storage_process_data = ClientHandlers().create_process(
                 user_id=self.user_id,
                 agent_id=agent_data.id,
-                name=DataStorageManager.get_tool_name(),
+                name=DataStorageManager.get_name(),
                 tools_class=DataStorageManager.__name__,
                 identity=DataStorageManager.get_identity(),
                 task=DataStorageManager.get_task(agent=name, agent_task=task),
