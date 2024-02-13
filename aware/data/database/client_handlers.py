@@ -19,6 +19,7 @@ from aware.process.process_ids import ProcessIds
 from aware.process.process_communications import ProcessCommunications
 from aware.process.process_data import ProcessData
 from aware.process.process_info import ProcessInfo
+from aware.memory.user.user_data import UserData
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -82,6 +83,7 @@ class ClientHandlers:
         instructions: str,
         thought_generator_mode: str,
     ) -> AgentData:
+        self.logger.info("Creating agent")
         agent_data = self.supabase_handler.create_agent(
             user_id=user_id,
             name=name,
@@ -91,7 +93,9 @@ class ClientHandlers:
             instructions=instructions,
             thought_generator_mode=thought_generator_mode,
         )
+        self.logger.info(f"Agent: {agent_data.id}, created on supabase")
         self.redis_handler.set_agent_data(agent_data)
+        self.logger.info(f"Agent: {agent_data.id}, created on redis")
         return agent_data
 
     # TODO: Two kind of instructions:
@@ -106,7 +110,7 @@ class ClientHandlers:
         identity: str,
         task: str,
         instructions: str,
-        service_name: Optional[str],
+        service_name: Optional[str] = None,
     ) -> ProcessData:
         process_data = self.supabase_handler.create_process(
             user_id=user_id,
@@ -123,7 +127,7 @@ class ClientHandlers:
         if service_name is None:
             service_name = name  # Use the name of the process, otherwise the name of the Agent. TODO: Solve this by internal and external requests.
         self.create_service(
-            user_id=user_id, tools_class=tools_class, name=name, description=task
+            user_id=user_id, process_id=process_data.id, name=name, description=task
         )
         return process_data
 
@@ -166,22 +170,27 @@ class ClientHandlers:
         return request
 
     def create_service(
-        self, user_id: str, tools_class: str, name: str, description: str
+        self, user_id: str, process_id: str, name: str, description: str
     ):
         """Create new service"""
         service_data = ServiceData(name=name, description=description)
         service = self.supabase_handler.create_service(
-            user_id=user_id, tools_class=tools_class, service_data=service_data
+            user_id=user_id, process_id=process_id, service_data=service_data
         )
         self.redis_handler.set_service(service=service)
 
     def create_topic_subscription(self, process_id: str, topic_name: str):
-        self.supabase_handler.create_topic_subscription(process_id, topic_name)
-        self.redis_handler.create_topic_subscription(process_id, topic_name)
+        topic_subscription = self.supabase_handler.create_topic_subscription(
+            process_id, topic_name
+        )
+        self.redis_handler.create_topic_subscription(process_id, topic_subscription)
         self.logger.info(f"DEBUG - Created topic subscription {topic_name}")
 
     def create_topic(self, user_id: str, topic_name: str, topic_description: str):
-        self.supabase_handler.create_topic(user_id, topic_name, topic_description)
+        topic = self.supabase_handler.create_topic(
+            user_id, topic_name, topic_description
+        )
+        self.redis_handler.create_topic(topic)
         self.logger.info(f"DEBUG - Created topic {topic_name}")
 
     # TODO: fetch from supabase as fallback
@@ -296,6 +305,25 @@ class ClientHandlers:
             process_communications=process_communications,
         )
 
+    def get_user_data(self, user_id: str) -> UserData:
+        redis_handler = ClientHandlers().get_redis_handler()
+        supabase_handler = ClientHandlers().get_supabase_handler()
+        user_data = redis_handler.get_user_data(user_id)
+
+        if user_data is None:
+            self.logger.info("User data not found in Redis")
+            # Fetch user profile from Supabase
+            user_data = supabase_handler.get_user_data(self.user_id)
+            if user_data is None:
+                raise Exception("User data not found")
+
+            # Store user data in redis
+            redis_handler.set_user_data(user_data)
+        else:
+            self.logger.info("User data found in Redis")
+
+        return user_data
+
     def get_request(self, process_id: str) -> Optional[Request]:
         requests = self.redis_handler.get_requests(process_id=process_id)
         if len(requests) > 0:
@@ -316,6 +344,9 @@ class ClientHandlers:
 
     def send_feedback(self, request: Request):
         self.redis_handler.update_request(request)
+
+    def set_user_data(self, user_data: UserData):
+        self.redis_handler.set_user_data(user_data)
 
     def set_request_completed(self, request: Request):
         self.redis_handler.delete_request(request.id)

@@ -1,10 +1,10 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from dataclasses import dataclass
 import re
 
 
 @dataclass
-class Data(ABC):
+class Data:
     @classmethod
     @abstractmethod
     def get_identity(cls, **kwargs) -> str:
@@ -22,5 +22,5 @@ class Data(ABC):
     @classmethod
     def get_name(cls):
         # Convert from CamelCase to snake_case
-        name = re.sub(r"(?<!^)(?=[A-Z])", "_", cls.__class__.__name__).lower()
+        name = re.sub(r"(?<!^)(?=[A-Z])", "_", cls.__name__).lower()
         return name

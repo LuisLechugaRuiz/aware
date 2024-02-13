@@ -23,9 +23,9 @@
                 "type": "text",
                 "description": "The identity of the agent"
             },
-            "tasks": {
+            "task": {
                 "type": "Task",
-                "description": "The tasks that the agent should perform"
+                "description": "The task that the agent should perform"
             },
             "instructions": {
                 "type": "text",
@@ -34,9 +34,9 @@
         }
     },
     "Conversation": {
-        "description": "A conversation between users and the assistant",
+        "description": "A conversation between user and the assistant",
         "properties": {
-            "users": {
+            "user": {
                 "type": "User",
                 "description": "The users in the conversation"
             },

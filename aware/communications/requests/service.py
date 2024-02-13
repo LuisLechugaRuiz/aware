@@ -29,13 +29,13 @@ class Service:
         process_id: str,
         data: ServiceData,
     ):
-        self.id = service_id
+        self.service_id = service_id
         self.process_id = process_id
         self.data = data
 
     def to_dict(self):
         return {
-            "id": self.id,
+            "service_id": self.service_id,
             "process_id": self.process_id,
             "data": self.data.to_json(),
         }

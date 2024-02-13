@@ -15,7 +15,7 @@ from aware.data.database.weaviate.helpers import (
 )
 
 
-class WeaviateDB(object):
+class WeaviateDB:
     def __init__(self):
         weaviate_key = Config().weaviate_key
         self.openai_client = OpenAI()
@@ -34,7 +34,6 @@ class WeaviateDB(object):
             self.client = weaviate.connect_to_local(
                 host=Config().local_weaviate_url, port=Config().weaviate_port
             )
-        # self.client.collections.delete_all()  # TODO: START AGAIN
         schemas_path = os.path.join(Path(__file__).parent, "schemas", "schemas.json")
         self._create_schemas(schemas_path)
 
@@ -107,7 +106,7 @@ class WeaviateDB(object):
     def create_agent(self, user_id: str, agent_data: AgentData) -> WeaviateResult:
         try:
             agent_collection = self.client.collections.get("Agent")
-            existing_agent = agent_collection.query.fetch_object_by_id(user_id)
+            existing_agent = agent_collection.query.fetch_object_by_id(agent_data.id)
             if existing_agent is not None:
                 return WeaviateResult(error="Agent already exists!!!")
             agent_uuid = agent_collection.data.insert(
@@ -117,7 +116,7 @@ class WeaviateDB(object):
                     "task": agent_data.task,
                     "instructions": agent_data.instructions,
                 },
-                references={"User": wvc.Reference.to(uuids=user_id)},
+                references={"user": wvc.Reference.to(uuids=user_id)},
                 uuid=user_id,
                 vector=self.get_ada_embedding(agent_data.task),
             )
@@ -305,10 +304,22 @@ class WeaviateDB(object):
                     "summary": summary,
                     "potential_query": potential_query,
                 },
-                references={"User": wvc.Reference.to(uuids=user_id)},
+                references={"user": wvc.Reference.to(uuids=user_id)},
                 vector=self.get_ada_embedding(potential_query),
             )
             return WeaviateResult(data=conversation_uuid)
         except Exception as err:
             print(f"Unexpected error {err} when storing conversation")
             return WeaviateResult(error=str(err))
+
+    def reset(self):
+        """Never call this function, it will remove all, only added while developing."""
+        self.client.collections.delete_all()
+
+
+def main():
+    WeaviateDB().reset()
+
+
+if __name__ == "main":
+    main()

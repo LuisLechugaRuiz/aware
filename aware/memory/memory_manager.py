@@ -14,10 +14,20 @@ class MemoryManager:
         self.weaviate_db = WeaviateDB()
 
     def create_agent(self, user_id: str, agent_data: AgentData) -> WeaviateResult:
-        return self.weaviate_db.create_agent(user_id=user_id, agent_data=agent_data)
+        result = self.weaviate_db.create_agent(user_id=user_id, agent_data=agent_data)
+        if result.error:
+            self.logger.error(f"Error creating weaviate agent: {result.error}")
+        else:
+            self.logger.info(f"Agent created, uuid: {result.data}")
+        return result
 
     def create_user(self, user_id: str, user_name: str) -> WeaviateResult:
-        return self.weaviate_db.create_user(user_id=user_id, user_name=user_name)
+        result = self.weaviate_db.create_user(user_id=user_id, user_name=user_name)
+        if result.error:
+            self.logger.info(f"Error creating weaviate user: {result.error}")
+        else:
+            self.logger.info(f"User created, uuid: {result.data}")
+        return
 
     def find_agents(self, task: str):
         """
