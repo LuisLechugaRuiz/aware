@@ -10,12 +10,14 @@ from aware.communications.requests.request import Request
 from aware.data.database.client_handlers import ClientHandlers
 from aware.process.process_ids import ProcessIds
 from aware.server.task_executor import TaskExecutor
+from aware.utils.logger.file_logger import FileLogger
 
 
 class ProcessHandler:
     def __init__(self):
         self.supabase_handler = ClientHandlers().get_supabase_handler()
         self.redis_handler = ClientHandlers().get_redis_handler()
+        self.logger = FileLogger(name="process_handler")
 
     def add_message(
         self,
@@ -24,8 +26,7 @@ class ProcessHandler:
     ):
         agent_data = ClientHandlers().get_agent_data(process_ids.agent_id)
         ClientHandlers().add_message(
-            user_id=process_ids.user_id,
-            process_id=process_ids.process_id,
+            process_ids=process_ids,
             json_message=message,
         )
         if agent_data.state == AgentState.MAIN_PROCESS:
@@ -36,8 +37,7 @@ class ProcessHandler:
                 process_name="thought_generator",
             )
             ClientHandlers().add_message(
-                user_id=thought_generator_process_ids.user_id,
-                process_id=thought_generator_process_ids.process_id,
+                process_ids=thought_generator_process_ids,
                 json_message=message,
             )
             self._manage_conversation_buffer()
@@ -60,18 +60,21 @@ class ProcessHandler:
     def create_event(
         self, user_id: str, event_name: str, message_name: str, content: str
     ):
+        self.logger.info(f"Creating event: {event_name} - {content}")
         # - Add event to database
         event = ClientHandlers().create_event(
             user_id=user_id, event_name=event_name, content=content
         )
+        self.logger.info("Event created on database")
         # - Trigger the subscribed processes
-        processes_id = ClientHandlers().get_processes_ids_by_event(
+        processes_ids = ClientHandlers().get_processes_ids_by_event(
             user_id=user_id, event=event
         )
-        for process_id in processes_id:
+        self.logger.info(f"Processes subscribed to event: {processes_ids}")
+        for process_ids in processes_ids:
             user_message = UserMessage(name=message_name, content=content)
-            self.add_message(process_ids=process_id, message=user_message)
-            self.start(process_id)
+            self.add_message(process_ids=process_ids, message=user_message)
+            self.start(process_ids)
 
     def create_request(
         self,
@@ -167,10 +170,14 @@ class ProcessHandler:
     def start(self, process_ids: ProcessIds):
         redis_handler = ClientHandlers().get_redis_handler()
         if not redis_handler.is_process_active(process_ids.process_id):
+            self.logger.info(f"Starting process: {process_ids.process_id}")
             # TODO: is_process_active should always be sync with IDLE state, verify.
             self.step(process_ids=process_ids, is_process_finished=False)
+        else:
+            self.logger.info(f"Process already active: {process_ids.process_id}")
 
     def step(self, process_ids: ProcessIds, is_process_finished: bool = False):
+        self.logger.info(f"On step: {process_ids.process_id}")
         process_info = ClientHandlers().get_process_info(process_ids)
         agent_data = process_info.agent_data
 
@@ -186,6 +193,7 @@ class ProcessHandler:
         next_state = agent_state_machine.step()
         agent_data.state = next_state
         ClientHandlers().update_agent_data(agent_data)
+        self.logger.info(f"Next state: {next_state.value}")
 
         if next_state == AgentState.MAIN_PROCESS:
             main_process_ids = self.get_process_ids(

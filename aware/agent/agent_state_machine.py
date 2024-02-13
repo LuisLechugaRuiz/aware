@@ -14,17 +14,15 @@ class AgentStateMachine:
         self.process_has_input = process_communications.incoming_request is not None
         self.is_process_finished = is_process_finished
 
-    @classmethod
     def step(
         self,
     ) -> AgentState:
-
         if self.state == AgentState.IDLE:
-            self.on_start()
+            return self.on_start()
         elif self.state == AgentState.MAIN_PROCESS:
-            self.on_main()
+            return self.on_main()
         elif self.state == AgentState.THOUGHT_GENERATOR:
-            self.on_thought_generator()
+            return self.on_thought_generator()
 
     def on_start(self) -> AgentState:
         if self.thought_generator_mode == ThoughtGeneratorMode.PRE:

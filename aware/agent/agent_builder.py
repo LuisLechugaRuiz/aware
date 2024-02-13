@@ -2,6 +2,7 @@ from aware.agent.agent_data import ThoughtGeneratorMode
 from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
 from aware.process.process_data import ProcessData
+from aware.process.process_ids import ProcessIds
 from aware.tools.default_data.assistant_data import Assistant
 from aware.tools.default_data.orchestrator_data import Orchestrator
 from aware.tools.default_data.data_storage_manager_data import DataStorageManager
@@ -17,7 +18,7 @@ class AgentBuilder:
 
     def initialize_user_agents(self, assistant_name: str):
         """Create the initial agents for the user"""
-        main_assistant_process_data = self.create_agent(
+        main_assistant_process_ids = self.create_agent(
             name=assistant_name,
             tools_class=Assistant.__name__,
             identity=Assistant.get_identity(assistant_name=assistant_name),
@@ -27,8 +28,7 @@ class AgentBuilder:
         )
         # TODO: Should we add a get_event for each tool? We want both: Flexible events, but some can be attached directly to tool? TBD.
         ClientHandlers().create_event_subscription(
-            user_id=self.user_id,
-            process_id=main_assistant_process_data.id,
+            process_ids=main_assistant_process_ids,
             event_name="user_message",
         )
 
@@ -49,7 +49,7 @@ class AgentBuilder:
         task: str,
         instructions: str,
         thought_generator_mode: ThoughtGeneratorMode = ThoughtGeneratorMode.PRE,
-    ) -> ProcessData:
+    ) -> ProcessIds:
         """Create a new agent"""
         try:
             agent_data = ClientHandlers().create_agent(
@@ -77,6 +77,11 @@ class AgentBuilder:
                 task=task,
                 instructions=instructions,
                 service_name=name,  # Use the name of the agent as service name, TODO: Fix me using internal and external requests.
+            )
+            main_process_ids = ProcessIds(
+                user_id=self.user_id,
+                agent_id=agent_data.id,
+                process_id=main_process_data.id,
             )
             # Create thought generator process
             ClientHandlers().create_process(
@@ -107,7 +112,7 @@ class AgentBuilder:
             ClientHandlers().create_topic_subscription(
                 process_id=data_storage_process_data.id, topic_name="agent_interactions"
             )
-            return main_process_data
+            return main_process_ids
 
         except Exception as e:
             return self.logger.error(f"Error creating agent {name}: {e}")
