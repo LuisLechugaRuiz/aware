@@ -1,5 +1,14 @@
 from dataclasses import dataclass
+from enum import Enum
 import json
+
+
+class RequestStatus(Enum):
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    SUCCESS = "success"
+    FAILURE = "failure"
+    WAITING_USER_FEEDBACK = "waiting_user_feedback"
 
 
 @dataclass
@@ -9,7 +18,7 @@ class RequestData:
         query: str,
         is_async: bool,
         feedback: str,
-        status: str,
+        status: RequestStatus,
         response: str,
     ):
         self.query = query
@@ -18,12 +27,22 @@ class RequestData:
         self.feedback = feedback
         self.response = response
 
+    def to_dict(self):
+        return {
+            "query": self.query,
+            "is_async": self.is_async,
+            "status": self.status.value,
+            "feedback": self.feedback,
+            "response": self.response,
+        }
+
     def to_json(self):
-        return json.dumps(self.__dict__)
+        return json.dumps(self.to_dict())
 
     @classmethod
     def from_json(cls, json_str):
         data = json.loads(json_str)
+        data["status"] = RequestStatus(data["status"])
         return cls(**data)
 
     def feedback_to_string(self):
@@ -41,6 +60,7 @@ class Request:
         service_id: str,
         service_process_id: str,
         client_process_id: str,
+        client_process_name: str,
         timestamp: str,
         data: RequestData,
     ):
@@ -48,6 +68,7 @@ class Request:
         self.service_id = service_id
         self.service_process_id = service_process_id
         self.client_process_id = client_process_id
+        self.client_process_name = client_process_name
         self.timestamp = timestamp
         self.data = data
 
@@ -57,6 +78,7 @@ class Request:
             "service_id": self.service_id,
             "service_process_id": self.service_process_id,
             "client_process_id": self.client_process_id,
+            "client_process_name": self.client_process_name,
             "timestamp": self.timestamp,
             "data": self.data.to_json(),
         }

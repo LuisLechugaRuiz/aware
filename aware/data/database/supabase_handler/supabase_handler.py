@@ -3,16 +3,17 @@ from typing import Any, Dict, List, Optional
 
 from aware.agent.agent_data import AgentData, AgentState, ThoughtGeneratorMode
 from aware.chat.conversation_schemas import ChatMessage, JSONMessage
-from aware.communications.events.event import Event
-from aware.communications.requests.request import Request, RequestData
+from aware.communications.events.event import Event, EventStatus
+from aware.communications.events.event_type import EventType
+from aware.communications.events.event_subscription import EventSubscription
+from aware.communications.requests.request import Request, RequestData, RequestStatus
 from aware.communications.requests.service import Service, ServiceData
 from aware.communications.topics.topic import Topic
-from aware.communications.topics.subscription import TopicSubscription
+from aware.communications.topics.topic_subscription import TopicSubscription
 from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
 from aware.memory.user.user_data import UserData
 from aware.process.process_data import ProcessData
-from aware.process.process_ids import ProcessIds
 from aware.process.process_communications import ProcessCommunications
 from aware.tools.profile import Profile
 from aware.utils.logger.file_logger import FileLogger
@@ -21,6 +22,7 @@ from aware.utils.logger.file_logger import FileLogger
 class SupabaseHandler:
     def __init__(self, client: Client):
         self.client = client
+        self.logger = FileLogger("supabase_handler")
 
     def add_message(
         self,
@@ -28,7 +30,6 @@ class SupabaseHandler:
         process_id: str,
         json_message: JSONMessage,
     ) -> ChatMessage:
-        logger = FileLogger("migration_tests")
         invoke_options = {
             "p_user_id": user_id,
             "p_process_id": process_id,
@@ -42,11 +43,11 @@ class SupabaseHandler:
         }
         # Expand dictionary with json_message data
         invoke_options.update(json_message_dict)
-        logger.info("DEBUG - PRE CALL")
+        self.logger.info("DEBUG - PRE CALL")
         response = self.client.rpc("insert_new_message", invoke_options).execute().data
-        logger.info(f"DEBUG - POST CALL: {response}")
+        self.logger.info(f"DEBUG - POST CALL: {response}")
         response = response[0]
-        logger.info("DEBUG - AFTER RESPONSE")
+        self.logger.info("DEBUG - AFTER RESPONSE")
         return ChatMessage(
             message_id=response["id"],
             timestamp=response["created_at"],
@@ -63,8 +64,7 @@ class SupabaseHandler:
         instructions: str,
         thought_generator_mode: str,
     ) -> AgentData:
-        logger = FileLogger("migration_tests")
-        logger.info(f"DEBUG - Creating agent {name}")
+        self.logger.info(f"DEBUG - Creating agent {name}")
         data = (
             self.client.table("agents")
             .insert(
@@ -82,8 +82,8 @@ class SupabaseHandler:
             .data
         )
         data = data[0]
-        logger.info(f"Agent: {name}, created. Initializing agent data")
-        logger.info(f"DEBUG - Data: {data}")
+        self.logger.info(f"Agent: {name}, created. Initializing agent data")
+        self.logger.info(f"DEBUG - Data: {data}")
         return AgentData(
             id=data["id"],
             name=data["name"],
@@ -106,8 +106,7 @@ class SupabaseHandler:
         task: str,
         instructions: str,
     ) -> ProcessData:
-        logger = FileLogger("migration_tests")
-        logger.info(f"DEBUG - Creating process {name}")
+        self.logger.info(f"DEBUG - Creating process {name}")
         data = (
             self.client.table("processes")
             .insert(
@@ -125,8 +124,8 @@ class SupabaseHandler:
             .data
         )
         data = data[0]
-        logger.info(f"Process: {name}, created. Initializing process data")
-        logger.info(f"DEBUG - Data: {data}")
+        self.logger.info(f"Process: {name}, created. Initializing process data")
+        self.logger.info(f"DEBUG - Data: {data}")
         return ProcessData(
             id=data["id"],
             name=data["name"],
@@ -136,17 +135,47 @@ class SupabaseHandler:
             instructions=data["instructions"],
         )
 
-    def create_event(self, user_id: str, event_name: str, content: str) -> Event:
-        logger = FileLogger("migration_tests")
-        logger.info(f"DEBUG - Creating event {event_name} for user {user_id}")
+    def create_event_type(
+        self, user_id: str, event_name: str, event_description: str
+    ) -> Event:
+        self.logger.info(
+            f"Creating event type {event_name} with description: {event_description} for user: {user_id}"
+        )
         response = (
-            self.client.table("events")
+            self.client.table("event_types")
             .insert(
                 {
                     "user_id": user_id,
                     "name": event_name,
-                    "content": content,
+                    "description": event_description,
                 }
+            )
+            .execute()
+            .data
+        )
+        response = response[0]
+        return EventType(
+            id=response["id"],
+            user_id=user_id,
+            name=event_name,
+            description=event_description,
+        )
+
+    def create_event(
+        self, user_id: str, event_name: str, message_name: str, content: str
+    ) -> Event:
+        self.logger.info(
+            f"Creating event {event_name} with content: {content} for user {user_id}"
+        )
+        response = (
+            self.client.rpc(
+                "create_event",
+                {
+                    "p_user_id": user_id,
+                    "p_event_name": event_name,
+                    "p_message_name": message_name,
+                    "p_content": content,
+                },
             )
             .execute()
             .data
@@ -154,32 +183,44 @@ class SupabaseHandler:
         response = response[0]
         return Event(
             id=response["id"],
+            user_id=user_id,
             name=event_name,
+            message_name=message_name,
             content=content,
+            status=EventStatus(response["status"]),
             timestamp=response["created_at"],
         )
 
-    def create_event_subscription(self, process_ids: ProcessIds, event_name: str):
-        logger = FileLogger("migration_tests")
-        logger.info(
-            f"DEBUG - Creating subscription to event: {event_name} for user: {process_ids.user_id} and process: {process_ids.process_id}"
+    def create_event_subscription(
+        self, process_id: str, event_name: str
+    ) -> EventSubscription:
+        self.logger.info(
+            f"Creating subscription to event_type: {event_name} process: {process_id}"
         )
-        self.client.rpc(
-            "create_event_subscription",
-            {
-                "p_user_id": process_ids.user_id,
-                "p_process_id": process_ids.process_id,
-                "p_event_name": event_name,
-            },
-        ).execute()
+        response = (
+            self.client.rpc(
+                "create_event_subscription",
+                {
+                    "p_process_id": process_id,
+                    "p_event_name": event_name,
+                },
+            )
+            .execute()
+            .data[0]
+        )
+        return EventSubscription(
+            user_id=response["returned_user_id"],
+            process_id=process_id,
+            event_type_id=response["returned_event_type_id"],
+            event_name=event_name,
+        )
 
     def create_topic_subscription(
         self,
         process_id: str,
         topic_name: str,
     ) -> TopicSubscription:
-        logger = FileLogger("migration_tests")
-        logger.info(f"DEBUG - Creating topic subscription for process {process_id}")
+        self.logger.info(f"Creating topic subscription for process {process_id}")
         response = (
             self.client.rpc(
                 "create_topic_subscription",
@@ -191,7 +232,7 @@ class SupabaseHandler:
             .execute()
             .data[0]
         )
-        logger.info(
+        self.logger.info(
             f"Process {process_id} subscribed to topic {topic_name}. Subscription: {response}"
         )
         return TopicSubscription(
@@ -205,18 +246,19 @@ class SupabaseHandler:
         self,
         user_id: str,
         client_process_id: str,
+        client_process_name: str,
         service_name: str,
         query: str,
         is_async: bool,
     ) -> Request:
-        logger = FileLogger("migration_tests")
-        logger.info(f"DEBUG - Creating request {service_name}")
+        self.logger.info(f"Creating request {service_name}")
         response = (
             self.client.rpc(
                 "create_request",
                 {
                     "p_user_id": user_id,
                     "p_client_process_id": client_process_id,
+                    "p_client_process_name": client_process_name,
                     "p_service_name": service_name,
                     "p_query": query,
                     "p_is_async": is_async,
@@ -230,13 +272,14 @@ class SupabaseHandler:
             query=response["query"],
             is_async=response["is_async"],
             feedback=response["feedback"],
-            status=response["status"],
+            status=RequestStatus(response["status"]),
             response=response["response"],
         )
         return Request(
             request_id=response["id"],
             service_id=response["service_id"],
             service_process_id=response["service_process_id"],
+            client_process_name=client_process_name,
             client_process_id=client_process_id,
             timestamp=response["created_at"],
             request_data=request_data,
@@ -245,8 +288,7 @@ class SupabaseHandler:
     def create_service(
         self, user_id: str, process_id: str, service_data: ServiceData
     ) -> Service:
-        logger = FileLogger("migration_tests")
-        logger.info(f"DEBUG - Creating service {service_data.name}")
+        self.logger.info(f"Creating service {service_data.name}")
         service_id = (
             self.client.rpc(
                 "create_service",
@@ -260,7 +302,7 @@ class SupabaseHandler:
             .execute()
             .data
         )
-        logger.info(
+        self.logger.info(
             f"New service created at supabase. Name: {service_data.name}, id: {service_id}"
         )
         return Service(service_id=service_id, process_id=process_id, data=service_data)
@@ -268,7 +310,6 @@ class SupabaseHandler:
     def create_topic(
         self, user_id: str, topic_name: str, topic_description: str
     ) -> Topic:
-        logger = FileLogger("migration_tests")
         existing_topic = (
             self.client.table("topics")
             .select("*")
@@ -276,9 +317,9 @@ class SupabaseHandler:
             .eq("name", topic_name)
             .execute()
         ).data
-        logger.info(f"DEBUG - Got existing topic: {existing_topic}")
+        self.logger.info(f"Got existing topic: {existing_topic}")
         if not existing_topic:
-            logger.info(f"DEBUG - Creating topic {topic_name}")
+            self.logger.info(f"Creating topic {topic_name}")
             existing_topic = (
                 self.client.table("topics")
                 .insert(
@@ -308,32 +349,30 @@ class SupabaseHandler:
         return response
 
     def get_active_messages(self, process_id: str) -> List[ChatMessage]:
-        log = FileLogger("migration_tests")
-        invoke_options = {"p_process_id": process_id}
-        log.info(f"PRE INVOKE with id: {process_id}")
+        self.logger.info(f"Getting active messages for: {process_id}")
         ordered_messages = (
-            self.client.rpc("get_active_messages", invoke_options).execute().data
+            self.client.rpc("get_active_messages", {"p_process_id": process_id})
+            .execute()
+            .data
         )
-        log.info("POST INVOKE, response: " + str(ordered_messages))
+        self.logger.info(f"Active messages: {str(ordered_messages)}")
         messages = []
         if ordered_messages:
             for row in ordered_messages:
-                log.info(f"Row: {str(row)}")
                 messages.append(MessagesFactory.create_message(row))
         return messages
 
     def get_buffered_messages(self, process_id: str) -> List[ChatMessage]:
-        log = FileLogger("migration_tests")
-        invoke_options = {"p_process_id": process_id}
-        log.info(f"PRE INVOKE with id: {process_id}")
+        self.logger.info(f"Getting buffered messages for: {process_id}")
         ordered_messages = (
-            self.client.rpc("get_buffered_messages", invoke_options).execute().data
+            self.client.rpc("get_buffered_messages", {"p_process_id": process_id})
+            .execute()
+            .data
         )
-        log.info("POST INVOKE, response: " + str(ordered_messages))
+        self.logger.info(f"Buffered messages: {str(ordered_messages)}")
         messages = []
         if ordered_messages:
             for row in ordered_messages:
-                log.info(f"Row: {str(row)}")
                 messages.append(MessagesFactory.create_message(row))
         return messages
 
@@ -442,7 +481,7 @@ class SupabaseHandler:
                 query=row["query"],
                 is_async=row["is_async"],
                 feedback=row["feedback"],
-                status=row["status"],
+                status=RequestStatus(row["status"]),
                 response=row["response"],
             )
             requests.append(
@@ -457,21 +496,9 @@ class SupabaseHandler:
             )
         return requests
 
-    def get_tools_class(self, process_id: str) -> Optional[str]:
-        data = (
-            self.client.table("processes")
-            .select("*")
-            .eq("id", process_id)
-            .execute()
-            .data
-        )
-        if not data:
-            return None
-        return data[0]["tools_class"]
-
     def get_topic_subscriptions(self, process_id: str) -> List[Topic]:
         data = (
-            self.client.rpc("get_subscribed_data", {"p_process_id": process_id})
+            self.client.rpc("get_topic_subscriptions", {"p_process_id": process_id})
             .execute()
             .data
         )
@@ -539,8 +566,7 @@ class SupabaseHandler:
         name: str,
         content: str,
     ):
-        logger = FileLogger("migration_tests")
-        logger.info(f"DEBUG - Sending message to user {user_id}")
+        self.logger.info(f"DEBUG - Sending message to user {user_id}")
         invoke_options = {
             "p_user_id": user_id,
             "p_process_id": process_id,
@@ -553,7 +579,7 @@ class SupabaseHandler:
         response = (
             self.client.rpc("send_message_to_user", invoke_options).execute().data
         )
-        logger.info(f"DEBUG - Response: {response}")
+        self.logger.info(f"DEBUG - Response: {response}")
         return response
 
     def set_active_process(self, process_id: str, active: bool):
@@ -561,10 +587,10 @@ class SupabaseHandler:
             "id", process_id
         ).execute()
 
-    def set_request_completed(self, request_id: str, response: str):
+    def set_request_completed(self, request: Request):
         self.client.table("requests").update(
-            {"status": "completed", "response": response}
-        ).eq("id", request_id).execute()
+            {"status": request.data.status.value, "response": request.data.response}
+        ).eq("id", request.id).execute()
 
     def set_topic_content(self, user_id: str, name: str, content: str):
         data = (
@@ -587,9 +613,24 @@ class SupabaseHandler:
             "id", agent_data.id
         ).execute()
 
+    def update_event(self, event: Event):
+        self.client.table("events").update({"status": event.status.value}).eq(
+            "id", event.id
+        ).execute()
+
     def update_agent_profile(self, agent_id: str, profile: Dict[str, Any]):
         self.client.table("agents").update({"profile": profile}).eq(
             "id", agent_id
+        ).execute()
+
+    def update_request_feedback(self, request: Request):
+        self.client.table("requests").update({"feedback": request.data.feedback}).eq(
+            "id", request.id
+        ).execute()
+
+    def update_request_status(self, request: Request):
+        self.client.table("requests").update({"status": request.data.status.value}).eq(
+            "id", request.id
         ).execute()
 
     def update_user_profile(self, user_id: str, profile: Dict[str, Any]):

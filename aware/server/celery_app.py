@@ -1,6 +1,5 @@
 from celery import Celery
 
-# Configure Celery application TODO: Add backend?
 app = Celery("aware", broker="pyamqp://guest@localhost//")
 
 app.conf.update(

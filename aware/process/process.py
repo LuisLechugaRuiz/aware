@@ -35,7 +35,7 @@ class Process:
         return prompt_kwargs
 
     def _get_tools(self, process_info: ProcessInfo) -> Tools:
-        tools_class = ClientHandlers().get_tools_class(process_id=self.ids.process_id)
+        tools_class = process_info.process_data.tools_class
         tools_class_type = self.tools_manager.get_tools(name=tools_class)
         if tools_class_type is None:
             raise Exception("Tools class not found")

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from aware.tools.default_data.data import Data
 
 DEF_IDENTITY = """You are thought_generator, a process responsible for generating thoughts to optimize the performance of a specific agent."""
-DEF_TASK = """Your task is to optimize {agent}'s performance in executing its task through strategic thought generation.
+DEF_TASK = """Optimize {agent}'s performance in executing its task through strategic thought generation.
 {agent}'s Task:
 {agent_task}"""
 DEF_INSTRUCTIONS = """Thought Generation Steps:

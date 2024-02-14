@@ -2,6 +2,7 @@ import json
 from dataclasses import dataclass
 from typing import List, Optional
 
+from aware.communications.events.event import Event
 from aware.communications.requests.request import Request
 from aware.communications.topics.topic import Topic
 
@@ -10,6 +11,7 @@ from aware.communications.topics.topic import Topic
 class ProcessCommunications:
     outgoing_requests: List[Request]
     incoming_request: Optional[Request]
+    event: Optional[Event]
     topics: List[Topic]
 
     def to_dict(self):
@@ -20,6 +22,7 @@ class ProcessCommunications:
             "incoming_request": (
                 self.incoming_request.to_dict() if self.incoming_request else None
             ),
+            "event": self.event.to_dict() if self.event else None,
             "topics": [topic.to_dict() for topic in self.topics],
         }
 
@@ -34,10 +37,13 @@ class ProcessCommunications:
         ]
         if data["incoming_request"]:
             data["incoming_request"] = Request(**data["incoming_request"])
+        if data["event"]:
+            data["event"] = Event(**data["event"])
         data["topics"] = [Topic(**topic) for topic in data["topics"]]
         return ProcessCommunications(**data)
 
     def to_prompt_kwargs(self):
+        """Show permanent info on the prompt. Don't show event as it will be part of conversation."""
         prompt_kwargs = {}
         if self.outgoing_requests:
             # Add the feedback of all the outgoing requests
