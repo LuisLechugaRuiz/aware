@@ -2,7 +2,7 @@ import asyncio
 
 from aware.data.database.client_handlers import ClientHandlers
 from aware.models.private.openai.openai import OpenAIModel
-from aware.server.task_executor import TaskExecutor
+from aware.server.celery_app import app
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -25,10 +25,12 @@ async def process_openai_call(call_id):
     # Store the result back in the database TODO: MOVE TO PROCESS_REQUEST TO DO THIS PROPERLY.
     await redis_handlers.store_response(call_id, result.model_dump_json())
     # Post process the response
-    TaskExecutor().execute_task(
-        "postprocess",
-        response_str=result.model_dump_json(),
-        call_info_str=call_info.to_json(),
+    app.send_task(
+        "server.postprocess",
+        kwargs={
+            "response_str": result.model_dump_json(),
+            "call_info_str": call_info.to_json(),
+        },
     )
 
 

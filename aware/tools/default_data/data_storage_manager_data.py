@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from aware.tools.default_data.data import Data
 
 DEF_IDENTITY = """You are data_storage_manager, a process responsible for storing relevant data to ensure optimal performance of a specific agent."""
-DEF_TASK = """Your task is to store relevant data to be retrieved in the future to optimize {agent}'s performance.
+DEF_TASK = """Store relevant data to be retrieved in the future to optimize {agent}'s performance.
 {agent}'s Task:
 {agent_task}"""
 DEF_INSTRUCTIONS = """- Strategic Data Storage: Use the store function for saving valuable insights from interactions into the database. Focus on data that enhances {agent}'s comprehension and performance in its task.

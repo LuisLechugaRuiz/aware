@@ -8,8 +8,9 @@ from aware.agent.agent_data import AgentData
 from aware.chat.conversation_schemas import (
     JSONMessage,
 )
-from aware.communications.events.event import Event
-from aware.communications.requests.request import Request
+from aware.communications.events.event import Event, EventStatus
+from aware.communications.events.event_type import EventType
+from aware.communications.requests.request import Request, RequestStatus
 from aware.communications.requests.service import ServiceData
 from aware.config.config import Config
 from aware.data.database.supabase_handler.supabase_handler import SupabaseHandler
@@ -131,26 +132,46 @@ class ClientHandlers:
         )
         return process_data
 
-    def create_event(self, user_id: str, event_name: str, content: str) -> Event:
+    def create_event(
+        self, user_id: str, event_name: str, message_name: str, content: str
+    ) -> Event:
         event = self.supabase_handler.create_event(
             user_id=user_id,
             event_name=event_name,
+            message_name=message_name,
             content=content,
         )
         self.redis_handler.create_event(
-            user_id=user_id,
             event=event,
         )
         return event
 
     def create_event_subscription(self, process_ids: ProcessIds, event_name: str):
-        self.supabase_handler.create_event_subscription(process_ids, event_name)
-        self.redis_handler.create_event_subscription(process_ids, event_name)
-        self.logger.info(f"DEBUG - Created event subscription {event_name}")
+        event_subscription = self.supabase_handler.create_event_subscription(
+            process_ids.process_id, event_name
+        )
+        self.redis_handler.create_event_subscription(process_ids, event_subscription)
+        self.logger.info(
+            f"Created subscription of process_id: {process_ids.process_id} to event: {event_name}"
+        )
+
+    def create_event_type(
+        self, user_id: str, event_name: str, event_description: str
+    ) -> EventType:
+        event_type = self.supabase_handler.create_event_type(
+            user_id=user_id,
+            event_name=event_name,
+            event_description=event_description,
+        )
+        self.redis_handler.create_event_type(
+            event_type=event_type,
+        )
+        return event_type
 
     def create_request(
         self,
         process_ids: ProcessIds,
+        client_process_name: str,
         service_name: str,
         query: str,
         is_async: bool,
@@ -158,6 +179,7 @@ class ClientHandlers:
         request = self.supabase_handler.create_request(
             user_id=process_ids.user_id,
             client_process_id=process_ids.process_id,
+            client_process_name=client_process_name,
             service_name=service_name,
             query=query,
             is_async=is_async,
@@ -184,14 +206,16 @@ class ClientHandlers:
             process_id, topic_name
         )
         self.redis_handler.create_topic_subscription(process_id, topic_subscription)
-        self.logger.info(f"DEBUG - Created topic subscription {topic_name}")
+        self.logger.info(
+            f"Created subscription of process_id: {process_id} to topic: {topic_name}"
+        )
 
     def create_topic(self, user_id: str, topic_name: str, topic_description: str):
         topic = self.supabase_handler.create_topic(
             user_id, topic_name, topic_description
         )
         self.redis_handler.create_topic(topic)
-        self.logger.info(f"DEBUG - Created topic {topic_name}")
+        self.logger.info(f"Created topic: {topic_name}")
 
     # TODO: fetch from supabase as fallback
     def get_agent_id_by_process_id(self, process_id: str) -> str:
@@ -205,15 +229,6 @@ class ClientHandlers:
 
     def get_redis_handler(self) -> RedisHandler:
         return self._instance.redis_handler
-
-    def get_tools_class(self, process_id: str) -> str:
-        redis_handler = self.get_redis_handler()
-        tools_class = redis_handler.get_tools_class(process_id)
-        if tools_class is None:
-            supabase_handler = self.get_supabase_handler()
-            tools_class = supabase_handler.get_tools_class(process_id)
-            redis_handler.set_tools_class(process_id, tools_class)
-        return tools_class
 
     def get_agent_data(self, agent_id: str) -> AgentData:
         agent_data = self.redis_handler.get_agent_data(agent_id)
@@ -248,11 +263,6 @@ class ClientHandlers:
             self.logger.info("Agent process id found in Redis")
 
         return process_id
-
-    def get_processes_ids_by_event(
-        self, user_id: str, event: Event
-    ) -> List[ProcessIds]:
-        return self.redis_handler.get_processes_ids_by_event(user_id, event)
 
     def get_process_data(self, process_id: str) -> ProcessData:
         process_data = self.redis_handler.get_process_data(process_id)
@@ -307,6 +317,11 @@ class ClientHandlers:
             process_communications=process_communications,
         )
 
+    def get_processes_subscribed_to_event(
+        self, user_id: str, event: Event
+    ) -> List[ProcessIds]:
+        return self.redis_handler.get_processes_subscribed_to_event(user_id, event)
+
     def get_user_data(self, user_id: str) -> UserData:
         redis_handler = ClientHandlers().get_redis_handler()
         supabase_handler = ClientHandlers().get_supabase_handler()
@@ -344,15 +359,36 @@ class ClientHandlers:
         self.redis_handler.remove_active_process(process_id=process_id)
         self.supabase_handler.set_active_process(process_id=process_id, active=False)
 
-    def send_feedback(self, request: Request):
-        self.redis_handler.update_request(request)
-
     def set_user_data(self, user_data: UserData):
         self.redis_handler.set_user_data(user_data)
 
-    def set_request_completed(self, request: Request):
+    def set_event_notified(self, event: Event):
+        event.status = EventStatus.NOTIFIED
+
+        self.redis_handler.delete_event(event)
+        self.supabase_handler.update_event(event)
+
+    def set_request_completed(self, request: Request, success: bool, response: str):
+        request.data.response = response
+        if success:
+            request.data.status = RequestStatus.SUCCESS
+        else:
+            request.data.status = RequestStatus.FAILURE
+
         self.redis_handler.delete_request(request.id)
-        self.supabase_handler.set_request_completed(request.id, request.data.response)
+        self.supabase_handler.set_request_completed(request)
+
+    def update_request_feedback(self, request: Request, feedback: str):
+        request.data.feedback = feedback
+
+        self.redis_handler.update_request(request)
+        self.supabase_handler.update_request_feedback(request)
+
+    def update_request_status(self, request: Request, status: RequestStatus):
+        request.data.status = status
+
+        self.redis_handler.update_request(request)
+        self.supabase_handler.update_request_status(request)
 
     def update_agent_data(self, agent_data: AgentData):
         try:

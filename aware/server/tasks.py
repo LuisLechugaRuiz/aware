@@ -9,7 +9,6 @@ from aware.process.process_handler import ProcessHandler
 from aware.process.process import Process
 from aware.process.process_ids import ProcessIds
 from aware.server.celery_app import app
-from aware.server.task_executor import TaskExecutor
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -95,7 +94,3 @@ def postprocess(response_str: str, call_info_str: str):
 @app.task(name="server.process_tool_feedback")
 def process_tool_feedback(tool_name: str, feedback: str, call_info: CallInfo):
     pass
-
-
-TaskExecutor().register_task("preprocess", preprocess)
-TaskExecutor().register_task("postprocess", postprocess)

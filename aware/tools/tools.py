@@ -147,20 +147,18 @@ class Tools(ABC):
         Args:
             feedback (str): The feedback to send to the client.
         """
-        self.request.data.feedback = feedback
-
-        return ClientHandlers().send_feedback(
-            request=self.request,
+        return ClientHandlers().update_request_feedback(
+            request=self.request, feedback=feedback
         )
 
-    def set_request_completed(self, response: str):
+    def set_request_completed(self, response: str, success: bool):
         """Set request as completed and provide the response to the client.
 
         Args:
             response (str): The response to the request.
         """
         self.process_handler.set_request_completed(
-            request=self.request, response=response
+            request=self.request, response=response, success=success
         )
 
     def finish_process(self):
