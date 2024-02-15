@@ -83,7 +83,6 @@ class SupabaseHandler:
         )
         data = data[0]
         self.logger.info(f"Agent: {name}, created. Initializing agent data")
-        self.logger.info(f"DEBUG - Data: {data}")
         return AgentData(
             id=data["id"],
             name=data["name"],
@@ -125,7 +124,6 @@ class SupabaseHandler:
         )
         data = data[0]
         self.logger.info(f"Process: {name}, created. Initializing process data")
-        self.logger.info(f"DEBUG - Data: {data}")
         return ProcessData(
             id=data["id"],
             name=data["name"],
@@ -279,10 +277,10 @@ class SupabaseHandler:
             request_id=response["id"],
             service_id=response["service_id"],
             service_process_id=response["service_process_id"],
-            client_process_name=client_process_name,
             client_process_id=client_process_id,
+            client_process_name=client_process_name,
             timestamp=response["created_at"],
-            request_data=request_data,
+            data=request_data,
         )
 
     def create_service(
@@ -490,6 +488,7 @@ class SupabaseHandler:
                     service_id=row["service_id"],
                     service_process_id=row["service_process_id"],
                     client_process_id=row["client_process_id"],
+                    client_process_name=row["client_process_name"],
                     timestamp=row["created_at"],
                     data=request_data,
                 )
@@ -534,7 +533,7 @@ class SupabaseHandler:
 
     def get_user_data(self, user_id: str) -> Optional[UserData]:
         data = (
-            self.client.table("profiles")
+            self.client.table("users_data")
             .select("*")
             .eq("user_id", user_id)
             .execute()
@@ -542,11 +541,11 @@ class SupabaseHandler:
         )
         if not data:
             return None
-        user_profile = data[0]
+        user_data = data[0]
         return UserData(
             user_id=user_id,
-            user_name=user_profile["display_name"],
-            api_key=user_profile["openai_api_key"],
+            user_name=user_data["name"],
+            api_key=user_data["api_key"],
         )
 
     def remove_frontend_message(self, message_id: str):
@@ -566,7 +565,7 @@ class SupabaseHandler:
         name: str,
         content: str,
     ):
-        self.logger.info(f"DEBUG - Sending message to user {user_id}")
+        self.logger.info(f"Sending message: {content} to user {user_id}")
         invoke_options = {
             "p_user_id": user_id,
             "p_process_id": process_id,
@@ -579,12 +578,12 @@ class SupabaseHandler:
         response = (
             self.client.rpc("send_message_to_user", invoke_options).execute().data
         )
-        self.logger.info(f"DEBUG - Response: {response}")
+        self.logger.info(f"Database acknowledge: {response}")
         return response
 
-    def set_active_process(self, process_id: str, active: bool):
-        self.client.table("processes").update({"is_active": active}).eq(
-            "id", process_id
+    def set_active_agent(self, agent_id: str, active: bool):
+        self.client.table("agents").update({"is_active": active}).eq(
+            "id", agent_id
         ).execute()
 
     def set_request_completed(self, request: Request):

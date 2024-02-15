@@ -52,11 +52,11 @@ class MessagesListener:
         except Exception as e:
             logger.error(f"Error handling new message: {e}")
 
-    def on_new_user_profile(self, payload):
+    def on_new_user_data(self, payload):
         # Initialize user
-        profile = payload["record"]
-        UserBuilder(profile["user_id"]).initialize_user(
-            user_name=profile["display_name"], api_key=profile["openai_api_key"]
+        user_data = payload["record"]
+        UserBuilder(user_data["user_id"]).initialize_user(
+            user_name=user_data["name"], api_key=user_data["api_key"]
         )
 
     # TODO: do we need to run asyncio here? I think supabase-py is doing that now.
@@ -99,9 +99,9 @@ def main():
     )
     message_listener.subscribe_to_channel(
         schema="public",
-        table_name="profiles",
+        table_name="users_data",
         event_type="INSERT",
-        callback=message_listener.on_new_user_profile,
+        callback=message_listener.on_new_user_data,
     )
     message_listener.start_realtime_listener()
 

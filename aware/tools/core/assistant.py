@@ -12,7 +12,7 @@ class Assistant(Tools):
     ):
         super().__init__(process_info=process_info)
 
-    def get_tools(self):
+    def set_tools(self):
         return [
             self.talk,
             self.send_request,

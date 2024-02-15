@@ -60,7 +60,7 @@ class WeaviateDB:
 
         # Function to find the key in DataType enum by value
         def get_data_type_key(value):
-            for data_type in wvc.DataType:
+            for data_type in wvc.config.DataType:
                 if data_type.value == value:
                     return data_type
             return None
@@ -79,7 +79,7 @@ class WeaviateDB:
                 if data_type_key is not None:
                     # Add new property
                     properties.append(
-                        wvc.Property(
+                        wvc.config.Property(
                             name=prop_name,
                             data_type=data_type_key,
                             description=prop_info["description"],
@@ -88,7 +88,7 @@ class WeaviateDB:
                 elif prop_info["type"] in json_schema:
                     # Add new cross-reference
                     references.append(
-                        wvc.ReferenceProperty(
+                        wvc.config.ReferenceProperty(
                             name=prop_name,
                             target_collection=prop_info["type"],
                             description=prop_info["description"],
@@ -116,7 +116,7 @@ class WeaviateDB:
                     "task": agent_data.task,
                     "instructions": agent_data.instructions,
                 },
-                references={"user": wvc.Reference.to(uuids=user_id)},
+                references={"user": user_id},
                 uuid=user_id,
                 vector=self.get_ada_embedding(agent_data.task),
             )
@@ -151,7 +151,7 @@ class WeaviateDB:
     ) -> List[str]:
         """Search for a agent in the database"""
         try:
-            filters = wvc.Filter.by_ref("user").by_id().equal(user_id)
+            filters = wvc.query.Filter.by_ref("user").by_id().equal(user_id)
             query_vector = self.get_ada_embedding(task)
             # Get the most similar content
             agent_collection = self.client.collections.get("Agent")
@@ -182,7 +182,7 @@ class WeaviateDB:
         certainty=0.7,
     ) -> WeaviateResult:
         try:
-            filters = wvc.Filter.by_ref("user").by_id().equal(user_id)
+            filters = wvc.query.Filter.by_ref("user").by_id().equal(user_id)
 
             query_vector = self.get_ada_embedding(query)
             info_collection = self.client.collections.get("Info")
@@ -215,7 +215,7 @@ class WeaviateDB:
                     "potential_query": potential_query,
                 },
                 references={
-                    "user": wvc.Reference.to(uuids=user_id),
+                    "user": user_id,
                 },
                 vector=self.get_ada_embedding(potential_query),
             )
@@ -253,7 +253,7 @@ class WeaviateDB:
             # Search if the tool already exists
             tool_collection = self.client.collections.get("Tool")
             existing_tool = tool_collection.query.fetch_objects(
-                filters=wvc.Filter("name").equal(name)
+                filters=wvc.query.Filter().by_property("name").equal(name)
             )
             if len(existing_tool.objects) > 0:
                 return existing_tool.objects[0].uuid
@@ -276,7 +276,7 @@ class WeaviateDB:
         self, query: str, user_id: str, certainty=0.7, num_relevant=2
     ):
         try:
-            filters = wvc.Filter.by_ref("users").by_id().equal(user_id)
+            filters = wvc.query.Filter.by_ref("user").by_id().equal(user_id)
 
             query_vector = self.get_ada_embedding(query)
             conversation_collection = self.client.collections.get("Conversation")
@@ -304,7 +304,7 @@ class WeaviateDB:
                     "summary": summary,
                     "potential_query": potential_query,
                 },
-                references={"user": wvc.Reference.to(uuids=user_id)},
+                references={"user": user_id},
                 vector=self.get_ada_embedding(potential_query),
             )
             return WeaviateResult(data=conversation_uuid)

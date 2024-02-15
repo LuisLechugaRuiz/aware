@@ -1,17 +1,15 @@
-from typing import Callable, Dict, List, Tuple, TYPE_CHECKING
+from typing import Callable, Dict, List, Tuple
 import uuid
 
 from aware.chat.call_info import CallInfo
 from aware.chat.conversation import Conversation
 from aware.chat.conversation_schemas import SystemMessage
 from aware.chat.parser.pydantic_parser import PydanticParser
+from aware.data.database.client_handlers import ClientHandlers
 from aware.prompts.load import load_prompt_from_args
 from aware.process.process_ids import ProcessIds
 from aware.utils.helpers import get_current_date
 from aware.utils.logger.file_logger import FileLogger
-
-if TYPE_CHECKING:
-    from aware.data.database.client_handlers import ClientHandlers
 
 
 class Chat:

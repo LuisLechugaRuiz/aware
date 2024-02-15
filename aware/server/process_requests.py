@@ -52,6 +52,8 @@ async def main():
         while True:
             call_id = await task_queue.get()
             try:
+                logger = FileLogger(name="migration_tests")
+                logger.info("Processing openai call...")
                 await process_openai_call(call_id)
             except Exception as e:
                 # handle exceptions

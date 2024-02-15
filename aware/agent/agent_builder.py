@@ -91,7 +91,7 @@ class AgentBuilder:
                 tools_class=ThoughtGenerator.__name__,
                 identity=ThoughtGenerator.get_identity(),
                 task=ThoughtGenerator.get_task(agent=name, agent_task=task),
-                instructions=ThoughtGenerator.get_instructions(),
+                instructions=ThoughtGenerator.get_instructions(agent=name),
             )
             # Create data storage manager process
             data_storage_process_data = ClientHandlers().create_process(
