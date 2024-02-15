@@ -41,19 +41,19 @@ def postprocess(response_str: str, call_info_str: str):
         tool_calls = openai_response.tool_calls
         if tool_calls is not None:
             new_message = ToolCalls.from_openai(
-                assistant_name=call_info.process_name,
+                assistant_name=call_info.name,
                 tool_calls=openai_response.tool_calls,
             )
         else:
             tool_calls = [process.get_default_tool_call(openai_response.content)]
             if tool_calls is not None:
                 new_message = ToolCalls.from_openai(
-                    assistant_name=call_info.process_name,
+                    assistant_name=call_info.name,
                     tool_calls=tool_calls,
                 )
             else:
                 new_message = AssistantMessage(
-                    name=call_info.process_name, content=openai_response.content
+                    name=call_info.name, content=openai_response.content
                 )
                 process.finish_process()
 

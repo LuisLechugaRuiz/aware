@@ -1,11 +1,12 @@
 Current date: {{ date }}
 
-{{ identity }}
-{{ task }}
+You are: {{ name }}.
+Your task is: {{ task }}
 
 {% if context -%}
-Your operational context:
+Context:
 {{ context }}
+
 {% endif -%}
 
 {% include 'interactions.j2' -%}

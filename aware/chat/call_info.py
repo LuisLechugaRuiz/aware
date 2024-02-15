@@ -10,14 +10,14 @@ class CallInfo:
     def __init__(
         self,
         call_id: str,
+        name: str,
         process_ids: ProcessIds,
-        process_name: str,
         system_message: str,
         functions: List[Dict[str, Any]],
     ):
         self.call_id = call_id
+        self.name = name
         self.process_ids = process_ids
-        self.process_name = process_name
         self.system_message = system_message
         self.functions = functions
 
@@ -33,8 +33,8 @@ class CallInfo:
     def to_dict(self):
         return {
             "call_id": self.call_id,
+            "name": self.name,
             "process_ids": self.process_ids.to_dict(),
-            "process_name": self.process_name,
             "system_message": self.system_message,
             "functions": self.functions,
         }

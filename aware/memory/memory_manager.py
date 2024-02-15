@@ -80,7 +80,7 @@ class MemoryManager:
             data_str = "Not found."
             for index, datapoint in enumerate(data):
                 data_str += f"- Data {index}: {datapoint}\n"
-            response += f"- Query: {query}\nAnswer:{data_str}"
+            response += f"- Query: {query}\nAnswer: {data_str}"
         return response
 
     def store_data(self, data: str, potential_query: str):
@@ -94,7 +94,9 @@ class MemoryManager:
         Returns:
             str: Feedback message.
         """
-        self.logger.info(f"Storing data {data}, with potential query {potential_query}")
+        self.logger.info(
+            f"Storing data.\nPotential query: {potential_query}.\nContent: {data}"
+        )
         store_result = self.weaviate_db.store_info(
             user_id=self.user_id,
             data=data,

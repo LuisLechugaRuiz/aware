@@ -7,11 +7,6 @@ import re
 class Data:
     @classmethod
     @abstractmethod
-    def get_identity(cls, **kwargs) -> str:
-        pass
-
-    @classmethod
-    @abstractmethod
     def get_task(cls, **kwargs) -> str:
         pass
 

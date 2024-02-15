@@ -60,7 +60,7 @@ class DataStorageManager(Tools):
         )
 
     def stop(self, new_context: str):
-        """Stop saving info. Call this function after all relevant data has been stored and provide a new context that overrides the previous one with the new information.
+        """Stop saving info. Call this function after all relevant data has been stored and provide a new context for the agent which contains the most relevant information from previous interactions.
 
         Args:
             new_context (str): The new context to be set.

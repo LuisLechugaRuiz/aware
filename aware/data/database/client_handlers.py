@@ -18,7 +18,7 @@ from aware.data.database.redis_handler.redis_handler import RedisHandler
 from aware.data.database.redis_handler.async_redis_handler import AsyncRedisHandler
 from aware.process.process_ids import ProcessIds
 from aware.process.process_communications import ProcessCommunications
-from aware.process.process_data import ProcessData
+from aware.process.process_data import ProcessData, ProcessFlowType
 from aware.process.process_info import ProcessInfo
 from aware.memory.user.user_data import UserData
 from aware.utils.logger.file_logger import FileLogger
@@ -79,7 +79,6 @@ class ClientHandlers:
         user_id: str,
         name: str,
         tools_class: str,
-        identity: str,
         task: str,
         instructions: str,
         thought_generator_mode: str,
@@ -89,7 +88,6 @@ class ClientHandlers:
             user_id=user_id,
             name=name,
             tools_class=tools_class,
-            identity=identity,
             task=task,
             instructions=instructions,
             thought_generator_mode=thought_generator_mode,
@@ -108,9 +106,9 @@ class ClientHandlers:
         agent_id: str,
         name: str,
         tools_class: str,
-        identity: str,
         task: str,
         instructions: str,
+        flow_type: ProcessFlowType,
         service_name: Optional[str] = None,
     ) -> ProcessData:
         process_data = self.supabase_handler.create_process(
@@ -118,17 +116,25 @@ class ClientHandlers:
             agent_id=agent_id,
             name=name,
             tools_class=tools_class,
-            identity=identity,
             task=task,
             instructions=instructions,
+            flow_type=flow_type,
         )
         self.redis_handler.set_process_data(
             process_id=process_data.id, process_data=process_data
         )
+        process_ids = ProcessIds(
+            user_id=user_id, agent_id=agent_id, process_id=process_data.id
+        )
+        self.redis_handler.set_process_ids(process_ids)
+
         if service_name is None:
             service_name = name  # Use the name of the process, otherwise the name of the Agent. TODO: Solve this by internal and external requests.
         self.create_service(
-            user_id=user_id, process_id=process_data.id, name=name, description=task
+            user_id=user_id,
+            process_id=process_data.id,
+            name=service_name,
+            description=task,
         )
         return process_data
 
@@ -185,8 +191,6 @@ class ClientHandlers:
             is_async=is_async,
         )
         self.redis_handler.create_request(
-            service_process_id=request.service_process_id,
-            service_id=request.service_id,
             request=request,
         )
         return request
@@ -303,6 +307,22 @@ class ClientHandlers:
             self.logger.info("Process Communications found in Redis")
 
         return process_communications
+
+    def get_process_ids(self, process_id: str) -> ProcessIds:
+        process_ids = self.redis_handler.get_process_ids(process_id)
+
+        if process_ids is None:
+            self.logger.info("Process Ids not found in Redis")
+            # Fetch agent data from Supabase
+            process_ids = self.supabase_handler.get_process_ids(process_id)
+            if process_ids is None:
+                raise Exception("Process Ids not found on Supabase")
+
+            self.redis_handler.set_process_ids(process_ids)
+        else:
+            self.logger.info("Process Ids found in Redis")
+
+        return process_ids
 
     def get_process_info(self, process_ids: ProcessIds) -> ProcessInfo:
         agent_data = self.get_agent_data(agent_id=process_ids.agent_id)

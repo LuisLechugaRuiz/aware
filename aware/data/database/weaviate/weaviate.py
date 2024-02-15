@@ -112,7 +112,6 @@ class WeaviateDB:
             agent_uuid = agent_collection.data.insert(
                 properties={
                     "name": agent_data.name,
-                    "identity": agent_data.identity,
                     "task": agent_data.task,
                     "instructions": agent_data.instructions,
                 },
@@ -164,7 +163,6 @@ class WeaviateDB:
             agents_data = [
                 AgentData().create_description(
                     name=agent_object.properties["name"],
-                    identity=agent_object.properties["identity"],
                     task=agent_object.properties["task"],
                 )
                 for agent_object in agent_objects

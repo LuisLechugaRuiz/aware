@@ -38,3 +38,9 @@ class ProcessInfo:
             data["process_communications"]
         )
         return ProcessData(**data)
+
+    def get_name(self):
+        if self.process_data.name == "main":
+            return self.agent_data.name
+        else:
+            return self.process_data.name

@@ -25,7 +25,8 @@ class Tools(ABC):
         self.process_ids = process_info.process_ids
         self.process_data = process_info.process_data
         self.request = process_info.process_communications.incoming_request
-        self.logger = FileLogger(self.get_process_name())
+
+        self.logger = FileLogger(process_info.get_name())
 
         self.default_tools = self._get_default_tools()
         self.memory_manager = MemoryManager(
@@ -132,7 +133,6 @@ class Tools(ABC):
 
     def update_agent_data(self):
         return ClientHandlers().update_agent_data(
-            agent_id=self.process_ids.agent_id,
             agent_data=self.agent_data,
         )
 

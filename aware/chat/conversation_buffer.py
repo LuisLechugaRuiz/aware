@@ -15,8 +15,10 @@ class ConversationBuffer:
     """Conversation class to keep track of the messages and the current state of the conversation."""
 
     def __init__(self, process_id: str):
-        log = FileLogger("migration_tests", should_print=True)
-        log.info(f"Starting new conversation buffer for process_id: {process_id}")
+        self.logger = FileLogger("migration_tests", should_print=True)
+        self.logger.info(
+            f"Starting new conversation buffer for process_id: {process_id}"
+        )
         self.process_id = process_id
 
         self.model_name = Config().openai_model  # TODO: Enable more models.
@@ -25,7 +27,7 @@ class ConversationBuffer:
         # Get the buffered messages from redis.
         conversation_messages = self.redis_handler.get_conversation_buffer(process_id)
         for index, message in enumerate(conversation_messages):
-            log.info(f"REDIS MESSAGE {index}: {message.to_string()}")
+            self.logger.info(f"BUFFERED REDIS MESSAGE {index}: {message.to_string()}")
         if not conversation_messages:
             # If there are no buffered messages, get the buffered messages from supabase.
             conversation_messages = self.supabase_handler.get_buffered_messages(
@@ -49,6 +51,10 @@ class ConversationBuffer:
         return Config().max_conversation_tokens - self.get_current_tokens()
 
     def reset(self):
+        response = self.supabase_handler.clear_conversation_buffer(
+            process_id=self.process_id
+        )
+        self.logger.info(f"Reset conversation buffer response: {response}")
         self.redis_handler.clear_conversation_buffer(process_id=self.process_id)
 
     def should_trigger_warning(self):
