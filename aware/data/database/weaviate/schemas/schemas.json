@@ -38,7 +38,7 @@
         "properties": {
             "user": {
                 "type": "User",
-                "description": "The users in the conversation"
+                "description": "The user in the conversation"
             },
             "summary": {
                 "type": "text",

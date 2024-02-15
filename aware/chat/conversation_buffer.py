@@ -1,4 +1,4 @@
-from typing import List, TYPE_CHECKING
+from typing import List
 
 from aware.config.config import Config
 from aware.data.database.client_handlers import ClientHandlers
@@ -49,7 +49,7 @@ class ConversationBuffer:
         return Config().max_conversation_tokens - self.get_current_tokens()
 
     def reset(self):
-        self.redis_handler.clear_conversation_buffer()
+        self.redis_handler.clear_conversation_buffer(process_id=self.process_id)
 
     def should_trigger_warning(self):
         warning_tokens = (

@@ -25,6 +25,7 @@ class Tools(ABC):
         self.process_ids = process_info.process_ids
         self.process_data = process_info.process_data
         self.request = process_info.process_communications.incoming_request
+        self.logger = FileLogger(self.get_process_name())
 
         self.default_tools = self._get_default_tools()
         self.memory_manager = MemoryManager(
@@ -36,8 +37,6 @@ class Tools(ABC):
         self.finished = False
         self.async_request_scheduled = False
         self.sync_request_scheduled = False
-
-        self.logger = FileLogger(self.get_process_name())
 
     def create_async_request(self, service_name: str, query: str):
         self.async_request_scheduled = True

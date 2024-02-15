@@ -13,11 +13,6 @@ from aware.utils.logger.file_logger import FileLogger
 from aware.server.celery_app import app
 
 
-def execute_task(task_name, *args, **kwargs):
-    app.send_task(task_name, args=args, kwargs=kwargs)
-
-
-# TODO: instead of adding the message DIRECTLY on event and request we should do it when initializing the process, in case of NEW request or NEW event we add them!!!
 class ProcessHandler:
     def __init__(self):
         self.supabase_handler = ClientHandlers().get_supabase_handler()
@@ -60,7 +55,7 @@ class ProcessHandler:
             json_message=message,
         )
         if agent_data.state == AgentState.MAIN_PROCESS:
-            # Add message to thought generator
+            # Add message to thought generator TODO: Address this properly to don't confuse the thought generator.
             thought_generator_process_ids = self.get_process_ids(
                 user_id=process_ids.user_id,
                 agent_id=process_ids.agent_id,
@@ -166,6 +161,7 @@ class ProcessHandler:
             assistant_conversation_buffer.reset()
 
     def preprocess(self, ids: ProcessIds):
+        self.logger.info(f"Preprocessing process: {ids.process_id}")
         app.send_task("server.preprocess", kwargs={"process_ids_str": ids.to_json()})
 
     def set_request_completed(self, request: Request, response: str, success: bool):
@@ -205,11 +201,11 @@ class ProcessHandler:
 
     def start(self, process_ids: ProcessIds):
         redis_handler = ClientHandlers().get_redis_handler()
-        if not redis_handler.is_process_active(process_ids.process_id):
-            self.logger.info(f"Starting process: {process_ids.process_id}")
+        if not redis_handler.is_agent_active(process_ids.agent_id):
+            self.logger.info(f"Starting agent: {process_ids.agent_id}")
             self.step(process_ids=process_ids, is_process_finished=False)
         else:
-            self.logger.info(f"Process already active: {process_ids.process_id}")
+            self.logger.info(f"Agent already active: {process_ids.agent_id}")
 
     def step(self, process_ids: ProcessIds, is_process_finished: bool = False):
         self.logger.info(f"On step: {process_ids.process_id}")
@@ -218,7 +214,7 @@ class ProcessHandler:
 
         if agent_data.state == AgentState.IDLE:
             # Initialize process
-            ClientHandlers().add_active_process(process_id=process_ids.process_id)
+            ClientHandlers().add_active_agent(agent_id=process_ids.agent_id)
             # Add communications
             self.add_communications(process_ids)
 
@@ -249,4 +245,4 @@ class ProcessHandler:
             )
             self.preprocess(thought_generator_ids)
         elif next_state == AgentState.IDLE:
-            ClientHandlers().remove_active_process(process_ids)
+            ClientHandlers().remove_active_agent(process_ids.agent_id)

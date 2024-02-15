@@ -69,7 +69,9 @@ class MemoryManager:
                 query=query, user_id=self.user_id
             )
             if search_results.error:
-                return f"Error searching for query {query}: {search_results.error}"
+                return (
+                    f"Error searching for query: {query}, error: {search_results.error}"
+                )
             results = search_results.data
             self.logger.info(f"Searching for query {query}, results: {results}")
             datapoints[query] = results
@@ -78,7 +80,7 @@ class MemoryManager:
             data_str = "Not found."
             for index, datapoint in enumerate(data):
                 data_str += f"- Data {index}: {datapoint}\n"
-            response += f"- Query: {query}\n{data_str}"
+            response += f"- Query: {query}\nAnswer:{data_str}"
         return response
 
     def store_data(self, data: str, potential_query: str):

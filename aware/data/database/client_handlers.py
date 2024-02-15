@@ -51,9 +51,9 @@ class ClientHandlers:
         self.async_redis_handler = AsyncRedisHandler(self.async_redis_client)
         self.logger = FileLogger("migration_client_handlers", should_print=True)
 
-    def add_active_process(self, process_id: str):
-        self.redis_handler.add_active_process(process_id)
-        self.supabase_handler.set_active_process(process_id, active=True)
+    def add_active_agent(self, agent_id: str):
+        self.redis_handler.add_active_agent(agent_id)
+        self.supabase_handler.set_active_agent(agent_id, active=True)
 
     def add_message(
         self,
@@ -355,9 +355,9 @@ class ClientHandlers:
             user_id=user_id, topic_name=topic_name, content=content
         )
 
-    def remove_active_process(self, process_id: str):
-        self.redis_handler.remove_active_process(process_id=process_id)
-        self.supabase_handler.set_active_process(process_id=process_id, active=False)
+    def remove_active_agent(self, agent_id: str):
+        self.redis_handler.remove_active_agent(agent_id=agent_id)
+        self.supabase_handler.set_active_agent(agent_id=agent_id, active=False)
 
     def set_user_data(self, user_data: UserData):
         self.redis_handler.set_user_data(user_data)

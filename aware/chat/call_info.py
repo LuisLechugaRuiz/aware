@@ -9,16 +9,15 @@ from aware.process.process_ids import ProcessIds
 class CallInfo:
     def __init__(
         self,
-        process_ids: ProcessIds,
         call_id: str,
-        agent_name: str,
+        process_ids: ProcessIds,
+        process_name: str,
         system_message: str,
         functions: List[Dict[str, Any]],
     ):
-        self.process_ids = process_ids
         self.call_id = call_id
-
-        self.agent_name = agent_name
+        self.process_ids = process_ids
+        self.process_name = process_name
         self.system_message = system_message
         self.functions = functions
 

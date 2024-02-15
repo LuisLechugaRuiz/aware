@@ -15,6 +15,9 @@ class UserBuilder:
         self.logger = FileLogger("user_builder")
 
     def initialize_user(self, user_name: str, api_key: str):
+        self.logger.info(
+            f"Initializing user: {user_name} with id: {self.user_id} and api_key: {api_key}"
+        )
         # Create user on Weaviate
         try:
             memory_manager = MemoryManager(user_id=self.user_id, logger=self.logger)

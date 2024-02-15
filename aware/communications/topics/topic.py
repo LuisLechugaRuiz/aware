@@ -30,3 +30,6 @@ class Topic:
     def from_json(cls, json_str):
         data = json.loads(json_str)
         return cls(**data)
+
+    def to_string(self):
+        return f"Topic: {self.topic_name}: {self.description}\nContent: {self.content}"

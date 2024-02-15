@@ -3,10 +3,12 @@ Current date: {{ date }}
 {{ identity }}
 {{ task }}
 
+{% if context -%}
 Your operational context:
 {{ context }}
+{% endif -%}
 
-{% include 'interactions.j2' %}
+{% include 'interactions.j2' -%}
 
 {% if instructions -%}
 Instructions: {{ instructions }}

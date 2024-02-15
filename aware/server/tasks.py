@@ -15,16 +15,21 @@ from aware.utils.logger.file_logger import FileLogger
 # ENTRY POINT!
 @app.task(name="server.preprocess")
 def preprocess(process_ids_str: str):
-    process_ids = ProcessIds.from_json(process_ids_str)
-    process = Process(process_ids.process_id)
-    process.preprocess()
+    logger = FileLogger("server_tasks")
+    logger.info(f"Task preprocess started with message: {process_ids_str}")
+    try:
+        process_ids = ProcessIds.from_json(process_ids_str)
+        process = Process(process_ids)
+        process.preprocess()
+    except Exception as e:
+        logger.error(f"Error in preprocess: {e}")
 
 
 @app.task(name="server.postprocess")
 def postprocess(response_str: str, call_info_str: str):
     # we need to check if have tool_calls at the processes
-    logger = FileLogger("migration_tests")
-    logger.info(f"Task process_response started with message: {response_str}")
+    logger = FileLogger("server_tasks")
+    logger.info(f"Task postprocess started with message: {response_str}")
 
     try:
         # 1. Get process.
@@ -36,19 +41,19 @@ def postprocess(response_str: str, call_info_str: str):
         tool_calls = openai_response.tool_calls
         if tool_calls is not None:
             new_message = ToolCalls.from_openai(
-                assistant_name=call_info.agent_name,
+                assistant_name=call_info.process_name,
                 tool_calls=openai_response.tool_calls,
             )
         else:
             tool_calls = [process.get_default_tool_call(openai_response.content)]
             if tool_calls is not None:
                 new_message = ToolCalls.from_openai(
-                    assistant_name=call_info.agent_name,
+                    assistant_name=call_info.process_name,
                     tool_calls=tool_calls,
                 )
             else:
                 new_message = AssistantMessage(
-                    name=call_info.agent_name, content=openai_response.content
+                    name=call_info.process_name, content=openai_response.content
                 )
                 process.finish_process()
 

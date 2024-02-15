@@ -74,8 +74,8 @@ class RedisHandler:
             {key: convert_timestamp_to_epoch(chat_message.timestamp)},
         )
 
-    def add_active_process(self, process_id: str):
-        self.client.sadd("active_processes", process_id)
+    def add_active_agent(self, agent_id: str):
+        self.client.sadd("active_agents", agent_id)
 
     def clear_conversation_buffer(self, process_id: str):
         self.client.delete(f"conversation_buffer:{process_id}")
@@ -152,9 +152,15 @@ class RedisHandler:
             )
 
     def delete_event(self, event: Event):
-        self.client.srem(
-            f"user_id:{event.user_id}:event_type:{event.name}:event", event.to_json()
+        # Delete the event data
+        event_data_key = (
+            f"user_id:{event.user_id}:event_type:{event.name}:event:{event.id}"
         )
+        self.client.delete(event_data_key)
+
+        # Delete the event reference from the sorted set
+        event_order_key = f"user_id:{event.user_id}:event_type:{event.name}:event:order"
+        self.client.zrem(event_order_key, event_data_key)
 
     def delete_message(self, process_id: str, message_id: str):
         # The key for the specific message
@@ -360,8 +366,8 @@ class RedisHandler:
             return UserData.from_json(data)
         return None
 
-    def is_process_active(self, process_id: str) -> bool:
-        return self.client.sismember("active_processes", process_id)
+    def is_agent_active(self, agent_id: str) -> bool:
+        return self.client.sismember("active_agents", agent_id)
 
     def set_agent_data(self, agent_data: AgentData):
         self.client.set(
@@ -427,8 +433,8 @@ class RedisHandler:
             topic.to_json(),
         )
 
-    def remove_active_process(self, process_id: str):
-        self.client.srem("active_processes", process_id)
+    def remove_active_agent(self, agent_id: str):
+        self.client.srem("active_agents", agent_id)
 
     def reconstruct_message(self, message_data_str: str) -> JSONMessage:
         message_data_json = json.loads(message_data_str)

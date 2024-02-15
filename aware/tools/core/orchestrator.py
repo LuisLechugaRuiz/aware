@@ -15,7 +15,7 @@ class Orchestrator(Tools):
         super().__init__(process_info=process_info)
         self.agent_builder = AgentBuilder(user_id=self.process_ids.user_id)
 
-    def get_tools(self):
+    def set_tools(self):
         return [
             self.create_agent,
             self.create_request,

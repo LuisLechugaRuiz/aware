@@ -27,5 +27,5 @@ class ThoughtGenerator(Data):
         return DEF_TASK.format(agent=agent, agent_task=agent_task)
 
     @classmethod
-    def get_instructions(cls) -> str:
-        return DEF_INSTRUCTIONS
+    def get_instructions(cls, agent: str) -> str:
+        return DEF_INSTRUCTIONS.format(agent=agent)
