@@ -9,6 +9,8 @@ from aware.chat.conversation_buffer import ConversationBuffer
 from aware.communications.requests.request import Request, RequestStatus
 from aware.data.database.client_handlers import ClientHandlers
 from aware.process.process_ids import ProcessIds
+from aware.process.process_data import ProcessFlowType
+from aware.process.process_info import ProcessInfo
 from aware.utils.logger.file_logger import FileLogger
 from aware.server.celery_app import app
 
@@ -119,7 +121,10 @@ class ProcessHandler:
             is_async=is_async,
         )
         # - Start the service process if not running
-        self.start(process_id=request.service_process_id)
+        service_process_ids = ClientHandlers().get_process_ids(
+            process_id=request.service_process_id
+        )
+        self.start(service_process_ids)
         return request
 
     def get_process_ids(self, user_id: str, agent_id: str, process_name: str):
@@ -150,6 +155,9 @@ class ProcessHandler:
         )
 
         if assistant_conversation_buffer.should_trigger_warning():
+            self.logger.info(
+                "Conversation buffer warning triggered, starting data storage manager."
+            )
             data_storage_manager_ids = self.get_process_ids(
                 user_id=main_ids.user_id,
                 agent_id=main_ids.agent_id,
@@ -157,7 +165,7 @@ class ProcessHandler:
             )
             self.preprocess(data_storage_manager_ids)
 
-            # CARE !!! Reset conversation buffer !!! - THIS CAN LEAD TO A RACE WITH THE TRIGGERS, WE NEED TO REMOVE AFTER THAT!!
+            # CARE !!! Reset conversation buffer !!! - THIS CAN LEAD TO A RACE WITH THE TRIGGERS, WE NEED TO REMOVE AFTER THAT!! I think is okay as we are sharing the info with agent_interactions.
             assistant_conversation_buffer.reset()
 
     def preprocess(self, ids: ProcessIds):
@@ -210,13 +218,20 @@ class ProcessHandler:
     def step(self, process_ids: ProcessIds, is_process_finished: bool = False):
         self.logger.info(f"On step: {process_ids.process_id}")
         process_info = ClientHandlers().get_process_info(process_ids)
-        agent_data = process_info.agent_data
+        if process_info.process_data.flow_type == ProcessFlowType.INTERACTIVE:
+            self.step_state_machine(process_info, is_process_finished)
+        elif process_info.process_data.flow_type == ProcessFlowType.INDEPENDENT:
+            self.trigger_until_completion(process_ids, is_process_finished)
 
+    def step_state_machine(self, process_info: ProcessInfo, is_process_finished: bool):
+        agent_data = process_info.agent_data
         if agent_data.state == AgentState.IDLE:
             # Initialize process
-            ClientHandlers().add_active_agent(agent_id=process_ids.agent_id)
+            ClientHandlers().add_active_agent(
+                agent_id=process_info.process_ids.agent_id
+            )
             # Add communications
-            self.add_communications(process_ids)
+            self.add_communications(process_info.process_ids)
 
         agent_state_machine = AgentStateMachine(
             agent_data=agent_data,
@@ -227,7 +242,7 @@ class ProcessHandler:
         agent_data.state = next_state
         ClientHandlers().update_agent_data(agent_data)
         self.logger.info(f"Next state: {next_state.value}")
-        self.trigger_transition(process_ids, next_state)
+        self.trigger_transition(process_info.process_ids, next_state)
 
     def trigger_transition(self, process_ids: ProcessIds, next_state: AgentState):
         if next_state == AgentState.MAIN_PROCESS:
@@ -246,3 +261,12 @@ class ProcessHandler:
             self.preprocess(thought_generator_ids)
         elif next_state == AgentState.IDLE:
             ClientHandlers().remove_active_agent(process_ids.agent_id)
+
+    def trigger_until_completion(
+        self, process_ids: ProcessIds, is_process_finished: bool
+    ):
+        self.logger.info(f"Triggering until completion: {process_ids.process_id}")
+        if is_process_finished:
+            self.logger.info(f"Process {process_ids.process_id} finished.")
+        else:
+            self.preprocess(process_ids)

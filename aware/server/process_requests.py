@@ -7,10 +7,9 @@ from aware.utils.logger.file_logger import FileLogger
 
 
 async def process_openai_call(call_id):
-    logger = FileLogger(name="migration_tests")
     redis_handlers = ClientHandlers().get_async_redis_handler()
     call_info = await redis_handlers.get_call_info(call_id)
-    # logger = FileLogger(name=call_info.process_name)
+    logger = FileLogger(name=call_info.name)
     logger.info("Getting response...")
     try:
         openai_model = OpenAIModel(api_key=call_info.get_api_key(), logger=logger)

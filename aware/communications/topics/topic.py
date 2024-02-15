@@ -32,4 +32,4 @@ class Topic:
         return cls(**data)
 
     def to_string(self):
-        return f"Topic: {self.topic_name}: {self.description}\nContent: {self.content}"
+        return f"{self.description}\n{self.content}"

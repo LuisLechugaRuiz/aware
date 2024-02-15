@@ -23,7 +23,6 @@ class AgentData:
     name: str
     context: str
     tools_class: str
-    identity: str
     task: str
     instructions: str
     state: AgentState
@@ -39,7 +38,6 @@ class AgentData:
             "name": self.name,
             "context": self.context,
             "tools_class": self.tools_class,
-            "identity": self.identity,
             "task": self.task,
             "instructions": self.instructions,
             "state": self.state.value,
@@ -63,14 +61,11 @@ class AgentData:
 
     def to_prompt_kwargs(self):
         return {
-            "agent": self.name,
+            "agent_name": self.name,
             "agent_task": self.task,
             "context": self.context,
         }
 
-    def to_description_string(self):
-        return f"{self.name} {self.identity}\n{self.task}"
-
     @classmethod
-    def create_description(cls, name: str, identity: str, task: str):
-        return f"- Name: {name}\n- Identity: {identity}\nTask: {task}"
+    def create_description(cls, name: str, task: str):
+        return f"- Name: {name}\nTask: {task}"

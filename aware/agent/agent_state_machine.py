@@ -11,8 +11,14 @@ class AgentStateMachine:
     ):
         self.state = agent_data.state
         self.thought_generator_mode = agent_data.thought_generator_mode
-        self.process_has_input = process_communications.incoming_request is not None
+        self.process_has_input = self._has_input(process_communications)
         self.is_process_finished = is_process_finished
+
+    def _has_input(self, process_communications: ProcessCommunications) -> bool:
+        return (
+            process_communications.incoming_request is not None
+            or process_communications.event is not None
+        )
 
     def step(
         self,

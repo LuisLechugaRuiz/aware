@@ -17,13 +17,13 @@ class Chat:
 
     def __init__(
         self,
+        name: str,
         process_ids: ProcessIds,
-        process_name: str,
         prompt_kwargs: Dict[str, str],
         logger: FileLogger,
     ):
         self.process_ids = process_ids
-        self.process_name = process_name
+        self.name = name
 
         self.system_message = self.get_system(
             prompt_kwargs=prompt_kwargs,
@@ -64,8 +64,8 @@ class Chat:
 
         call_info = CallInfo(
             call_id=str(uuid.uuid4()),
+            name=self.name,
             process_ids=self.process_ids,
-            process_name=self.process_name,
             system_message=self.system_message,
             functions=function_schemas,
         )

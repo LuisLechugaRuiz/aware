@@ -41,4 +41,4 @@ class ThoughtGenerator(Tools):
         """
         self.process_handler.add_thought(process_ids=self.process_ids, thought=thought)
         self.finish_process()
-        return "Final thought saved, stopping agent."
+        return "Final thought saved, transmited to the agent."

@@ -306,6 +306,12 @@ class RedisHandler:
             return ProcessData.from_json(data)
         return None
 
+    def get_process_ids(self, process_id: str) -> Optional[ProcessIds]:
+        data = self.client.get(f"process_ids:{process_id}")
+        if data:
+            return ProcessIds.from_json(data)
+        return None
+
     def get_processes_subscribed_to_event(
         self, user_id: str, event: Event
     ) -> List[ProcessIds]:
@@ -385,12 +391,6 @@ class RedisHandler:
             agent_id,
         )
 
-    def set_process_data(self, process_id: str, process_data: ProcessData):
-        self.client.set(
-            f"process_data:{process_id}",
-            process_data.to_json(),
-        )
-
     def set_process_communications(
         self, process_id: str, process_communications: ProcessCommunications
     ):
@@ -398,8 +398,27 @@ class RedisHandler:
             self.create_request(process_communications.incoming_request)
         for request in process_communications.outgoing_requests:
             self.create_request(request)
-        for subscription in process_communications.topic_subscriptions:
-            self.create_topic_subscription(process_id, subscription)
+
+        for topic in process_communications.topics:
+            topic_subscription = TopicSubscription(
+                user_id=topic.user_id,
+                process_id=process_id,
+                topic_id=topic.id,
+                topic_name=topic.topic_name,
+            )
+            self.create_topic_subscription(process_id, topic_subscription)
+
+    def set_process_data(self, process_id: str, process_data: ProcessData):
+        self.client.set(
+            f"process_data:{process_id}",
+            process_data.to_json(),
+        )
+
+    def set_process_ids(self, process_ids: ProcessIds):
+        self.client.set(
+            f"process_ids:{process_ids.process_id}",
+            process_ids.to_json(),
+        )
 
     def set_service(
         self,

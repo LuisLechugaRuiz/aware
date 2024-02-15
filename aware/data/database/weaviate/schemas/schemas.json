@@ -19,10 +19,6 @@
                 "type": "text",
                 "description": "The name of the user"
             },
-            "identity": {
-                "type": "text",
-                "description": "The identity of the agent"
-            },
             "task": {
                 "type": "Task",
                 "description": "The task that the agent should perform"

@@ -13,7 +13,8 @@ from aware.communications.topics.topic_subscription import TopicSubscription
 from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
 from aware.memory.user.user_data import UserData
-from aware.process.process_data import ProcessData
+from aware.process.process_data import ProcessData, ProcessFlowType
+from aware.process.process_ids import ProcessIds
 from aware.process.process_communications import ProcessCommunications
 from aware.tools.profile import Profile
 from aware.utils.logger.file_logger import FileLogger
@@ -43,11 +44,10 @@ class SupabaseHandler:
         }
         # Expand dictionary with json_message data
         invoke_options.update(json_message_dict)
-        self.logger.info("DEBUG - PRE CALL")
+        self.logger.info("Adding message to database")
         response = self.client.rpc("insert_new_message", invoke_options).execute().data
-        self.logger.info(f"DEBUG - POST CALL: {response}")
+        self.logger.info(f"Database acknowledge {response}")
         response = response[0]
-        self.logger.info("DEBUG - AFTER RESPONSE")
         return ChatMessage(
             message_id=response["id"],
             timestamp=response["created_at"],
@@ -59,12 +59,11 @@ class SupabaseHandler:
         user_id: str,
         name: str,
         tools_class: str,
-        identity: str,
         task: str,
         instructions: str,
         thought_generator_mode: str,
     ) -> AgentData:
-        self.logger.info(f"DEBUG - Creating agent {name}")
+        self.logger.info(f"Creating agent {name}")
         data = (
             self.client.table("agents")
             .insert(
@@ -72,7 +71,6 @@ class SupabaseHandler:
                     "user_id": user_id,
                     "name": name,
                     "tools_class": tools_class,
-                    "identity": identity,
                     "task": task,
                     "instructions": instructions,
                     "thought_generator_mode": thought_generator_mode,
@@ -88,7 +86,6 @@ class SupabaseHandler:
             name=data["name"],
             context=data["context"],
             tools_class=data["tools_class"],
-            identity=data["identity"],
             task=data["task"],
             instructions=data["instructions"],
             state=AgentState(data["state"]),
@@ -101,11 +98,11 @@ class SupabaseHandler:
         agent_id: str,
         name: str,
         tools_class: str,
-        identity: str,
         task: str,
         instructions: str,
+        flow_type: ProcessFlowType,
     ) -> ProcessData:
-        self.logger.info(f"DEBUG - Creating process {name}")
+        self.logger.info(f"Creating process {name}")
         data = (
             self.client.table("processes")
             .insert(
@@ -114,9 +111,9 @@ class SupabaseHandler:
                     "agent_id": agent_id,
                     "name": name,
                     "tools_class": tools_class,
-                    "identity": identity,
                     "task": task,
                     "instructions": instructions,
+                    "flow_type": flow_type.value,
                 }
             )
             .execute()
@@ -128,9 +125,9 @@ class SupabaseHandler:
             id=data["id"],
             name=data["name"],
             tools_class=data["tools_class"],
-            identity=data["identity"],
             task=data["task"],
             instructions=data["instructions"],
+            flow_type=ProcessFlowType(data["flow_type"]),
         )
 
     def create_event_type(
@@ -341,9 +338,18 @@ class SupabaseHandler:
             timestamp=existing_topic["updated_at"],
         )
 
+    def clear_conversation_buffer(self, process_id: str):
+        response = self.client.rpc(
+            "clear_conversation_buffer", {"p_process_id": process_id}
+        ).execute()
+        return response
+
     def delete_message(self, message_id):
-        invoke_options = {"p_message_id": message_id}
-        response = self.client.rpc("soft_delete_message", invoke_options).execute().data
+        response = (
+            self.client.rpc("soft_delete_message", {"p_message_id": message_id})
+            .execute()
+            .data
+        )
         return response
 
     def get_active_messages(self, process_id: str) -> List[ChatMessage]:
@@ -456,11 +462,29 @@ class SupabaseHandler:
             return None
         data = data[0]
         return ProcessData(
+            id=data["id"],
             name=data["name"],
             tools_class=data["tools_class"],
-            identity=data["identity"],
             task=data["task"],
             instructions=data["instructions"],
+            flow_type=ProcessFlowType(data["flow_type"]),
+        )
+
+    def get_process_ids(self, process_id: str) -> Optional[ProcessIds]:
+        data = (
+            self.client.table("processes")
+            .select("*")
+            .eq("id", process_id)
+            .execute()
+            .data
+        )
+        if not data:
+            return None
+        data = data[0]
+        return ProcessIds(
+            user_id=data["user_id"],
+            agent_id=data["agent_id"],
+            process_id=process_id,
         )
 
     def get_requests(self, key_process_id: str, process_id: str) -> List[Request]:

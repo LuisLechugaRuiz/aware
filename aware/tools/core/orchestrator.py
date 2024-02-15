@@ -23,9 +23,7 @@ class Orchestrator(Tools):
             self.find_tools,
         ]
 
-    def create_agent(
-        self, name: str, tools: str, identity: str, task: str, instructions: str
-    ):
+    def create_agent(self, name: str, tools: str, task: str, instructions: str):
         """
         Use this tool to create a new agent in case none of the existent ones can fulfill the step to complete the task.
         Select tools only from the existing ones retrieved using find_tools.
@@ -33,7 +31,6 @@ class Orchestrator(Tools):
         Args:
             name (str): Agent's name, a specific variable name used to describe the agent, will be used to identify the agent. Should follow convention: lower followed by "_".
             tools (str): The tools that the agent should use to accomplish the next step.
-            identity (str): A natural description of the agent's identity, should start with "You are {name}...".
             task (str): Agent's task, a highlevel description of his mission, should be general to solve similar requests.
             instructions (str): Specific instructions or recommendations about possible combinations of tool executions that could be performed to satisfy the requests.
         """
@@ -41,7 +38,6 @@ class Orchestrator(Tools):
             self.agent_builder.create_agent(
                 name=name,
                 tools_class=tools,
-                identity=identity,
                 task=task,
                 instructions=instructions,
             )

@@ -23,13 +23,15 @@ class Process:
         self.agent_data = process_info.agent_data
         self.process_data = process_info.process_data
         self.process_communications = process_info.process_communications
+        self.name = process_info.get_name()
 
         # Initialize tool
         self.tools_manager = ToolsManager(self.get_logger())
         self.tools = self._get_tools(process_info=process_info)
 
     def get_prompt_kwargs(self) -> Dict[str, Any]:
-        prompt_kwargs = self.process_data.to_prompt_kwargs()
+        prompt_kwargs = {"name": self.name}
+        prompt_kwargs.update(self.process_data.to_prompt_kwargs())
         prompt_kwargs.update(self.process_communications.to_prompt_kwargs())
         prompt_kwargs.update(self.agent_data.to_prompt_kwargs())
         return prompt_kwargs
@@ -48,8 +50,8 @@ class Process:
     ):
         prompt_kwargs = self.get_prompt_kwargs()
         chat = Chat(
+            name=self.name,
             process_ids=self.ids,
-            process_name=self.process_data.name,
             prompt_kwargs=prompt_kwargs,
             logger=self.get_logger(),
         )
@@ -61,8 +63,9 @@ class Process:
     ) -> Optional[ChatCompletionMessageToolCall]:
         return self.tools.get_default_tool_call(content)
 
+    # TODO: Split into user/agent/process ?
     def get_logger(self) -> FileLogger:
-        return FileLogger(self.process_data.name)
+        return FileLogger(self.name)
 
     def get_function_calls(
         self, tool_calls: List[ChatCompletionMessageToolCall]
