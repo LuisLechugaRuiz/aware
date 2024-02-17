@@ -1,0 +1,16 @@
+{
+    "internal_requests": {
+        "thought_generator": {
+            "description": "Search for specific info on Long term memory",
+            "tool": null,
+            "params": {
+                "task": {
+                    "type": "string",
+                    "query": "A query on natural language to describe what are you looking for"
+                }
+            },
+            "is_async": false
+        }
+    },
+    "internal_topic": []
+}

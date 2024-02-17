@@ -1,4 +1,5 @@
 {
-    "thought_generator_mode": "POST",
-    "memory": "STATEFULL"
+    "thought_generator_mode": "post",
+    "memory": "statefull",
+    "modality": ["text"]
 }

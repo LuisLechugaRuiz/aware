@@ -1,4 +1,5 @@
 {
-    "thought_generator_mode": "PRE",
-    "memory": "STATEFULL"
+    "thought_generator_mode": "pre",
+    "memory": "statefull",
+    "modality": ["text"]
 }
