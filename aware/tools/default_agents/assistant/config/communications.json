@@ -1,0 +1,19 @@
+{
+    "agent_requests": {
+        "orchestrator": {
+            "description": "Send a request to the orchestrator to pursue a specific task that is beyond chatbot's capabilities",
+            "tool": null,
+            "params": {
+                "task": {
+                    "type": "string",
+                    "description": "The task that the orchestrator should pursue"
+                }
+            },
+            "is_async": true,
+        }
+    },
+    "agent_channels": {
+        "orchestrator": "Communicate with orchestrator to talk about the state of the system and ask about info of current running tasks"
+    },
+    "external_events": ["user_message"]
+}

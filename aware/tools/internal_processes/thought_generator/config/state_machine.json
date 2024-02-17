@@ -1,0 +1,22 @@
+{
+    "default": {
+        "tools": {
+            "search": "continue",
+            "intermediate_thought": "continue",
+            "final_thought": "end"
+            }
+        },
+        "task": "Optimize {agent_name}'s performance in executing its task through strategic thought generation.
+{agent_name}'s Task:
+{agent_task}",
+        "instructions": "Thought Generation Steps:
+1. Gather task-relevant information.
+2. For complex tasks, apply intermediate_thought and refine as necessary.
+3. Finalize with a strategic final_thought to guide {agent_name}.
+
+Operational Principles:
+- Prioritize backend processing without engaging in direct interactions.
+- Ensure thoughts are pertinent and flexible to the demands of {agent_name}'s task.",
+        "flow_type": "interactive",
+    }
+}

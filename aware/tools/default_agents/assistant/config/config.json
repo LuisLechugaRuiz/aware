@@ -1,0 +1,4 @@
+{
+    "thought_generator_mode": "POST",
+    "memory": "STATEFULL"
+}
