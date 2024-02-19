@@ -4,21 +4,12 @@ import json
 
 @dataclass
 class Topic:
-    def __init__(
-        self,
-        id: str,
-        user_id: str,
-        topic_name: str,
-        description: str,
-        content: str,
-        timestamp: str,
-    ):
-        self.id = id
-        self.user_id = user_id
-        self.topic_name = topic_name
-        self.description = description
-        self.content = content
-        self.timestamp = timestamp
+    id: str
+    user_id: str
+    topic_name: str
+    description: str
+    content: str
+    timestamp: str
 
     def to_dict(self):
         return self.__dict__

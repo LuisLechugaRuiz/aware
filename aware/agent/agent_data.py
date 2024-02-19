@@ -5,16 +5,21 @@ from enum import Enum
 # from aware.tools.profile import Profile
 
 
-class ThoughtGeneratorMode(Enum):
-    PRE = "pre"
-    PARALLEL = "parallel"
-    POST = "post"
-
-
 class AgentState(Enum):
     IDLE = "idle"
     MAIN_PROCESS = "main_process"
     THOUGHT_GENERATOR = "thought_generator"
+
+
+class AgentMemoryMode(Enum):
+    STATEFUL = "stateful"
+    STATELESS = "stateless"
+
+
+class ThoughtGeneratorMode(Enum):
+    PRE = "pre"
+    PARALLEL = "parallel"
+    POST = "post"
 
 
 @dataclass

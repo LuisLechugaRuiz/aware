@@ -1,12 +1,8 @@
 {
     "default": {
         "tools": {
-            "talk": {
-                "transtion": "end"
-            },
-            "search_info": {
-                "transition": "continue"
-            }
+            "talk": "end",
+            "search_info": "continue"
         },
         "task": "Store relevant data to be retrieved in the future to optimize {agent_name}'s performance.
 {agent_name}'s Task:

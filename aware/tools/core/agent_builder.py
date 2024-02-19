@@ -1,6 +1,6 @@
-from typing import Dict, List
+from typing import Dict
 
-from aware.agent.agent_builder import AgentBuilder
+from aware.agent.agent_builder import AgentBuilder as SystemAgentBuilder
 from aware.process.process_info import ProcessInfo
 from aware.tools.tools import Tools
 
@@ -13,29 +13,10 @@ class AgentBuilder(Tools):
         process_info: ProcessInfo,
     ):
         super().__init__(process_info=process_info)
-        self.agent_builder = AgentBuilder(user_id=self.process_ids.user_id)
-
-    # Should be used as set_tools but also contains state transitions. Linearly defined, no transitions based on tool used.
-    # TODO: In the future we can create a method to define very easy an agent state machine with clear flow,
-    # On each transition - certain tools can be used to achieve a certain state (specify task and instructions to the agent).
-    # Based on agent tool we can transit to one state or another. There should be a line agent to start - Similar to the machine of the twitter guy.
-    def set_chain(self):
-        return [
-            AgentBuilderState.CREATE_INSTRUCTIONS: [
-                self.create_instructions
-            ],
-            AgentBuilderState.CREATE_PROFILE: [
-                self.create_profile
-            ]
-        ]
+        self.agent_builder = SystemAgentBuilder(user_id=self.process_ids.user_id)
 
     def set_tools(self):
-        return [
-            self.create_agent,
-            self.create_request,
-            self.find_agent,
-            self.find_tools,
-        ]
+        return [self.create_instructions, self.create_profile]
 
     def create_instructions(self, instructions: str):
         """Provide a specific instruction explaining to the agent how to combine his tools to accomplish the task. Add also general guidelines and constraints"""

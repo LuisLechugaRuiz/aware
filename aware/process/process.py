@@ -6,6 +6,7 @@ from aware.chat.conversation_schemas import ToolResponseMessage
 from aware.data.database.client_handlers import ClientHandlers
 from aware.process.process_ids import ProcessIds
 from aware.process.process_info import ProcessInfo
+from aware.process.state_machine.state_machine import ProcessStateMachine
 from aware.tools.tools_manager import ToolsManager
 from aware.tools.tools import FunctionCall, Tools
 from aware.utils.logger.file_logger import FileLogger
@@ -25,9 +26,16 @@ class Process:
         self.process_communications = process_info.process_communications
         self.name = process_info.get_name()
 
-        # Initialize tool
+        # Initialize tool -> TODO: Get tools from state machine?
+        self.process_states = process_info.process_states
+        self.current_state = process_info.current_state
+        self.state_machine = ProcessStateMachine(
+            states=self.process_states, current_state=self.current_state
+        )
+        self.tools = self.state_machine.get_tools()
         self.tools_manager = ToolsManager(self.get_logger())
-        self.tools = self._get_tools(process_info=process_info)
+
+        # self.tools = self._get_tools(process_info=process_info)
 
     def get_prompt_kwargs(self) -> Dict[str, Any]:
         prompt_kwargs = {"name": self.name}

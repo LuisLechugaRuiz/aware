@@ -16,6 +16,7 @@ from aware.memory.user.user_data import UserData
 from aware.process.process_data import ProcessData, ProcessFlowType
 from aware.process.process_ids import ProcessIds
 from aware.process.process_communications import ProcessCommunications
+from aware.process.state_machine.state import ProcessState
 from aware.tools.profile import Profile
 from aware.utils.logger.file_logger import FileLogger
 
@@ -128,6 +129,54 @@ class SupabaseHandler:
             task=data["task"],
             instructions=data["instructions"],
             flow_type=ProcessFlowType(data["flow_type"]),
+        )
+
+    def create_process_state(
+        self,
+        user_id: str,
+        process_id: str,
+        name: str,
+        task: str,
+        instructions: str,
+        tools: Dict[str, str],
+    ) -> ProcessState:
+        self.logger.info(f"Creating process state {name}")
+        data = (
+            self.client.table("process_states")
+            .insert(
+                {
+                    "user_id": user_id,
+                    "process_id": process_id,
+                    "name": name,
+                    "task": task,
+                    "instructions": instructions,
+                }
+            )
+            .execute()
+            .data
+        )
+        data = data[0]
+        self.logger.info(f"Process state: {name}, created.")
+        self.logger.info(f"Creating tools for process state: {name}")
+        for tool_name, transition_state_name in tools.items():
+            data = (
+                self.client.table("tools")
+                .insert(
+                    {
+                        "user_id": user_id,
+                        "process_state_id": data[0]["id"],
+                        "name": tool_name,
+                        "transition_state_name": transition_state_name,
+                    }
+                )
+                .execute()
+                .data
+            )
+        return ProcessState(
+            name=name,
+            tools=tools,
+            task=task,
+            instructions=instructions,
         )
 
     def create_event_type(
@@ -485,6 +534,21 @@ class SupabaseHandler:
             user_id=data["user_id"],
             agent_id=data["agent_id"],
             process_id=process_id,
+        )
+
+    def get_process_states(self, process_id: str) -> List[ProcessState]:
+        data = (
+            self.client.table("process_states")
+            .select("*")
+            .eq("process_id", process_id)
+            .execute()
+            .data
+        )
+        return ProcessState(
+            name=row["name"],
+            tools=row["tools"],
+            task=row["task"],
+            instructions=row["instructions"],
         )
 
     def get_requests(self, key_process_id: str, process_id: str) -> List[Request]:

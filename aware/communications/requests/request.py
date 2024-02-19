@@ -13,19 +13,11 @@ class RequestStatus(Enum):
 
 @dataclass
 class RequestData:
-    def __init__(
-        self,
-        query: str,
-        is_async: bool,
-        feedback: str,
-        status: RequestStatus,
-        response: str,
-    ):
-        self.query = query
-        self.is_async = is_async
-        self.status = status
-        self.feedback = feedback
-        self.response = response
+    query: str
+    is_async: bool
+    feedback: str
+    status: RequestStatus
+    response: str
 
     def to_dict(self):
         return {

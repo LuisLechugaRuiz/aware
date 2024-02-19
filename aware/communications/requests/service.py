@@ -4,13 +4,8 @@ from dataclasses import dataclass
 
 @dataclass
 class ServiceData:
-    def __init__(
-        self,
-        name: str,
-        description: str,
-    ):
-        self.name = name
-        self.description = description
+    name: str
+    description: str
 
     def to_json(self):
         return json.dumps(self.__dict__)
@@ -23,15 +18,9 @@ class ServiceData:
 
 @dataclass
 class Service:
-    def __init__(
-        self,
-        service_id: str,
-        process_id: str,
-        data: ServiceData,
-    ):
-        self.service_id = service_id
-        self.process_id = process_id
-        self.data = data
+    service_id: str
+    process_id: str
+    data: ServiceData
 
     def to_dict(self):
         return {
