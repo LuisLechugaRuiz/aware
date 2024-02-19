@@ -9,7 +9,7 @@
                     "description": "The task that the orchestrator should pursue"
                 }
             },
-            "is_async": true,
+            "is_async": true
         }
     },
     "agent_channels": {

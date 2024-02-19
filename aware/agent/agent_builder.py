@@ -10,6 +10,17 @@ from aware.tools.default_data.thought_generator_data import ThoughtGenerator
 from aware.utils.logger.file_logger import FileLogger
 
 
+# TODO: Refactor -> It should interact with our json properly.
+
+# 1. Read agent config from config.json at default_agents folder.
+# 2. Create agent.
+
+
+# 3. Read state machine config from state_machine.json and create process states for main process.
+# 4. Read state machine config for each process at internal processes and create process states for each process.
+
+
+# 5. Read communication config from communication.json and create communication channels for each process (external at agent folder and internal at internal processes folder).
 class AgentBuilder:
     def __init__(self, user_id: str):
         self.logger = FileLogger("agent_builder")

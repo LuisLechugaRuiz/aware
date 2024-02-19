@@ -4,17 +4,10 @@ import json
 
 @dataclass
 class EventSubscription:
-    def __init__(
-        self,
-        user_id: str,
-        process_id: str,
-        event_type_id: str,
-        event_name: str,
-    ):
-        self.user_id = user_id
-        self.process_id = process_id
-        self.event_type_id = event_type_id
-        self.event_name = event_name
+    user_id: str
+    process_id: str
+    event_type_id: str
+    event_name: str
 
     def to_dict(self):
         return self.__dict__

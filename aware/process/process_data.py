@@ -8,6 +8,7 @@ class ProcessFlowType(Enum):
     INTERACTIVE = "interactive"
 
 
+# TODO: Task and instructions should be dependent on process state machine!
 @dataclass
 class ProcessData:
     id: str

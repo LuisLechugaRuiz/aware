@@ -8,7 +8,6 @@
             "stop": "end"
         },
         "task": "Delegate atomic requests to the appropriate agents and manage the communication between them.",
-        "instructions": "TODO: FILL ME",
-        "thought_generator_mode": "PRE"
+        "instructions": "TODO: FILL ME"
     }
 }

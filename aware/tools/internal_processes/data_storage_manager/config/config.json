@@ -1,0 +1,5 @@
+{
+    "flow_type": "independent",
+    "name": "data_storage_manager",
+    "tools_class": "DataStorageManager"
+}
