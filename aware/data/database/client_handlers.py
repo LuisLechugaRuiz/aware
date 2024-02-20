@@ -2,7 +2,7 @@ from supabase import create_client
 from redis import asyncio as aioredis
 import redis
 import threading
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from aware.agent.agent_data import AgentData
 from aware.chat.conversation_schemas import (
@@ -79,8 +79,8 @@ class ClientHandlers:
         user_id: str,
         name: str,
         tools_class: str,
-        task: str,
-        instructions: str,
+        memory_mode: str,
+        modalities: List[str],
         thought_generator_mode: str,
     ) -> AgentData:
         self.logger.info("Creating agent")
@@ -88,8 +88,8 @@ class ClientHandlers:
             user_id=user_id,
             name=name,
             tools_class=tools_class,
-            task=task,
-            instructions=instructions,
+            memory_mode=memory_mode,
+            modalities=modalities,
             thought_generator_mode=thought_generator_mode,
         )
         self.logger.info(f"Agent: {agent_data.id}, created on supabase")
@@ -137,6 +137,28 @@ class ClientHandlers:
             description=task,
         )
         return process_data
+
+    def create_process_state(
+        self,
+        user_id: str,
+        process_id: str,
+        name: str,
+        task: str,
+        instructions: str,
+        tools: Dict[str, str],
+    ):
+        process_states = self.supabase_handler.create_process_state(
+            user_id=user_id,
+            process_id=process_id,
+            name=name,
+            task=task,
+            instructions=instructions,
+            tools=tools,
+        )
+        self.redis_handler.create_process_state(
+            process_id=process_id, process_states=process_states
+        )
+        return process_states
 
     def create_event(
         self, user_id: str, event_name: str, message_name: str, content: str

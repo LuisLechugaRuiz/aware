@@ -1,4 +1,7 @@
-from aware.agent.agent_data import ThoughtGeneratorMode
+from typing import List
+
+from aware.agent.agent_data import AgentMemoryMode, ThoughtGeneratorMode
+from aware.config import get_default_agents_path, get_internal_processes_path
 from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
 from aware.process.process_ids import ProcessIds
@@ -8,6 +11,7 @@ from aware.tools.default_data.orchestrator_data import Orchestrator
 from aware.tools.default_data.data_storage_manager_data import DataStorageManager
 from aware.tools.default_data.thought_generator_data import ThoughtGenerator
 from aware.utils.logger.file_logger import FileLogger
+from aware.utils.json_loader import JsonLoader
 
 
 # TODO: Refactor -> It should interact with our json properly.
@@ -29,6 +33,48 @@ class AgentBuilder:
 
     def initialize_user_agents(self, assistant_name: str):
         """Create the initial agents for the user"""
+        default_agents_path = get_default_agents_path()
+        default_agents_json_loader = JsonLoader(root_dir=default_agents_path)
+
+        agent_files_dict = default_agents_json_loader.search_files(
+            file_names=[
+                "config.json",
+                "communication.json",
+                "profile.json",
+                "state_machine.json",
+            ]
+        )
+        for agent_folder, agent_files in agent_files_dict.items():
+            agent_config = agent_files["config"]
+            process_ids = self.create_agent(
+                name=agent_config["name"],
+                tools_class=agent_config["tools_class"],
+                memory_mode=AgentMemoryMode(agent_config["memory_mode"]),
+                modalities=agent_config["modalities"],
+                thought_generator_mode=ThoughtGeneratorMode(
+                    agent_config["thought_generator_mode"]
+                ),
+            )
+            communications = agent_files["communications"]
+            external_events = communications["external_events"]
+            if len(external_events) > 0:
+                for event in external_events:
+                    ClientHandlers().create_event_subscription(
+                        process_ids=process_ids, event_name=event
+                    )
+            # TODO: Configure topics and requests properly.
+            state_machine = agent_files["state_machine"]
+            for name, content in state_machine.items():
+                # TODO: set the first state as the current state.
+                ClientHandlers().create_process_state(
+                    user_id=self.user_id,
+                    process_id=process_ids.process_id,
+                    name=name,
+                    task=content["task"],
+                    instructions=content["instructions"],
+                    tools=content["tools"],
+                )
+
         main_assistant_process_ids = self.create_agent(
             name=assistant_name,
             tools_class=Assistant.__name__,
@@ -54,8 +100,8 @@ class AgentBuilder:
         self,
         name: str,
         tools_class: str,
-        task: str,
-        instructions: str,
+        memory_mode: AgentMemoryMode,
+        modalities: List[str],
         thought_generator_mode: ThoughtGeneratorMode = ThoughtGeneratorMode.PRE,
     ) -> ProcessIds:
         """Create a new agent"""

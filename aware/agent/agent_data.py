@@ -1,6 +1,7 @@
 import json
 from dataclasses import dataclass
 from enum import Enum
+from typing import List
 
 # from aware.tools.profile import Profile
 
@@ -17,6 +18,7 @@ class AgentMemoryMode(Enum):
 
 
 class ThoughtGeneratorMode(Enum):
+    DISABLED = "disabled"
     PRE = "pre"
     PARALLEL = "parallel"
     POST = "post"
@@ -28,9 +30,11 @@ class AgentData:
     name: str
     context: str
     tools_class: str
-    task: str
-    instructions: str
+    # task: str
+    # instructions: str
     state: AgentState
+    memory_mode: AgentMemoryMode
+    modalities: List[str]
     thought_generator_mode: ThoughtGeneratorMode
     # profile: Profile
 
@@ -43,9 +47,11 @@ class AgentData:
             "name": self.name,
             "context": self.context,
             "tools_class": self.tools_class,
-            "task": self.task,
-            "instructions": self.instructions,
+            # "task": self.task,
+            # "instructions": self.instructions,
             "state": self.state.value,
+            "memory_mode": self.memory_mode.value,
+            "modalities": self.modalities,
             "thought_generator_mode": self.thought_generator_mode.value,
             # "profile": json.loads(self.profile.to_json()),
         }

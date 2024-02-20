@@ -1,7 +1,0 @@
-{
-    "thought_generator_mode": "pre",
-    "memory_mode": "statefull",
-    "modalities": ["text"],
-    "name": "orchestrator",
-    "tools_class": "Orchestrator"
-}

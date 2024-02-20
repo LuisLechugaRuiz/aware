@@ -26,7 +26,7 @@ class Process:
         self.process_communications = process_info.process_communications
         self.name = process_info.get_name()
 
-        # Initialize tool -> TODO: Get tools from state machine?
+        # Initialize tool -> TODO: Get process and current states from database.
         self.process_states = process_info.process_states
         self.current_state = process_info.current_state
         self.state_machine = ProcessStateMachine(
