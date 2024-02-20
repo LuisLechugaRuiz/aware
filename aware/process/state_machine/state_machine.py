@@ -31,11 +31,11 @@ class ProcessStateMachine:
     def get_status(self) -> ProcessStatus:
         return self.status
 
-    def get_tools(self) -> List[str]:
-        self.current_state.tools.keys()
-
     def get_task(self) -> str:
         return self.current_state.task
+
+    def get_tools(self) -> List[str]:
+        self.current_state.tools.keys()
 
     def on_tool(self, tool_name: str):
         next_state = self.current_state.tools[tool_name]

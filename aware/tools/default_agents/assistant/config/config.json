@@ -1,7 +1,0 @@
-{
-    "thought_generator_mode": "post",
-    "memory_mode": "statefull",
-    "modalities": ["text"],
-    "name": "assistant",
-    "tools_class": "Assistant"
-}

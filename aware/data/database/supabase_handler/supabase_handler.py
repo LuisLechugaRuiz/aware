@@ -1,7 +1,12 @@
 from supabase import Client
 from typing import Any, Dict, List, Optional
 
-from aware.agent.agent_data import AgentData, AgentState, ThoughtGeneratorMode
+from aware.agent.agent_data import (
+    AgentData,
+    AgentMemoryMode,
+    AgentState,
+    ThoughtGeneratorMode,
+)
 from aware.chat.conversation_schemas import ChatMessage, JSONMessage
 from aware.communications.events.event import Event, EventStatus
 from aware.communications.events.event_type import EventType
@@ -60,8 +65,8 @@ class SupabaseHandler:
         user_id: str,
         name: str,
         tools_class: str,
-        task: str,
-        instructions: str,
+        memory_mode: str,
+        modalities: List[str],
         thought_generator_mode: str,
     ) -> AgentData:
         self.logger.info(f"Creating agent {name}")
@@ -72,8 +77,8 @@ class SupabaseHandler:
                     "user_id": user_id,
                     "name": name,
                     "tools_class": tools_class,
-                    "task": task,
-                    "instructions": instructions,
+                    "memory_mode": memory_mode,
+                    "modalities": modalities,
                     "thought_generator_mode": thought_generator_mode,
                 }
             )
@@ -87,9 +92,9 @@ class SupabaseHandler:
             name=data["name"],
             context=data["context"],
             tools_class=data["tools_class"],
-            task=data["task"],
-            instructions=data["instructions"],
             state=AgentState(data["state"]),
+            memory_mode=AgentMemoryMode(data["memory_mode"]),
+            modalities=data["modalities"],
             thought_generator_mode=ThoughtGeneratorMode(data["thought_generator_mode"]),
         )
 

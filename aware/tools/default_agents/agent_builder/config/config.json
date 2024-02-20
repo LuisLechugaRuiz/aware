@@ -1,7 +1,0 @@
-{
-    "thought_generator_mode": "pre", // Should not exist? No thought generator needed on stateless agents
-    "memory_mode": "stateless",
-    "modalities": ["text"],
-    "name": "agent_builder",
-    "tools_class": "AgentBuilder"
-}

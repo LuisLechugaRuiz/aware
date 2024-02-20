@@ -6,3 +6,11 @@ def get_modules():
     modules_path = Path(__file__).parent / "modules.yaml"
     with open(modules_path, "r", encoding="UTF-8") as file:
         return yaml.safe_load(file)
+
+
+def get_default_agents_path():
+    return Path(__file__).parent / "default_agents"
+
+
+def get_internal_processes_path():
+    return Path(__file__).parent / "internal_processes"
