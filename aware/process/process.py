@@ -6,7 +6,6 @@ from aware.chat.conversation_schemas import ToolResponseMessage
 from aware.data.database.client_handlers import ClientHandlers
 from aware.process.process_ids import ProcessIds
 from aware.process.process_info import ProcessInfo
-from aware.process.state_machine.state_machine import ProcessStateMachine
 from aware.tools.tools_manager import ToolsManager
 from aware.tools.tools import FunctionCall, Tools
 from aware.utils.logger.file_logger import FileLogger
@@ -17,29 +16,24 @@ class Process:
         self,
         ids: ProcessIds,
     ):
+        self.ids = ids
         process_info = ClientHandlers().get_process_info(process_ids=ids)
+        self.name = process_info.get_name()
 
         # Get process info
-        self.ids = ids
         self.agent_data = process_info.agent_data
         self.process_data = process_info.process_data
         self.process_communications = process_info.process_communications
-        self.name = process_info.get_name()
-
-        # Initialize tool -> TODO: Get process and current states from database.
         self.process_states = process_info.process_states
         self.current_state = process_info.current_state
-        self.state_machine = ProcessStateMachine(
-            states=self.process_states, current_state=self.current_state
-        )
-        self.tools = self.state_machine.get_tools()
-        self.tools_manager = ToolsManager(self.get_logger())
 
-        # self.tools = self._get_tools(process_info=process_info)
+        # Initialize tool
+        self.tools_manager = ToolsManager(self.get_logger())
+        self.tools = self._get_tools(process_info=process_info)
 
     def get_prompt_kwargs(self) -> Dict[str, Any]:
         prompt_kwargs = {"name": self.name}
-        prompt_kwargs.update(self.process_data.to_prompt_kwargs())
+        prompt_kwargs.update(self.current_state.to_prompt_kwargs())
         prompt_kwargs.update(self.process_communications.to_prompt_kwargs())
         prompt_kwargs.update(self.agent_data.to_prompt_kwargs())
         return prompt_kwargs
@@ -47,6 +41,9 @@ class Process:
     def _get_tools(self, process_info: ProcessInfo) -> Tools:
         tools_class = process_info.process_data.tools_class
         tools_class_type = self.tools_manager.get_tools(name=tools_class)
+
+        # self.current_state.tools -> TODO: Filter by all tools and get only the available ones for current state.
+
         if tools_class_type is None:
             raise Exception("Tools class not found")
         return tools_class_type(

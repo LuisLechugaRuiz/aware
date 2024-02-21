@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, Dict, List
 
 from aware.agent.agent_data import AgentMemoryMode, ThoughtGeneratorMode
 from aware.config import get_default_agents_path, get_internal_processes_path
@@ -45,60 +45,91 @@ class AgentBuilder:
             ]
         )
         for agent_folder, agent_files in agent_files_dict.items():
-            agent_config = agent_files["config"]
-            process_ids = self.create_agent(
-                name=agent_config["name"],
-                tools_class=agent_config["tools_class"],
-                memory_mode=AgentMemoryMode(agent_config["memory_mode"]),
-                modalities=agent_config["modalities"],
-                thought_generator_mode=ThoughtGeneratorMode(
-                    agent_config["thought_generator_mode"]
-                ),
+            main_process_ids = self.create_agent_by_config(agent_files["config"])
+            self.create_agent_communication(
+                process_ids=main_process_ids,
+                communication_config=agent_files["communication"],
             )
-            communications = agent_files["communications"]
-            external_events = communications["external_events"]
-            if len(external_events) > 0:
-                for event in external_events:
-                    ClientHandlers().create_event_subscription(
-                        process_ids=process_ids, event_name=event
-                    )
-            # TODO: Configure topics and requests properly.
-            state_machine = agent_files["state_machine"]
-            for name, content in state_machine.items():
-                # TODO: set the first state as the current state.
-                ClientHandlers().create_process_state(
-                    user_id=self.user_id,
-                    process_id=process_ids.process_id,
-                    name=name,
-                    task=content["task"],
-                    instructions=content["instructions"],
-                    tools=content["tools"],
+            self.create_agent_profile(
+                process_ids=main_process_ids, profile_config=agent_files["profile"]
+            )
+            self.create_process_state_machine(
+                process_ids=main_process_ids,
+                state_machine_config=agent_files["state_machine"],
+            )
+        # main_assistant_process_ids = self.create_agent(
+        #     name=assistant_name,
+        #     tools_class=Assistant.__name__,
+        #     task=Assistant.get_task(),
+        #     instructions=Assistant.get_instructions(),
+        #     thought_generator_mode=ThoughtGeneratorMode.POST,
+        # )
+        # # TODO: Should we add a get_event for each tool? We want both: Flexible events, but some can be attached directly to tool? TBD. No, they are connected to agent.
+        # ClientHandlers().create_event_subscription(
+        #     process_ids=main_assistant_process_ids,
+        #     event_name="user_message",
+        # )
+
+        # self.create_agent(
+        #     name=Orchestrator.get_name(),
+        #     tools_class=Orchestrator.__name__,
+        #     task=Orchestrator.get_task(),
+        #     instructions=Orchestrator.get_instructions(),
+        #     thought_generator_mode=ThoughtGeneratorMode.PRE,
+        # )
+
+    def create_agent_by_config(self, agent_config: Dict[str, Any]) -> ProcessIds:
+        process_ids = self.create_agent(
+            agent_name=agent_config["name"],
+            tools_class=agent_config["tools_class"],
+            memory_mode=AgentMemoryMode(agent_config["memory_mode"]),
+            modalities=agent_config["modalities"],
+            thought_generator_mode=ThoughtGeneratorMode(
+                agent_config["thought_generator_mode"]
+            ),
+        )
+        return process_ids
+
+    def create_agent_communication(
+        self, process_ids: ProcessIds, communication_config: Dict[str, Any]
+    ):
+        external_events = communication_config["external_events"]
+        if len(external_events) > 0:
+            for event_name in external_events:
+                ClientHandlers().create_event_subscription(
+                    process_ids=process_ids, event_name=event_name
                 )
+        # TODO: Configure topics and requests properly.
 
-        main_assistant_process_ids = self.create_agent(
-            name=assistant_name,
-            tools_class=Assistant.__name__,
-            task=Assistant.get_task(),
-            instructions=Assistant.get_instructions(),
-            thought_generator_mode=ThoughtGeneratorMode.POST,
-        )
-        # TODO: Should we add a get_event for each tool? We want both: Flexible events, but some can be attached directly to tool? TBD.
-        ClientHandlers().create_event_subscription(
-            process_ids=main_assistant_process_ids,
-            event_name="user_message",
-        )
+    def create_agent_profile(
+        self, process_ids: ProcessIds, profile_config: Dict[str, Any]
+    ):
+        # TODO: implement me
+        ClientHandlers().create_profile()
 
-        self.create_agent(
-            name=Orchestrator.get_name(),
-            tools_class=Orchestrator.__name__,
-            task=Orchestrator.get_task(),
-            instructions=Orchestrator.get_instructions(),
-            thought_generator_mode=ThoughtGeneratorMode.PRE,
+    def create_process_state_machine(
+        self, process_ids: ProcessIds, state_machine_config: Dict[str, Any]
+    ):
+        for name, content in state_machine_config.items():
+            ClientHandlers().create_process_state(
+                user_id=self.user_id,
+                process_id=process_ids.process_id,
+                name=name,
+                task=content["task"],
+                instructions=content["instructions"],
+                tools=content["tools"],
+            )
+        initial_state_name = next(iter(state_machine_config.keys()))
+        # TODO: Implement me.
+        ClientHandlers().update_current_process_state(
+            user_id=self.user_id,
+            process_id=process_ids.process_id,
+            process_state_name=initial_state_name,
         )
 
     def create_agent(
         self,
-        name: str,
+        agent_name: str,
         tools_class: str,
         memory_mode: AgentMemoryMode,
         modalities: List[str],
@@ -108,10 +139,10 @@ class AgentBuilder:
         try:
             agent_data = ClientHandlers().create_agent(
                 user_id=self.user_id,
-                name=name,
+                name=agent_name,
                 tools_class=tools_class,
-                task=task,
-                instructions=instructions,
+                memory_mode=memory_mode.value,
+                modalities=modalities,
                 thought_generator_mode=thought_generator_mode.value,
             )
             self.logger.info(f"Agent created on database, uuid: {agent_data.id}")
@@ -119,23 +150,10 @@ class AgentBuilder:
             self.memory_manager.create_agent(
                 user_id=self.user_id, agent_data=agent_data
             )
+            self.create_internal_processes(agent_id=agent_data.id, agent_name=name)
 
-            # Create the processes
-            main_process_data = ClientHandlers().create_process(
-                user_id=self.user_id,
-                agent_id=agent_data.id,
-                name="main",
-                tools_class=tools_class,
-                task=task,
-                instructions=instructions,
-                flow_type=ProcessFlowType.INTERACTIVE,
-                service_name=name,  # Use the name of the agent as service name, TODO: Fix me using internal and external requests.
-            )
-            main_process_ids = ProcessIds(
-                user_id=self.user_id,
-                agent_id=agent_data.id,
-                process_id=main_process_data.id,
-            )
+            # Main process
+
             # Create thought generator process
             ClientHandlers().create_process(
                 user_id=self.user_id,
@@ -169,3 +187,42 @@ class AgentBuilder:
 
         except Exception as e:
             return self.logger.error(f"Error creating agent {name}: {e}")
+
+    def create_internal_processes(
+        self, agent_id: str, agent_name: str, tools_class: str
+    ):
+        """Create the internal processes for the agent"""
+        internal_processes_path = get_internal_processes_path()
+        internal_processes_json_loader = JsonLoader(root_dir=internal_processes_path)
+
+        # TODO: Main only have communications.json as config.json and state_machine.json are provided at agent level!
+        # TODO: First read only main and create the main_process, return main_process ids at the end.
+        main_process_data = ClientHandlers().create_process(
+            user_id=self.user_id,
+            agent_id=agent_id,
+            name="main",
+            tools_class=tools_class,
+            flow_type=ProcessFlowType.INTERACTIVE,
+            service_name=agent_name,  # Use the name of the agent as service name, TODO: Fix me using internal and external requests.
+        )
+        main_process_ids = ProcessIds(
+            user_id=self.user_id,
+            agent_id=agent_id,
+            process_id=main_process_data.id,
+        )
+
+        # Then we create all the internal processes.
+        internal_processes_files_dict = internal_processes_json_loader.search_files(
+            file_names=["communications.json", "config.json", "state_machine.json"]
+        )
+        for process_folder, process_files in internal_processes_files_dict.items():
+            process_ids = self.create_internal_process(
+                agent_id=agent_id,
+                agent_name=agent_name,
+                process_folder=process_folder,
+                process_files=process_files,
+            )
+            self.create_internal_process_state_machine(
+                process_ids=process_ids,
+                state_machine_config=process_files["state_machine"],
+            )

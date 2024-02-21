@@ -19,3 +19,9 @@ class ProcessState:
     def from_json(cls, json_str):
         data = json.loads(json_str)
         return cls(**data)
+
+    def to_prompt_kwargs(self):
+        return {
+            "task": self.task,
+            "instructions": self.instructions,
+        }

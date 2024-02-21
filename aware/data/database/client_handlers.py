@@ -20,6 +20,7 @@ from aware.process.process_ids import ProcessIds
 from aware.process.process_communications import ProcessCommunications
 from aware.process.process_data import ProcessData, ProcessFlowType
 from aware.process.process_info import ProcessInfo
+from aware.process.state_machine.state import ProcessState
 from aware.memory.user.user_data import UserData
 from aware.utils.logger.file_logger import FileLogger
 
@@ -106,8 +107,6 @@ class ClientHandlers:
         agent_id: str,
         name: str,
         tools_class: str,
-        task: str,
-        instructions: str,
         flow_type: ProcessFlowType,
         service_name: Optional[str] = None,
     ) -> ProcessData:
@@ -116,8 +115,6 @@ class ClientHandlers:
             agent_id=agent_id,
             name=name,
             tools_class=tools_class,
-            task=task,
-            instructions=instructions,
             flow_type=flow_type,
         )
         self.redis_handler.set_process_data(
@@ -290,6 +287,25 @@ class ClientHandlers:
 
         return process_id
 
+    def get_current_process_state(self, process_id: str) -> ProcessState:
+        # TODO: Implement me.
+        current_process_state = self.redis_handler.get_current_process_state(process_id)
+
+        if current_process_state is None:
+            self.logger.info("Current process States not found in Redis")
+            current_process_state = self.supabase_handler.get_current_process_state(
+                process_id
+            )
+            if current_process_state is None:
+                raise Exception("Current process States not found on Supabase")
+
+            self.redis_handler.set_current_process_state(
+                process_id, current_process_state
+            )
+        else:
+            self.logger.info("Current process States found in Redis")
+        return current_process_state
+
     def get_process_data(self, process_id: str) -> ProcessData:
         process_data = self.redis_handler.get_process_data(process_id)
 
@@ -315,7 +331,6 @@ class ClientHandlers:
 
         if process_communications is None:
             self.logger.info("Process Communications not found in Redis")
-            # Fetch agent data from Supabase
             process_communications = self.supabase_handler.get_process_communications(
                 process_id=process_id
             )
@@ -335,7 +350,6 @@ class ClientHandlers:
 
         if process_ids is None:
             self.logger.info("Process Ids not found in Redis")
-            # Fetch agent data from Supabase
             process_ids = self.supabase_handler.get_process_ids(process_id)
             if process_ids is None:
                 raise Exception("Process Ids not found on Supabase")
@@ -346,17 +360,38 @@ class ClientHandlers:
 
         return process_ids
 
+    def get_process_states(self, process_id: str) -> List[ProcessState]:
+        process_states = self.redis_handler.get_process_states(process_id)
+
+        if process_states is None:
+            self.logger.info("Process States not found in Redis")
+            process_states = self.supabase_handler.get_process_states(process_id)
+            if process_states is None:
+                raise Exception("Process States not found on Supabase")
+
+            self.redis_handler.set_process_states(process_id, process_states)
+        else:
+            self.logger.info("Process States found in Redis")
+        return process_states
+
     def get_process_info(self, process_ids: ProcessIds) -> ProcessInfo:
         agent_data = self.get_agent_data(agent_id=process_ids.agent_id)
         process_data = self.get_process_data(process_id=process_ids.process_id)
         process_communications = self.get_process_communications(
             process_id=process_ids.process_id
         )
+        process_states = self.get_process_states(process_id=process_ids.process_id)
+        current_state = self.get_current_process_state(
+            process_id=process_ids.process_id
+        )
+
         return ProcessInfo(
             agent_data=agent_data,
             process_ids=process_ids,
             process_data=process_data,
             process_communications=process_communications,
+            process_states=process_states,
+            current_state=current_state,
         )
 
     def get_processes_subscribed_to_event(
