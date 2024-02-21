@@ -8,14 +8,11 @@ class ProcessFlowType(Enum):
     INTERACTIVE = "interactive"
 
 
-# TODO: Task and instructions should be dependent on process state machine!
 @dataclass
 class ProcessData:
     id: str
     name: str
     tools_class: str
-    task: str
-    instructions: str
     flow_type: ProcessFlowType
 
     def to_dict(self):
@@ -23,8 +20,6 @@ class ProcessData:
             "id": self.id,
             "name": self.name,
             "tools_class": self.tools_class,
-            "task": self.task,
-            "instructions": self.instructions,
             "flow_type": self.flow_type.value,
         }
 
@@ -36,9 +31,3 @@ class ProcessData:
         data = json.loads(json_str)
         data["flow_type"] = ProcessFlowType(data["flow_type"])
         return ProcessData(**data)
-
-    def to_prompt_kwargs(self):
-        return {
-            "task": self.task,
-            "instructions": self.instructions,
-        }

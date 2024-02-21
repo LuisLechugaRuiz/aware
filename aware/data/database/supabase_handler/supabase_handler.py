@@ -104,8 +104,6 @@ class SupabaseHandler:
         agent_id: str,
         name: str,
         tools_class: str,
-        task: str,
-        instructions: str,
         flow_type: ProcessFlowType,
     ) -> ProcessData:
         self.logger.info(f"Creating process {name}")
@@ -117,8 +115,6 @@ class SupabaseHandler:
                     "agent_id": agent_id,
                     "name": name,
                     "tools_class": tools_class,
-                    "task": task,
-                    "instructions": instructions,
                     "flow_type": flow_type.value,
                 }
             )
@@ -131,8 +127,6 @@ class SupabaseHandler:
             id=data["id"],
             name=data["name"],
             tools_class=data["tools_class"],
-            task=data["task"],
-            instructions=data["instructions"],
             flow_type=ProcessFlowType(data["flow_type"]),
         )
 
@@ -467,6 +461,26 @@ class SupabaseHandler:
             return None
         return data[0]["id"]
 
+    def get_current_process_state(self, process_id: str) -> ProcessState:
+        current_process_state = (
+            self.client.rpc("get_current_process_state", {"p_process_id": process_id})
+            .execute()
+            .data
+        )
+        tools = (
+            self.client.rpc("get_tools", {"p_process_id": process_id}).execute().data
+        )
+        process_tools = {}
+        for tool in tools:
+            process_tools[tool["name"]] = tool["transition_state_name"]
+
+        return ProcessState(
+            name=current_process_state["name"],
+            tools=process_tools,
+            task=current_process_state["task"],
+            instructions=current_process_state["instructions"],
+        )
+
     def get_process_service_requests(self, process_id: str) -> List[Request]:
         data = (
             self.client.table("services")
@@ -519,8 +533,6 @@ class SupabaseHandler:
             id=data["id"],
             name=data["name"],
             tools_class=data["tools_class"],
-            task=data["task"],
-            instructions=data["instructions"],
             flow_type=ProcessFlowType(data["flow_type"]),
         )
 
@@ -549,12 +561,19 @@ class SupabaseHandler:
             .execute()
             .data
         )
-        return ProcessState(
-            name=row["name"],
-            tools=row["tools"],
-            task=row["task"],
-            instructions=row["instructions"],
-        )
+        process_states = []
+        if not data:
+            return process_states
+        for row in data:
+            process_states.append(
+                ProcessState(
+                    name=row["name"],
+                    tools=row["tools"],
+                    task=row["task"],
+                    instructions=row["instructions"],
+                )
+            )
+        return process_states
 
     def get_requests(self, key_process_id: str, process_id: str) -> List[Request]:
         data = (

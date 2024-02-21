@@ -47,4 +47,4 @@ Configuration is similar to agent - It also have a state
 ## Actionable Steps
 
 - Create initial json for agents and internal_processes. (Request should have a description of what is needed).
-- Add "default_functions" based on requests, channels and events (External and Internal). 
+- Add "default_functions" based on requests, channels and events (External and Internal).

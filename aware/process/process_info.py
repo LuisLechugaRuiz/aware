@@ -1,10 +1,12 @@
 import json
 from dataclasses import dataclass
+from typing import List
 
 from aware.agent.agent_data import AgentData
 from aware.process.process_communications import ProcessCommunications
 from aware.process.process_data import ProcessData
 from aware.process.process_ids import ProcessIds
+from aware.process.state_machine.state import ProcessState
 
 
 @dataclass
@@ -13,6 +15,8 @@ class ProcessInfo:
     process_ids: ProcessIds
     process_data: ProcessData
     process_communications: ProcessCommunications
+    process_states: List[ProcessState]
+    current_state: ProcessState
 
     def to_dict(self):
         return {
@@ -20,6 +24,8 @@ class ProcessInfo:
             "process_ids": self.process_ids.to_dict(),
             "process_data": self.process_data.to_dict(),
             "process_communications": self.process_communications.to_dict(),
+            "process_states": [state.to_dict() for state in self.process_states],
+            "current_state": self.current_state.to_dict(),
         }
 
     def to_json(self):
@@ -37,6 +43,10 @@ class ProcessInfo:
         data["process_communication"] = ProcessCommunications.from_json(
             data["process_communications"]
         )
+        data["process_states"] = [
+            ProcessState.from_json(state) for state in data["process_states"]
+        ]
+        data["current_state"] = ProcessState.from_json(data["current_state"])
         return ProcessData(**data)
 
     def get_name(self):
