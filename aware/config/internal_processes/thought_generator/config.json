@@ -1,5 +1,5 @@
 {
-    "flow_type": "interactive",
     "name": "thought_generator",
-    "tools_class": "ThoughtGenerator"
+    "tools_class": "ThoughtGenerator",
+    "flow_type": "interactive"
 }

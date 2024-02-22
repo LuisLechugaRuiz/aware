@@ -24,6 +24,7 @@ from aware.communications.topics.topic_subscription import TopicSubscription
 from aware.process.process_data import ProcessData
 from aware.process.process_ids import ProcessIds
 from aware.process.process_communications import ProcessCommunications
+from aware.process.state_machine.state import ProcessState
 from aware.utils.helpers import convert_timestamp_to_epoch, get_current_date_iso8601
 
 
@@ -107,6 +108,12 @@ class RedisHandler:
         self.client.sadd(
             f"process:{process_ids.process_id}:event_subscriptions",
             event_subscription.to_json(),
+        )
+
+    def create_process_state(self, process_id: str, process_state: ProcessState):
+        self.client.sadd(
+            f"process:{process_id}:states",
+            process_state.to_json(),
         )
 
     def create_topic(self, topic: Topic):
@@ -250,6 +257,12 @@ class RedisHandler:
 
         return messages
 
+    def get_current_process_state(self, process_id: str) -> Optional[ProcessState]:
+        data = self.client.get(f"process:{process_id}:current_state")
+        if data:
+            return ProcessState.from_json(data)
+        return None
+
     def get_events(self, user_id: str, event_name: str) -> List[Event]:
         event_order_key = f"user_id:{user_id}:event_type:{event_name}:event:order"
         event_keys = self.client.zrange(event_order_key, 0, -1)
@@ -311,6 +324,12 @@ class RedisHandler:
         if data:
             return ProcessIds.from_json(data)
         return None
+
+    def get_process_states(self, process_id: str) -> List[ProcessState]:
+        process_states = self.client.smembers(f"process:{process_id}:states")
+        return [
+            ProcessState.from_json(process_state) for process_state in process_states
+        ]
 
     def get_processes_subscribed_to_event(
         self, user_id: str, event: Event
@@ -389,6 +408,12 @@ class RedisHandler:
         self.client.set(
             f"process:{process_id}:agent_id",
             agent_id,
+        )
+
+    def set_current_process_state(self, process_id: str, process_state: ProcessState):
+        self.client.set(
+            f"process:{process_id}:current_state",
+            process_state.to_json(),
         )
 
     def set_process_communications(

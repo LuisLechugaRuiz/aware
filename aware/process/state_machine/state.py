@@ -5,6 +5,7 @@ from typing import Dict
 
 @dataclass
 class ProcessState:
+    id: str
     name: str
     tools: Dict[str, str]
     task: str
