@@ -98,6 +98,26 @@ class SupabaseHandler:
             thought_generator_mode=ThoughtGeneratorMode(data["thought_generator_mode"]),
         )
 
+    def create_current_process_state(
+        self, user_id: str, process_id: str, process_state_id: str
+    ) -> ProcessState:
+        self.logger.info(f"Creating current process state for process: {process_id}")
+        response = (
+            self.client.table("current_process_states")
+            .insert(
+                {
+                    "user_id": user_id,
+                    "process_id": process_id,
+                    "current_state_id": process_state_id,
+                }
+            )
+            .execute()
+            .data
+        )
+        self.logger.info(
+            f"Current process state created for process: {process_id}. Response: {response}"
+        )
+
     def create_process(
         self,
         user_id: str,
@@ -155,6 +175,7 @@ class SupabaseHandler:
             .data
         )
         data = data[0]
+        process_state_id = data["id"]
         self.logger.info(f"Process state: {name}, created.")
         self.logger.info(f"Creating tools for process state: {name}")
         for tool_name, transition_state_name in tools.items():
@@ -163,7 +184,7 @@ class SupabaseHandler:
                 .insert(
                     {
                         "user_id": user_id,
-                        "process_state_id": data[0]["id"],
+                        "process_state_id": process_state_id,
                         "name": tool_name,
                         "transition_state_name": transition_state_name,
                     }
@@ -172,6 +193,7 @@ class SupabaseHandler:
                 .data
             )
         return ProcessState(
+            id=process_state_id,
             name=name,
             tools=tools,
             task=task,
@@ -733,6 +755,11 @@ class SupabaseHandler:
         self.client.table("agents").update({"profile": profile}).eq(
             "id", agent_id
         ).execute()
+
+    def update_current_process_state(self, process_id: str, process_state_id: str):
+        self.client.table("current_process_states").update(
+            {"current_state_id": process_state_id}
+        ).eq("process_id", process_id).execute()
 
     def update_request_feedback(self, request: Request):
         self.client.table("requests").update({"feedback": request.data.feedback}).eq(

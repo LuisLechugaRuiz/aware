@@ -4,27 +4,13 @@ from aware.agent.agent_data import AgentMemoryMode, ThoughtGeneratorMode
 from aware.config import get_default_agents_path, get_internal_processes_path
 from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
+from aware.process.process_builder import ProcessBuilder
 from aware.process.process_ids import ProcessIds
 from aware.process.process_data import ProcessFlowType
-from aware.tools.default_data.assistant_data import Assistant
-from aware.tools.default_data.orchestrator_data import Orchestrator
-from aware.tools.default_data.data_storage_manager_data import DataStorageManager
-from aware.tools.default_data.thought_generator_data import ThoughtGenerator
 from aware.utils.logger.file_logger import FileLogger
 from aware.utils.json_loader import JsonLoader
 
 
-# TODO: Refactor -> It should interact with our json properly.
-
-# 1. Read agent config from config.json at default_agents folder.
-# 2. Create agent.
-
-
-# 3. Read state machine config from state_machine.json and create process states for main process.
-# 4. Read state machine config for each process at internal processes and create process states for each process.
-
-
-# 5. Read communication config from communication.json and create communication channels for each process (external at agent folder and internal at internal processes folder).
 class AgentBuilder:
     def __init__(self, user_id: str):
         self.logger = FileLogger("agent_builder")
@@ -39,48 +25,36 @@ class AgentBuilder:
         agent_files_dict = default_agents_json_loader.search_files(
             file_names=[
                 "config.json",
-                "communication.json",
+                "communications.json",
                 "profile.json",
                 "state_machine.json",
             ]
         )
         for agent_folder, agent_files in agent_files_dict.items():
-            main_process_ids = self.create_agent_by_config(agent_files["config"])
-            self.create_agent_communication(
+            main_process_ids = self.create_agent_by_config(
+                assistant_name=assistant_name,
+                agent_config=agent_files["config"],
+                agent_state_machine_config=agent_files["state_machine"],
+            )
+            self.create_agent_communications(
                 process_ids=main_process_ids,
-                communication_config=agent_files["communication"],
+                communications_config=agent_files["communications"],
             )
             self.create_agent_profile(
                 process_ids=main_process_ids, profile_config=agent_files["profile"]
             )
-            self.create_process_state_machine(
-                process_ids=main_process_ids,
-                state_machine_config=agent_files["state_machine"],
-            )
-        # main_assistant_process_ids = self.create_agent(
-        #     name=assistant_name,
-        #     tools_class=Assistant.__name__,
-        #     task=Assistant.get_task(),
-        #     instructions=Assistant.get_instructions(),
-        #     thought_generator_mode=ThoughtGeneratorMode.POST,
-        # )
-        # # TODO: Should we add a get_event for each tool? We want both: Flexible events, but some can be attached directly to tool? TBD. No, they are connected to agent.
-        # ClientHandlers().create_event_subscription(
-        #     process_ids=main_assistant_process_ids,
-        #     event_name="user_message",
-        # )
 
-        # self.create_agent(
-        #     name=Orchestrator.get_name(),
-        #     tools_class=Orchestrator.__name__,
-        #     task=Orchestrator.get_task(),
-        #     instructions=Orchestrator.get_instructions(),
-        #     thought_generator_mode=ThoughtGeneratorMode.PRE,
-        # )
-
-    def create_agent_by_config(self, agent_config: Dict[str, Any]) -> ProcessIds:
+    def create_agent_by_config(
+        self,
+        assistant_name: str,
+        agent_config: Dict[str, Any],
+        agent_state_machine_config: Dict[str, Any],
+    ) -> ProcessIds:
+        agent_name = agent_config["name"]
+        if agent_name == "assistant":
+            agent_name = assistant_name
         process_ids = self.create_agent(
-            agent_name=agent_config["name"],
+            agent_name=agent_name,
             tools_class=agent_config["tools_class"],
             memory_mode=AgentMemoryMode(agent_config["memory_mode"]),
             modalities=agent_config["modalities"],
@@ -88,12 +62,19 @@ class AgentBuilder:
                 agent_config["thought_generator_mode"]
             ),
         )
+        # TODO: Move this inside create_agent as this will be needed, but we need a way to pass state_machine_config from AgentBuilder tool.
+        process_builder = ProcessBuilder(
+            user_id=self.user_id, agent_id=process_ids.agent_id
+        )
+        process_builder.create_process_state_machine(
+            process_ids=process_ids, state_machine_config=agent_state_machine_config
+        )
         return process_ids
 
-    def create_agent_communication(
-        self, process_ids: ProcessIds, communication_config: Dict[str, Any]
+    def create_agent_communications(
+        self, process_ids: ProcessIds, communications_config: Dict[str, Any]
     ):
-        external_events = communication_config["external_events"]
+        external_events = communications_config["external_events"]
         if len(external_events) > 0:
             for event_name in external_events:
                 ClientHandlers().create_event_subscription(
@@ -105,28 +86,12 @@ class AgentBuilder:
         self, process_ids: ProcessIds, profile_config: Dict[str, Any]
     ):
         # TODO: implement me
-        ClientHandlers().create_profile()
-
-    def create_process_state_machine(
-        self, process_ids: ProcessIds, state_machine_config: Dict[str, Any]
-    ):
-        for name, content in state_machine_config.items():
-            ClientHandlers().create_process_state(
-                user_id=self.user_id,
-                process_id=process_ids.process_id,
-                name=name,
-                task=content["task"],
-                instructions=content["instructions"],
-                tools=content["tools"],
-            )
-        initial_state_name = next(iter(state_machine_config.keys()))
-        # TODO: Implement me.
-        ClientHandlers().update_current_process_state(
-            user_id=self.user_id,
-            process_id=process_ids.process_id,
-            process_state_name=initial_state_name,
+        ClientHandlers().create_profile(
+            process_ids=process_ids, profile_config=profile_config
         )
 
+    # TODO: This is the entry point to create agents from AgentBuilder tool, but now it needs to have the state_machine_config style to be usable.
+    # TODO: Add a default config -> All tools transition to continue and stop to end? Or request the AgentBuilder to build the states - Transitions of each agent if needed..
     def create_agent(
         self,
         agent_name: str,
@@ -137,6 +102,7 @@ class AgentBuilder:
     ) -> ProcessIds:
         """Create a new agent"""
         try:
+            # Store agent on database
             agent_data = ClientHandlers().create_agent(
                 user_id=self.user_id,
                 name=agent_name,
@@ -147,46 +113,19 @@ class AgentBuilder:
             )
             self.logger.info(f"Agent created on database, uuid: {agent_data.id}")
             # Store agent on Weaviate
-            self.memory_manager.create_agent(
+            result = self.memory_manager.create_agent(
                 user_id=self.user_id, agent_data=agent_data
             )
-            self.create_internal_processes(agent_id=agent_data.id, agent_name=name)
+            self.logger.info(f"Agent created on vector memory with result: {result}")
 
-            # Main process
-
-            # Create thought generator process
-            ClientHandlers().create_process(
-                user_id=self.user_id,
-                agent_id=agent_data.id,
-                name=ThoughtGenerator.get_name(),
-                tools_class=ThoughtGenerator.__name__,
-                task=ThoughtGenerator.get_task(agent_name=name, agent_task=task),
-                instructions=ThoughtGenerator.get_instructions(agent_name=name),
-                flow_type=ProcessFlowType.INTERACTIVE,
-            )
-            # Create data storage manager process
-            data_storage_process_data = ClientHandlers().create_process(
-                user_id=self.user_id,
-                agent_id=agent_data.id,
-                name=DataStorageManager.get_name(),
-                tools_class=DataStorageManager.__name__,
-                task=DataStorageManager.get_task(agent_name=name, agent_task=task),
-                instructions=DataStorageManager.get_instructions(agent_name=name),
-                flow_type=ProcessFlowType.INDEPENDENT,
-            )
-            # TODO: Here we need differentiation between internal topics - between processes of same agent and external topics between agents... otherwise here agent_interactions would be any.
-            ClientHandlers().create_topic(
-                user_id=self.user_id,
-                topic_name="agent_interactions",
-                topic_description="Agent interactions:",
-            )
-            ClientHandlers().create_topic_subscription(
-                process_id=data_storage_process_data.id, topic_name="agent_interactions"
+            # Create internal processes
+            main_process_ids = self.create_internal_processes(
+                agent_id=agent_data.id, agent_name=agent_name, tools_class=tools_class
             )
             return main_process_ids
 
         except Exception as e:
-            return self.logger.error(f"Error creating agent {name}: {e}")
+            return self.logger.error(f"Error creating agent {agent_name}: {e}")
 
     def create_internal_processes(
         self, agent_id: str, agent_name: str, tools_class: str
@@ -196,33 +135,33 @@ class AgentBuilder:
         internal_processes_json_loader = JsonLoader(root_dir=internal_processes_path)
 
         # TODO: Main only have communications.json as config.json and state_machine.json are provided at agent level!
-        # TODO: First read only main and create the main_process, return main_process ids at the end.
-        main_process_data = ClientHandlers().create_process(
-            user_id=self.user_id,
-            agent_id=agent_id,
-            name="main",
-            tools_class=tools_class,
-            flow_type=ProcessFlowType.INTERACTIVE,
-            service_name=agent_name,  # Use the name of the agent as service name, TODO: Fix me using internal and external requests.
+        main_config = {
+            "name": "main",
+            "tools_class": tools_class,
+            "flow_type": ProcessFlowType.INTERACTIVE,
+        }
+        process_builder = ProcessBuilder(user_id=self.user_id, agent_id=agent_id)
+        main_process_ids = process_builder.create_process_by_config(
+            process_config=main_config, service_name=agent_name
         )
-        main_process_ids = ProcessIds(
-            user_id=self.user_id,
-            agent_id=agent_id,
-            process_id=main_process_data.id,
-        )
+        # TODO: Add main communications?
+        # TODO: Add process state machine when deciding how to pass it from AgentBuilder tool.
 
-        # Then we create all the internal processes.
+        # Create the internal processes
         internal_processes_files_dict = internal_processes_json_loader.search_files(
             file_names=["communications.json", "config.json", "state_machine.json"]
         )
         for process_folder, process_files in internal_processes_files_dict.items():
-            process_ids = self.create_internal_process(
-                agent_id=agent_id,
-                agent_name=agent_name,
-                process_folder=process_folder,
-                process_files=process_files,
+            process_ids = process_builder.create_process_by_config(
+                process_config=process_files["config"]
             )
-            self.create_internal_process_state_machine(
+            process_builder.create_process_state_machine(
                 process_ids=process_ids,
                 state_machine_config=process_files["state_machine"],
             )
+            process_builder.create_process_communications(
+                process_ids=process_ids,
+                communications_config=process_files["communications"],
+            )
+
+        return main_process_ids

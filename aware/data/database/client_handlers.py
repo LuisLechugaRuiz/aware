@@ -98,6 +98,15 @@ class ClientHandlers:
         self.logger.info(f"Agent: {agent_data.id}, created on redis")
         return agent_data
 
+    def create_current_process_state(
+        self, user_id: str, process_id: str, process_state: ProcessState
+    ):
+        self.supabase_handler.create_current_process_state(
+            user_id=user_id, process_id=process_id, process_state_id=process_state.id
+        )
+        self.redis_handler.set_current_process_state(process_id, process_state)
+        return process_state
+
     # TODO: Two kind of instructions:
     # Task Instructions (To specify how to perform the task).
     # Tool Instructions: To specify how to use the tool. ( docstring )
@@ -127,6 +136,7 @@ class ClientHandlers:
 
         if service_name is None:
             service_name = name  # Use the name of the process, otherwise the name of the Agent. TODO: Solve this by internal and external requests.
+        # TODO: Refactor based on new services - request system.
         self.create_service(
             user_id=user_id,
             process_id=process_data.id,
@@ -144,7 +154,7 @@ class ClientHandlers:
         instructions: str,
         tools: Dict[str, str],
     ):
-        process_states = self.supabase_handler.create_process_state(
+        process_state = self.supabase_handler.create_process_state(
             user_id=user_id,
             process_id=process_id,
             name=name,
@@ -153,9 +163,9 @@ class ClientHandlers:
             tools=tools,
         )
         self.redis_handler.create_process_state(
-            process_id=process_id, process_states=process_states
+            process_id=process_id, process_state=process_state
         )
-        return process_states
+        return process_state
 
     def create_event(
         self, user_id: str, event_name: str, message_name: str, content: str
@@ -288,7 +298,6 @@ class ClientHandlers:
         return process_id
 
     def get_current_process_state(self, process_id: str) -> ProcessState:
-        # TODO: Implement me.
         current_process_state = self.redis_handler.get_current_process_state(process_id)
 
         if current_process_state is None:
@@ -369,7 +378,8 @@ class ClientHandlers:
             if process_states is None:
                 raise Exception("Process States not found on Supabase")
 
-            self.redis_handler.set_process_states(process_id, process_states)
+            for process_state in process_states:
+                self.redis_handler.create_process_state(process_id, process_state)
         else:
             self.logger.info("Process States found in Redis")
         return process_states
@@ -455,6 +465,24 @@ class ClientHandlers:
         self.redis_handler.delete_request(request.id)
         self.supabase_handler.set_request_completed(request)
 
+    def update_agent_data(self, agent_data: AgentData):
+        try:
+            self.supabase_handler.update_agent_data(agent_data)
+            self.redis_handler.set_agent_data(agent_data)
+            return "Success"
+        except Exception as e:
+            return f"Failure: {str(e)}"
+
+    def update_current_process_state(
+        self, process_id: str, process_state: ProcessState
+    ):
+        self.redis_handler.set_current_process_state(
+            process_id=process_id, process_state=process_state
+        )
+        self.supabase_handler.update_current_process_state(
+            process_id=process_id, process_state_id=process_state.id
+        )
+
     def update_request_feedback(self, request: Request, feedback: str):
         request.data.feedback = feedback
 
@@ -466,11 +494,3 @@ class ClientHandlers:
 
         self.redis_handler.update_request(request)
         self.supabase_handler.update_request_status(request)
-
-    def update_agent_data(self, agent_data: AgentData):
-        try:
-            self.supabase_handler.update_agent_data(agent_data)
-            self.redis_handler.set_agent_data(agent_data)
-            return "Success"
-        except Exception as e:
-            return f"Failure: {str(e)}"

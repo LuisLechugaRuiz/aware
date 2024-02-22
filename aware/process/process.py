@@ -60,6 +60,7 @@ class Process:
             prompt_kwargs=prompt_kwargs,
             logger=self.get_logger(),
         )
+        # TODO: Get from out current_state.tools filter instead of get_tools.
         chat.request_response(self.tools.get_tools())
         return self
 
