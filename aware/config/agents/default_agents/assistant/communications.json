@@ -1,3 +1,4 @@
+// OLD! REMOVE.
 {
     "agent_requests": {
         "orchestrator": {
@@ -18,6 +19,7 @@
     "external_events": ["user_message"]
 }
 
+// Good format
 {
     "publisher": [],
     "subscriber": [],
@@ -28,11 +30,11 @@
             "description": "Send a request to assistant to inform the user about an important event",
             "tool": "inform_user"
         }
-    ]
+    ],
     "event_subscriber": ["user_message"]
 }
 
-
+// Example of format
 {
     "publisher": [topic]
     "subscriber": [topic]

@@ -11,7 +11,7 @@ from aware.chat.conversation_schemas import (
 from aware.communications.events.event import Event, EventStatus
 from aware.communications.events.event_type import EventType
 from aware.communications.requests.request import Request, RequestStatus
-from aware.communications.requests.service import ServiceData
+from aware.communications.service.service import ServiceData
 from aware.config.config import Config
 from aware.data.database.supabase_handler.supabase_handler import SupabaseHandler
 from aware.data.database.redis_handler.redis_handler import RedisHandler
@@ -137,12 +137,12 @@ class ClientHandlers:
         if service_name is None:
             service_name = name  # Use the name of the process, otherwise the name of the Agent. TODO: Solve this by internal and external requests.
         # TODO: Refactor based on new services - request system.
-        self.create_service(
-            user_id=user_id,
-            process_id=process_data.id,
-            name=service_name,
-            description=task,
-        )
+        # self.create_service(
+        #     user_id=user_id,
+        #     process_id=process_data.id,
+        #     name=service_name,
+        #     description=task,
+        # )
         return process_data
 
     def create_process_state(
@@ -225,12 +225,22 @@ class ClientHandlers:
         return request
 
     def create_service(
-        self, user_id: str, process_id: str, name: str, description: str
+        self,
+        process_ids: ProcessIds,
+        name: str,
+        description: str,
+        request_name: str,
+        tool_name: str,
     ):
         """Create new service"""
-        service_data = ServiceData(name=name, description=description)
+        service_data = ServiceData(
+            name=name,
+            description=description,
+            request_name=request_name,
+            tool_name=tool_name,
+        )
         service = self.supabase_handler.create_service(
-            user_id=user_id, process_id=process_id, service_data=service_data
+            process_ids=process_ids, service_data=service_data
         )
         self.redis_handler.set_service(service=service)
 

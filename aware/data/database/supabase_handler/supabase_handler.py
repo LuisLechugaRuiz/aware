@@ -12,7 +12,7 @@ from aware.communications.events.event import Event, EventStatus
 from aware.communications.events.event_type import EventType
 from aware.communications.events.event_subscription import EventSubscription
 from aware.communications.requests.request import Request, RequestData, RequestStatus
-from aware.communications.requests.service import Service, ServiceData
+from aware.communications.service.service import Service, ServiceData
 from aware.communications.topics.topic import Topic
 from aware.communications.topics.topic_subscription import TopicSubscription
 from aware.config.config import Config
@@ -352,17 +352,19 @@ class SupabaseHandler:
         )
 
     def create_service(
-        self, user_id: str, process_id: str, service_data: ServiceData
+        self, process_ids: ProcessIds, service_data: ServiceData
     ) -> Service:
         self.logger.info(f"Creating service {service_data.name}")
         service_id = (
             self.client.rpc(
                 "create_service",
                 {
-                    "p_user_id": user_id,
-                    "p_process_id": process_id,
+                    "p_user_id": process_ids.user_id,
+                    "p_process_id": process_ids.process_id,
                     "p_name": service_data.name,
                     "p_description": service_data.description,
+                    "p_request_name": service_data.request_name,
+                    "p_tool_name": service_data.tool_name,
                 },
             )
             .execute()
@@ -371,7 +373,9 @@ class SupabaseHandler:
         self.logger.info(
             f"New service created at supabase. Name: {service_data.name}, id: {service_id}"
         )
-        return Service(service_id=service_id, process_id=process_id, data=service_data)
+        return Service(
+            process_ids=process_ids, service_id=service_id, data=service_data
+        )
 
     def create_topic(
         self,
