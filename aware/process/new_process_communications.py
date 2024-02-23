@@ -12,9 +12,10 @@ from aware.communications.topics.topic import Topic
 # "clients": ["create_team"], //, "assign_task", "talk_to_user" as part of assistant tool.
 # "server": [
 #     {
-#         "name": "inform_user",
-#         "description": "Send a request to assistant to inform the user about an important event",
-#         "tool": "inform_user"
+#         "name": "inform_user", -> name of service
+#         "description": "Send a request to assistant to inform the user about an important event", -> description of service
+#         "request": "inform_user", -> name of the request (the structured data)
+#         "tool": "inform_user", -> name of the tool to be called, by default NONE for any new agent, but used to call internal tools for some requests.
 #     }
 # ],
 # "event_subscriber": ["user_message"]
