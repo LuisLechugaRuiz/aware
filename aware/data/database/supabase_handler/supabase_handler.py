@@ -313,11 +313,12 @@ class SupabaseHandler:
         client_process_id: str,
         client_process_name: str,
         service_name: str,
-        query: str,
+        request_message: Dict[str, Any],
         is_async: bool,
     ) -> Request:
         self.logger.info(f"Creating request {service_name}")
         response = (
+            # TODO: Add me on supa - New request_message which is a full JSON format.
             self.client.rpc(
                 "create_request",
                 {
@@ -325,7 +326,7 @@ class SupabaseHandler:
                     "p_client_process_id": client_process_id,
                     "p_client_process_name": client_process_name,
                     "p_service_name": service_name,
-                    "p_query": query,
+                    "p_request_message": request_message,
                     "p_is_async": is_async,
                 },
             )
@@ -334,7 +335,7 @@ class SupabaseHandler:
         )
         response = response[0]
         request_data = RequestData(
-            query=response["query"],
+            request_message=response["request_message"],
             is_async=response["is_async"],
             feedback=response["feedback"],
             status=RequestStatus(response["status"]),
@@ -373,7 +374,12 @@ class SupabaseHandler:
         return Service(service_id=service_id, process_id=process_id, data=service_data)
 
     def create_topic(
-        self, user_id: str, topic_name: str, topic_description: str
+        self,
+        user_id: str,
+        topic_name: str,
+        topic_description: str,
+        agent_id: Optional[str] = None,
+        is_private: bool = False,
     ) -> Topic:
         existing_topic = (
             self.client.table("topics")
@@ -384,19 +390,26 @@ class SupabaseHandler:
         ).data
         self.logger.info(f"Got existing topic: {existing_topic}")
         if not existing_topic:
+            if agent_id is not None:
+                new_topic_dict = {
+                    "agent_id": agent_id,
+                }
+            else:
+                new_topic_dict = {}
+
             self.logger.info(f"Creating topic {topic_name}")
+            new_topic_dict.update(
+                {
+                    "user_id": user_id,
+                    "name": topic_name,
+                    "description": topic_description,
+                    "content": "",
+                    "is_private": is_private,
+                }
+            )
+
             existing_topic = (
-                self.client.table("topics")
-                .insert(
-                    {
-                        "user_id": user_id,
-                        "name": topic_name,
-                        "description": topic_description,
-                        "content": "",
-                    }
-                )
-                .execute()
-                .data
+                self.client.table("topics").insert(new_topic_dict).execute().data
             )
         existing_topic = existing_topic[0]
         return Topic(
@@ -610,7 +623,7 @@ class SupabaseHandler:
             return requests
         for row in data:
             request_data = RequestData(
-                query=row["query"],
+                request_message=row["request_message"],
                 is_async=row["is_async"],
                 feedback=row["feedback"],
                 status=RequestStatus(row["status"]),

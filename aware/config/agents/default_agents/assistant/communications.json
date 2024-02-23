@@ -17,3 +17,27 @@
     },
     "external_events": ["user_message"]
 }
+
+{
+    "publisher": [],
+    "subscriber": [],
+    "clients": ["create_team"], //, "assign_task", "talk_to_user" as part of assistant tool.
+    "server": [
+        {
+            "name": "inform_user",
+            "description": "Send a request to assistant to inform the user about an important event",
+            "tool": "inform_user"
+        }
+    ]
+    "event_subscriber": ["user_message"]
+}
+
+
+{
+    "publisher": [topic]
+    "subscriber": [topic]
+    "clients": [request]
+    "server": [request]
+}
+
+Then we need general comms (with topics and requests that can be used FOR ALL AGENTS / INTERNAL PROCESSES!!!!)

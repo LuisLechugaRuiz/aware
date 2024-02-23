@@ -9,6 +9,7 @@ import re
 import uuid
 import inspect
 
+from aware.communications.client.client import Client
 from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
 from aware.process.process_info import ProcessInfo
@@ -16,11 +17,13 @@ from aware.process.process_handler import ProcessHandler
 from aware.utils.logger.file_logger import FileLogger
 
 
+# TODO: EDIT DEFAULT TOOLS.
 class Tools(ABC):
     def __init__(
         self,
         process_info: ProcessInfo,
     ):
+        self.process_info = process_info
         self.agent_data = process_info.agent_data
         self.process_ids = process_info.process_ids
         self.process_data = process_info.process_data
@@ -39,27 +42,42 @@ class Tools(ABC):
         self.async_request_scheduled = False
         self.sync_request_scheduled = False
 
-    def create_async_request(self, service_name: str, query: str):
-        self.async_request_scheduled = True
+    def create_request(
+        self, service_name: str, request_message: Dict[str, Any], is_async: bool
+    ):
+        """Create a request to a specific service providing the request message with the exact fields needed. Define if the request is async or not (if the agent needs to wait for the response or not).
+        Args:
+            service_name (str): The name of the service to send the request to.
+            request_message (Dict[str, Any]): The message to send to the service.
+            is_async (bool): If the request is async or not.
+        """
 
-        self.process_handler.create_request(
-            client_process_name=self.get_process_name(),
-            client_process_ids=self.process_ids,
+        if is_async:
+            self.async_request_scheduled = True
+        else:
+            self.sync_request_scheduled = True
+
+        request = Client(process_info=self.process_info).create_request(
             service_name=service_name,
-            query=query,
-            is_async=True,
+            request_message=request_message,
+            is_async=is_async,
         )
-        return "Async request scheduled."
+        if request.tool is not None:
+            request.call(request_message)
 
-    def create_request(self, service_name: str, query: str):
-        self.sync_request_scheduled = True
+        return "Request scheduled."
 
-        return self.process_handler.create_request(
-            client_process_name=self.get_process_name(),
-            client_process_ids=self.process_ids,
-            service_name=service_name,
-            query=query,
-            is_async=False,
+    def publish_message(self, topic_name: str, message: Dict[str, Any]):
+        """
+        Publish a message to a specific topic.
+        Args:
+            topic_name (str): The name of the topic to publish the message to.
+            message (Dict[str, Any]): The message to publish to the topic.
+        """
+
+        return ClientHandlers().publish_message(
+            topic_name=topic_name,
+            message=message,
         )
 
     def _construct_arguments_dict(self, func: Callable, content: str):
@@ -75,6 +93,11 @@ class Tools(ABC):
 
     def _get_default_tools(self) -> List[Callable]:
         default_tools = []
+        if self.process_info.process_communications.clients is not None:
+            default_tools.append(self.create_request)
+        if self.process_info.process_communications.publishers is not None:
+            default_tools.append(self.publish_message)
+
         if self.request is not None:
             default_tools.append(self.set_request_completed)
             if self.request.is_async():

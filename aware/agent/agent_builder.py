@@ -2,6 +2,7 @@ from typing import Any, Dict, List
 
 from aware.agent.agent_data import AgentMemoryMode, ThoughtGeneratorMode
 from aware.config import get_default_agents_path, get_internal_processes_path
+from aware.communications.client.client import Client
 from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
 from aware.process.process_builder import ProcessBuilder
@@ -74,13 +75,34 @@ class AgentBuilder:
     def create_agent_communications(
         self, process_ids: ProcessIds, communications_config: Dict[str, Any]
     ):
-        external_events = communications_config["external_events"]
-        if len(external_events) > 0:
-            for event_name in external_events:
-                ClientHandlers().create_event_subscription(
-                    process_ids=process_ids, event_name=event_name
-                )
-        # TODO: Configure topics and requests properly.
+        external_events = communications_config["events"]
+        for event_name in external_events:
+            ClientHandlers().create_event_subscription(
+                process_ids=process_ids, event_name=event_name
+            )
+        # TODO: Configure topics and requests properly
+        # TODO: For topic we need publisher/subscribers. We create the topic if it doesn't exist and then we create publishers or subscribers
+        # topics = communications_config["topics"]
+        # for topic_name, topic_config in topics.items():
+        #     topic_descripition = topic_config["description"]
+        #     topic_is_publisher = topic_config["is_publisher"]
+        #     ClientHandlers().create_topic(
+        #         user_id=self.user_id,
+        #         topic_name=topic_name,
+        #         topic_description=topic_descripition,
+        #         is_private=False,
+        #     )
+        # topics = communications_config["requests"]
+        # for topic_name, topic_description in topics.items():
+        #     ClientHandlers().create_topic(
+        #         user_id=self.user_id,
+        #         topic_name=topic_name,
+        #         topic_description=topic_description,
+        #         is_private=False,
+        #     )
+        clients = communications_config["clients"]
+        # TODO: THIS CLASS SHOULD BE PART OF DEFAULT TOOLS??
+        Client(process_info=process_ids).create_request()
 
     def create_agent_profile(
         self, process_ids: ProcessIds, profile_config: Dict[str, Any]

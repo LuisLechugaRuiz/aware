@@ -2,7 +2,7 @@ from supabase import create_client
 from redis import asyncio as aioredis
 import redis
 import threading
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from aware.agent.agent_data import AgentData
 from aware.chat.conversation_schemas import (
@@ -208,7 +208,7 @@ class ClientHandlers:
         process_ids: ProcessIds,
         client_process_name: str,
         service_name: str,
-        query: str,
+        request_message: Dict[str, Any],
         is_async: bool,
     ) -> Request:
         request = self.supabase_handler.create_request(
@@ -216,7 +216,7 @@ class ClientHandlers:
             client_process_id=process_ids.process_id,
             client_process_name=client_process_name,
             service_name=service_name,
-            query=query,
+            request_message=request_message,
             is_async=is_async,
         )
         self.redis_handler.create_request(
@@ -243,9 +243,16 @@ class ClientHandlers:
             f"Created subscription of process_id: {process_id} to topic: {topic_name}"
         )
 
-    def create_topic(self, user_id: str, topic_name: str, topic_description: str):
+    def create_topic(
+        self,
+        user_id: str,
+        topic_name: str,
+        topic_description: str,
+        agent_id: Optional[str] = None,
+        is_private: bool = False,
+    ):
         topic = self.supabase_handler.create_topic(
-            user_id, topic_name, topic_description
+            user_id, topic_name, topic_description, agent_id, is_private
         )
         self.redis_handler.create_topic(topic)
         self.logger.info(f"Created topic: {topic_name}")

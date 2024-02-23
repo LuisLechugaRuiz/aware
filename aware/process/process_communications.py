@@ -7,6 +7,7 @@ from aware.communications.requests.request import Request
 from aware.communications.topics.topic import Topic
 
 
+# TODO: REFACTOR ME!!! ADD PUBLISHER/SUBSCRIBER/CLIENTS/SERVERS/EVENTS. NOT DEFINED BY THE KIND OF REQUESTS!!!
 @dataclass
 class ProcessCommunications:
     outgoing_requests: List[Request]
