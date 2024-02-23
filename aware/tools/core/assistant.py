@@ -5,6 +5,7 @@ from aware.tools.decorators import default_function
 from aware.tools.tools import Tools
 
 
+# REFACTOR TO INCLUDE THE PROPER TOOLS.
 class Assistant(Tools):
     def __init__(
         self,
@@ -19,6 +20,7 @@ class Assistant(Tools):
             self.search_info,
         ]
 
+    # TODO: REFACTOR!
     def send_request(self, request: str):
         """
         Send a request to the orchestrator, should be very explicit.

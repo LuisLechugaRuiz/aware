@@ -1,3 +1,5 @@
+
+// TODO: MERGE ASSISTANT AND ORCHESTRATOR INTO ONLY ASSISTANT WHICH MANAGES THE TEAMS!!!
 {
     "name": "orchestrator",
     "tools_class": "Orchestrator",
