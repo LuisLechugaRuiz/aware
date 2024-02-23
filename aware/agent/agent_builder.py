@@ -2,7 +2,7 @@ from typing import Any, Dict, List
 
 from aware.agent.agent_data import AgentMemoryMode, ThoughtGeneratorMode
 from aware.config import get_default_agents_path, get_internal_processes_path
-from aware.communications.client.client import Client
+from aware.communications.requests.request_client import RequestClient
 from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
 from aware.process.process_builder import ProcessBuilder
@@ -100,9 +100,44 @@ class AgentBuilder:
         #         topic_description=topic_description,
         #         is_private=False,
         #     )
+
+        publishers = communications_config["publishers"]
+        for topic_name in publishers:
+            ClientHandlers().create_publisher(
+                process_ids=process_ids, topic_name=topic_name
+            )
+
+        subscribers = communications_config["subscribers"]
+        for subscriber_config in subscribers:
+            # TODO: Change create_topic_subscription for create_subscriber
+            # TODO: Define if we need topic_name and topic_type or something as subscription_name, topic_name. We need similar to requests, a JSONB to save structured data.
+            ClientHandlers().create_subscriber(
+                process_ids=process_ids,
+                topic_name=subscriber_config["topic_name"],
+                topic_type=subscriber_config["topic_type"],
+            )
+
+        # TODO: FIRST CREATE REQUESTS_TYPES THEN SERVICES THEN CLIENTS!
+
+        # TODO: Is request_name == tool_name? Remember that tool_name is a trick to trigger a tool when this requests happen, we use it to do internal logic based on agents requests...
+        services = communications_config["services"]
+        for service_config in services:
+            ClientHandlers().create_service(
+                process_ids=process_ids,
+                name=service_config["name"],
+                description=service_config["description"],
+                request_name=service_config["request_name"],
+                tool_name=service_config["tool_name"],
+            )
+
         clients = communications_config["clients"]
-        # TODO: THIS CLASS SHOULD BE PART OF DEFAULT TOOLS??
-        Client(process_info=process_ids).create_request()
+        for service_name in clients:
+            ClientHandlers().create_client(
+                process_ids=process_ids, service_name=service_name
+            )
+
+        # TODO: THIS CLASS SHOULD BE PART OF TOOLS, we will call it in case the function call by the model is a request, we parse it and fill the request fields from function call.
+        # RequestClient(process_info=process_ids).create_request()
 
     def create_agent_profile(
         self, process_ids: ProcessIds, profile_config: Dict[str, Any]

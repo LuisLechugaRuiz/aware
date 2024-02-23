@@ -7,7 +7,7 @@ from aware.process.process_handler import ProcessHandler
 
 
 # TODO: Client should have an id from database so we can track it (Get it based on process ids and use it to schedule the specific request).
-class Client:
+class RequestClient:
     def __init__(self, process_ids: ProcessIds):
         self.process_info = ClientHandlers().get_process_info(process_ids=process_ids)
         self.process_handler = ProcessHandler()
