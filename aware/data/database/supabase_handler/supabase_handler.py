@@ -12,7 +12,10 @@ from aware.communications.events.event import Event, EventStatus
 from aware.communications.events.event_type import EventType
 from aware.communications.events.event_subscription import EventSubscription
 from aware.communications.requests.request import Request, RequestData, RequestStatus
-from aware.communications.service.service import Service, ServiceData
+from aware.communications.requests.request_service import (
+    RequestService,
+    RequestServiceData,
+)
 from aware.communications.topics.topic import Topic
 from aware.communications.topics.topic_subscription import TopicSubscription
 from aware.config.config import Config
@@ -351,9 +354,60 @@ class SupabaseHandler:
             data=request_data,
         )
 
+    # TODO: ADDRESS ME PROPERLY!
+    def create_client(self, process_ids: ProcessIds, service_name: str):
+        self.logger.info(f"Creating client for process: {process_id}")
+        response = (
+            self.client.rpc(
+                "create_client",
+                {
+                    "p_user_id": process_ids.user_id,
+                    "p_process_id": process_ids.process_id,
+                    "p_service_name": service_name,
+                },
+            )
+            .execute()
+            .data
+        )
+        self.logger.info(
+            f"Client created for process: {process_ids.process_id}. Response: {response}"
+        )
+        # TODO: CREATE and return -> RequestClient()
+
+    # TODO: ADDRESS ME PROPERLY!
+    def create_request_type(
+        self,
+        user_id: str,
+        request_name: str,
+        request_message_type: Dict[str, Any],
+        response_message_type: Dict[str, Any],
+    ):
+        self.logger.info(f"Creating request type {request_name}")
+        response = (
+            self.client.rpc(
+                "create_request_type",
+                {
+                    "p_user_id": user_id,
+                    "p_request_name": request_name,
+                    "p_request_message_type": request_message_type,
+                    "p_response_message_type": response_message_type,
+                },
+            )
+            .execute()
+            .data
+        )
+        response = response[0]
+        return RequestType(
+            id=response["id"],
+            user_id=user_id,
+            name=request_name,
+            request_message_type=request_message_type,
+            response_message_type=response_message_type,
+        )
+
     def create_service(
-        self, process_ids: ProcessIds, service_data: ServiceData
-    ) -> Service:
+        self, process_ids: ProcessIds, service_data: RequestServiceData
+    ) -> RequestService:
         self.logger.info(f"Creating service {service_data.name}")
         service_id = (
             self.client.rpc(
@@ -373,7 +427,7 @@ class SupabaseHandler:
         self.logger.info(
             f"New service created at supabase. Name: {service_data.name}, id: {service_id}"
         )
-        return Service(
+        return RequestService(
             process_ids=process_ids, service_id=service_id, data=service_data
         )
 

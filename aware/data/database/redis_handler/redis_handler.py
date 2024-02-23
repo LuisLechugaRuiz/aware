@@ -18,7 +18,7 @@ from aware.communications.events.event import Event
 from aware.communications.events.event_subscription import EventSubscription
 from aware.communications.events.event_type import EventType
 from aware.communications.requests.request import Request
-from aware.communications.requests.service import Service
+from aware.communications.requests.request_service import RequestService
 from aware.communications.topics.topic import Topic
 from aware.communications.topics.topic_subscription import TopicSubscription
 from aware.process.process_data import ProcessData
@@ -379,10 +379,10 @@ class RedisHandler:
     def get_service(
         self,
         service_id: str,
-    ) -> Optional[Service]:
+    ) -> Optional[RequestService]:
         data = self.client.get(f"service:{service_id}")
         if data:
-            return Service.from_json(data)
+            return RequestService.from_json(data)
         return None
 
     def get_user_data(self, user_id: str) -> Optional[UserData]:
@@ -447,7 +447,7 @@ class RedisHandler:
 
     def set_service(
         self,
-        service: Service,
+        service: RequestService,
     ):
         self.client.set(
             f"service:{service.service_id}",

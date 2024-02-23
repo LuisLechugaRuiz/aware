@@ -5,7 +5,7 @@ from aware.process.process_ids import ProcessIds
 
 
 @dataclass
-class ServiceData:
+class RequestServiceData:
     name: str
     description: str
     request_name: str  # TODO: Should this be the name or the full request?
@@ -28,8 +28,10 @@ class ServiceData:
         return cls(**data)
 
 
-class Service:
-    def __init__(self, process_ids: ProcessIds, service_id: str, data: ServiceData):
+class RequestService:
+    def __init__(
+        self, process_ids: ProcessIds, service_id: str, data: RequestServiceData
+    ):
         self.process_ids = process_ids
         self.service_id = service_id
         self.data = data
@@ -40,4 +42,4 @@ class Service:
     @staticmethod
     def from_json(json_str: str):
         data = json.loads(json_str)
-        return Service(**data)
+        return RequestService(**data)

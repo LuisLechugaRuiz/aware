@@ -24,22 +24,15 @@
     "publisher": [],
     "subscriber": [],
     "clients": ["create_team"], //, "assign_task", "talk_to_user" as part of assistant tool.
-    "server": [
+    "services": [
         {
             "name": "inform_user",
             "description": "Send a request to assistant to inform the user about an important event",
-            "tool": "inform_user"
+            "request_name": "inform_user",
+            "tool_name": "inform_user"
         }
     ],
     "event_subscriber": ["user_message"]
-}
-
-// Example of format
-{
-    "publisher": [topic]
-    "subscriber": [topic]
-    "clients": [request]
-    "server": [request]
 }
 
 Then we need general comms (with topics and requests that can be used FOR ALL AGENTS / INTERNAL PROCESSES!!!!)

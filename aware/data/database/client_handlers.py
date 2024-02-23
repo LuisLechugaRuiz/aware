@@ -11,7 +11,7 @@ from aware.chat.conversation_schemas import (
 from aware.communications.events.event import Event, EventStatus
 from aware.communications.events.event_type import EventType
 from aware.communications.requests.request import Request, RequestStatus
-from aware.communications.service.service import ServiceData
+from aware.communications.requests.request_service import RequestServiceData
 from aware.config.config import Config
 from aware.data.database.supabase_handler.supabase_handler import SupabaseHandler
 from aware.data.database.redis_handler.redis_handler import RedisHandler
@@ -203,6 +203,13 @@ class ClientHandlers:
         )
         return event_type
 
+    def create_client(self, process_ids: ProcessIds, service_name: str) -> Client:
+        client = self.supabase_handler.create_client(
+            process_ids=process_ids, service_name=service_name
+        )
+        self.redis_handler.create_client(process_ids, client)
+        return client
+
     def create_request(
         self,
         process_ids: ProcessIds,
@@ -233,14 +240,14 @@ class ClientHandlers:
         tool_name: str,
     ):
         """Create new service"""
-        service_data = ServiceData(
+        request_service_data = RequestServiceData(
             name=name,
             description=description,
             request_name=request_name,
             tool_name=tool_name,
         )
         service = self.supabase_handler.create_service(
-            process_ids=process_ids, service_data=service_data
+            process_ids=process_ids, service_data=request_service_data
         )
         self.redis_handler.set_service(service=service)
 
