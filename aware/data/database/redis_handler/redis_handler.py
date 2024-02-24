@@ -20,7 +20,8 @@ from aware.communications.events.event_type import EventType
 from aware.communications.requests.request import Request
 from aware.communications.requests.request_service import RequestService
 from aware.communications.topics.topic import Topic
-from aware.communications.topics.topic_subscription import TopicSubscription
+from aware.communications.topics.topic_subscriber import TopicSubscriber
+from aware.communications.topics.topic_publisher import TopicPublisher
 from aware.process.process_data import ProcessData
 from aware.process.process_ids import ProcessIds
 from aware.process.process_communications import ProcessCommunications
@@ -98,8 +99,11 @@ class RedisHandler:
         event_type_key = f"user_id:{event_type.user_id}:event_type:{event_type.name}"
         self.client.set(event_type_key, event_type.to_json())
 
-    def create_event_subscription(
-        self, process_ids: ProcessIds, event_subscription: EventSubscription
+    # TODO: FIX ME!! event_subscriber similar to topic_subscriber
+    def create_event_subscriber(
+        self,
+        process_ids: ProcessIds,
+        event_subscription: EventSubscription,  # This should be event_subscriber
     ):
         # Create a map user-event to process_ids to retrieve the processes subscribed to specific event.
         event_subscription_key = f"user_id:{event_subscription.user_id}:event_subscription:{event_subscription.event_name}"
@@ -118,15 +122,20 @@ class RedisHandler:
 
     def create_topic(self, topic: Topic):
         self.client.set(
-            f"user_id:{topic.user_id}:topic:{topic.topic_name}",
+            f"user_id:{topic.user_id}:topic:{topic.name}",
             topic.to_json(),
         )
 
-    def create_topic_subscription(
-        self, process_id: str, topic_subscription: TopicSubscription
+    def create_topic_publisher(self, process_id: str, topic_publisher: TopicPublisher):
+        self.client.sadd(
+            f"process:{process_id}:topic_publishers", topic_publisher.to_json()
+        )
+
+    def create_topic_subscriber(
+        self, process_id: str, topic_subscriber: TopicSubscriber
     ):
         self.client.sadd(
-            f"process:{process_id}:topic_subscriptions", topic_subscription.to_json()
+            f"process:{process_id}:topic_subscribers", topic_subscriber.to_json()
         )
 
     def create_request(self, request: Request):
@@ -305,7 +314,7 @@ class RedisHandler:
         else:
             event = None
 
-        topics = self.get_topic_subscriptions(process_id)
+        topics = self.get_subscribed_topics(process_id)
         return ProcessCommunications(
             outgoing_requests=outgoing_requests,
             incoming_request=incoming_request,
@@ -347,16 +356,16 @@ class RedisHandler:
             return Topic.from_json(data)
         return None
 
-    def get_topic_subscriptions(self, process_id: str) -> List[Topic]:
-        topic_subscriptions = self.client.smembers(
-            f"process:{process_id}:topic_subscriptions"
+    def get_subscribed_topics(self, process_id: str) -> List[Topic]:
+        topic_subscribers = self.client.smembers(
+            f"process:{process_id}:topic_subscribers"
         )
         topics = []
-        for topic_subscription_str in topic_subscriptions:
-            topic_subscription = TopicSubscription.from_json(topic_subscription_str)
+        for topic_subscriber_str in topic_subscribers:
+            topic_subscriber = TopicSubscriber.from_json(topic_subscriber_str)
             topic = self.get_topic(
-                user_id=topic_subscription.user_id,
-                topic_name=topic_subscription.topic_name,
+                user_id=topic_subscriber.user_id,
+                topic_name=topic_subscriber.topic_name,
             )
             topics.append(topic)
         return topics
@@ -376,11 +385,11 @@ class RedisHandler:
 
         return requests
 
-    def get_service(
+    def get_request_service(
         self,
         service_id: str,
     ) -> Optional[RequestService]:
-        data = self.client.get(f"service:{service_id}")
+        data = self.client.get(f"request_service:{service_id}")
         if data:
             return RequestService.from_json(data)
         return None
@@ -424,14 +433,15 @@ class RedisHandler:
         for request in process_communications.outgoing_requests:
             self.create_request(request)
 
+        # TODO: Get topic subscribers from process_communications instead of forming them here.
         for topic in process_communications.topics:
-            topic_subscription = TopicSubscription(
+            topic_subscriber = TopicSubscriber(
                 user_id=topic.user_id,
                 process_id=process_id,
                 topic_id=topic.id,
                 topic_name=topic.topic_name,
             )
-            self.create_topic_subscription(process_id, topic_subscription)
+            self.create_topic_subscriber(process_id, topic_subscriber)
 
     def set_process_data(self, process_id: str, process_data: ProcessData):
         self.client.set(
@@ -445,20 +455,19 @@ class RedisHandler:
             process_ids.to_json(),
         )
 
-    def set_service(
-        self,
-        service: RequestService,
-    ):
+    def set_request_client(self, request_client: Request):
         self.client.set(
-            f"service:{service.service_id}",
-            service.to_json(),
+            f"request_client:{request_client.id}",
+            request_client.to_json(),
         )
 
-    # TODO: Remove, should be part of process!
-    def set_tools_class(self, process_id: str, tools_class: str):
+    def set_request_service(
+        self,
+        request_service: RequestService,
+    ):
         self.client.set(
-            f"tools_class:{process_id}",
-            tools_class,
+            f"request_service:{request_service.service_id}",
+            request_service.to_json(),
         )
 
     def set_user_data(self, user_data: UserData):

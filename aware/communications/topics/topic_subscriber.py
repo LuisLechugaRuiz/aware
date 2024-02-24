@@ -3,10 +3,12 @@ import json
 
 
 @dataclass
-class TopicSubscription:
+class TopicSubscriber:
+    id: str
     user_id: str
     process_id: str
     topic_id: str
+    topic_message_id: str
     topic_name: str
 
     def to_dict(self):

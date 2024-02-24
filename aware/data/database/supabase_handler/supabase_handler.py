@@ -16,8 +16,10 @@ from aware.communications.requests.request_service import (
     RequestService,
     RequestServiceData,
 )
+from aware.communications.requests.request_client import RequestClient
 from aware.communications.topics.topic import Topic
-from aware.communications.topics.topic_subscription import TopicSubscription
+from aware.communications.topics.topic_subscriber import TopicSubscriber
+from aware.communications.topics.topic_publisher import TopicPublisher
 from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
 from aware.memory.user.user_data import UserData
@@ -259,15 +261,16 @@ class SupabaseHandler:
             timestamp=response["created_at"],
         )
 
-    def create_event_subscription(
+    # TODO: FIX ME! Similar to topic_subscriber!
+    def create_event_subscriber(
         self, process_id: str, event_name: str
     ) -> EventSubscription:
         self.logger.info(
-            f"Creating subscription to event_type: {event_name} process: {process_id}"
+            f"Creating subscriber to event_type: {event_name} process: {process_id}"
         )
         response = (
             self.client.rpc(
-                "create_event_subscription",
+                "create_event_subscriber",
                 {
                     "p_process_id": process_id,
                     "p_event_name": event_name,
@@ -283,17 +286,20 @@ class SupabaseHandler:
             event_name=event_name,
         )
 
-    def create_topic_subscription(
+    def create_topic_publisher(
         self,
-        process_id: str,
+        process_ids: ProcessIds,
         topic_name: str,
-    ) -> TopicSubscription:
-        self.logger.info(f"Creating topic subscription for process {process_id}")
+    ) -> TopicPublisher:
+        self.logger.info(
+            f"Creating topic publisher for process {process_ids.process_id}"
+        )
         response = (
             self.client.rpc(
-                "create_topic_subscription",
+                "create_topic_publisher",
                 {
-                    "p_process_id": process_id,
+                    "p_user_id": process_ids.user_id,
+                    "p_process_id": process_ids.process_id,
                     "p_topic_name": topic_name,
                 },
             )
@@ -301,12 +307,46 @@ class SupabaseHandler:
             .data[0]
         )
         self.logger.info(
-            f"Process {process_id} subscribed to topic {topic_name}. Subscription: {response}"
+            f"Process {process_ids.process_id} published to topic {topic_name}."
         )
-        return TopicSubscription(
-            user_id=response["returned_user_id"],
-            process_id=process_id,
-            topic_id=response["returned_topic_id"],
+        return TopicPublisher(
+            id=response["_id"],
+            user_id=process_ids.user_id,
+            process_id=process_ids.process_id,
+            topic_id=response["_topic_id"],
+            topic_message_id=response["_topic_message_id"],
+            topic_name=topic_name,
+        )
+
+    def create_topic_subscriber(
+        self,
+        process_ids: ProcessIds,
+        topic_name: str,
+    ) -> TopicSubscriber:
+        self.logger.info(
+            f"Creating topic subscription for process {process_ids.process_id}"
+        )
+        response = (
+            self.client.rpc(
+                "create_topic_subscriber",
+                {
+                    "p_user_id": process_ids.user_id,
+                    "p_process_id": process_ids.process_id,
+                    "p_topic_name": topic_name,
+                },
+            )
+            .execute()
+            .data[0]
+        )
+        self.logger.info(
+            f"Process {process_ids.process_id} subscribed to topic {topic_name}."
+        )
+        return TopicSubscriber(
+            id=response["_id"],
+            user_id=process_ids.user_id,
+            process_id=process_ids.process_id,
+            topic_id=response["_topic_id"],
+            topic_message_id=response["_topic_message_id"],
             topic_name=topic_name,
         )
 
@@ -354,12 +394,11 @@ class SupabaseHandler:
             data=request_data,
         )
 
-    # TODO: ADDRESS ME PROPERLY!
-    def create_client(self, process_ids: ProcessIds, service_name: str):
-        self.logger.info(f"Creating client for process: {process_id}")
+    def create_request_client(self, process_ids: ProcessIds, service_name: str):
+        self.logger.info(f"Creating client for process: {process_ids.process_id}")
         response = (
             self.client.rpc(
-                "create_client",
+                "create_request_client",
                 {
                     "p_user_id": process_ids.user_id,
                     "p_process_id": process_ids.process_id,
@@ -367,51 +406,25 @@ class SupabaseHandler:
                 },
             )
             .execute()
-            .data
+            .data[0]
         )
         self.logger.info(
             f"Client created for process: {process_ids.process_id}. Response: {response}"
         )
-        # TODO: CREATE and return -> RequestClient()
-
-    # TODO: ADDRESS ME PROPERLY!
-    def create_request_type(
-        self,
-        user_id: str,
-        request_name: str,
-        request_message_type: Dict[str, Any],
-        response_message_type: Dict[str, Any],
-    ):
-        self.logger.info(f"Creating request type {request_name}")
-        response = (
-            self.client.rpc(
-                "create_request_type",
-                {
-                    "p_user_id": user_id,
-                    "p_request_name": request_name,
-                    "p_request_message_type": request_message_type,
-                    "p_response_message_type": response_message_type,
-                },
-            )
-            .execute()
-            .data
-        )
-        response = response[0]
-        return RequestType(
-            id=response["id"],
-            user_id=user_id,
-            name=request_name,
-            request_message_type=request_message_type,
-            response_message_type=response_message_type,
+        return RequestClient(
+            process_ids=process_ids,
+            id=response["_id"],
+            service_id=response["_service_id"],
+            request_message_id=response["_request_message_id"],
         )
 
-    def create_service(
+    def create_request_service(
         self, process_ids: ProcessIds, service_data: RequestServiceData
     ) -> RequestService:
-        self.logger.info(f"Creating service {service_data.name}")
+        self.logger.info(f"Creating request service {service_data.name}")
         service_id = (
             self.client.rpc(
-                "create_service",
+                "create_request_service",
                 {
                     "p_user_id": process_ids.user_id,
                     "p_process_id": process_ids.process_id,
@@ -429,6 +442,37 @@ class SupabaseHandler:
         )
         return RequestService(
             process_ids=process_ids, service_id=service_id, data=service_data
+        )
+
+    # TODO: ADDRESS ME PROPERLY!
+    def create_request_message(
+        self,
+        user_id: str,
+        request_name: str,
+        request_message_type: Dict[str, Any],
+        response_message_type: Dict[str, Any],
+    ):
+        self.logger.info(f"Creating request type {request_name}")
+        response = (
+            self.client.rpc(
+                "create_request_message",
+                {
+                    "p_user_id": user_id,
+                    "p_request_name": request_name,
+                    "p_request_message_type": request_message_type,
+                    "p_response_message_type": response_message_type,
+                },
+            )
+            .execute()
+            .data
+        )
+        response = response[0]
+        return RequestType(
+            id=response["id"],
+            user_id=user_id,
+            name=request_name,
+            request_message_type=request_message_type,
+            response_message_type=response_message_type,
         )
 
     def create_topic(
@@ -604,7 +648,7 @@ class SupabaseHandler:
             incoming_request = incoming_requests[0]
         else:
             incoming_request = None
-        topics = self.get_topic_subscriptions(process_id)
+        topics = self.get_subscribed_topics(process_id)
         return ProcessCommunications(
             outgoing_requests=outgoing_requests,
             incoming_request=incoming_request,
@@ -700,9 +744,9 @@ class SupabaseHandler:
             )
         return requests
 
-    def get_topic_subscriptions(self, process_id: str) -> List[Topic]:
+    def get_subscribed_topics(self, process_id: str) -> List[Topic]:
         data = (
-            self.client.rpc("get_topic_subscriptions", {"p_process_id": process_id})
+            self.client.rpc("get_subscribed_topics", {"p_process_id": process_id})
             .execute()
             .data
         )
@@ -714,14 +758,16 @@ class SupabaseHandler:
                 Topic(
                     id=row["topic_id"],
                     user_id=row["user_id"],
-                    topic_name=row["name"],
+                    message_id=row["topic_message_id"],
+                    name=row["name"],
                     description=row["description"],
-                    content=row["content"],
+                    message=row["message"],
                     timestamp=row["updated_at"],
                 )
             )
         return topics
 
+    # TODO: Refactor! Get topic message
     def get_topic_content(self, user_id: str, name: str):
         data = (
             self.client.table("topics")

@@ -7,6 +7,11 @@ class JsonLoader:
     def __init__(self, root_dir):
         self.root_dir = root_dir
 
+    def get_file(self, file_name: str) -> Dict[str, Any]:
+        file_path = os.path.join(self.root_dir, file_name)
+        with open(file_path, "r") as f:
+            return json.load(f)
+
     def search_files(self, file_names: list) -> Dict[str, Dict[str, Any]]:
         data = {}
         for root, dirs, files in os.walk(self.root_dir):

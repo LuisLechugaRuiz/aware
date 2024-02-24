@@ -7,7 +7,11 @@ from aware.process.state_machine.state import ProcessState
 
 
 class ProcessBuilder:
-    def __init__(self, user_id: str, agent_id: str):
+    def __init__(
+        self,
+        user_id: str,
+        agent_id: str,
+    ):
         self.user_id = user_id
         self.agent_id = agent_id
 
