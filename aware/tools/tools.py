@@ -9,7 +9,7 @@ import re
 import uuid
 import inspect
 
-from aware.communications.client.client import Client
+from aware.communications.requests.request_client import Client
 from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
 from aware.process.process_info import ProcessInfo

@@ -8,10 +8,18 @@ from aware.process.process_handler import ProcessHandler
 
 # TODO: Client should have an id from database so we can track it (Get it based on process ids and use it to schedule the specific request).
 class RequestClient:
-    def __init__(self, process_ids: ProcessIds):
+    def __init__(
+        self, process_ids: ProcessIds, id: str, service_id: str, request_message_id: str
+    ):
+        self.process_ids = process_ids
         self.process_info = ClientHandlers().get_process_info(process_ids=process_ids)
+
+        self.id = id
+        self.service_id = service_id
+        self.request_message_id = request_message_id
         self.process_handler = ProcessHandler()
 
+    # TODO: This function should be called doing a translation at post model function call to specific request, accessing the right client.
     def create_request(
         self,
         service_name: str,

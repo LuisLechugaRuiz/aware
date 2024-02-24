@@ -1,17 +1,15 @@
 from dataclasses import dataclass
 import json
-from typing import Any, Dict
 
 
 @dataclass
-class Topic:
+class TopicPublisher:
     id: str
     user_id: str
-    message_id: str
-    name: str
-    description: str
-    message: Dict[str, Any]
-    timestamp: str
+    process_id: str
+    topic_id: str
+    topic_message_id: str
+    topic_name: str
 
     def to_dict(self):
         return self.__dict__
@@ -23,6 +21,3 @@ class Topic:
     def from_json(cls, json_str):
         data = json.loads(json_str)
         return cls(**data)
-
-    def to_string(self):
-        return f"{self.description}\n{self.message}"

@@ -181,11 +181,11 @@ class ClientHandlers:
         )
         return event
 
-    def create_event_subscription(self, process_ids: ProcessIds, event_name: str):
-        event_subscription = self.supabase_handler.create_event_subscription(
+    def create_event_subscriber(self, process_ids: ProcessIds, event_name: str):
+        event_subscriber = self.supabase_handler.create_event_subscriber(
             process_ids.process_id, event_name
         )
-        self.redis_handler.create_event_subscription(process_ids, event_subscription)
+        self.redis_handler.create_event_subscriber(process_ids, event_subscriber)
         self.logger.info(
             f"Created subscription of process_id: {process_ids.process_id} to event: {event_name}"
         )
@@ -203,13 +203,7 @@ class ClientHandlers:
         )
         return event_type
 
-    def create_client(self, process_ids: ProcessIds, service_name: str) -> Client:
-        client = self.supabase_handler.create_client(
-            process_ids=process_ids, service_name=service_name
-        )
-        self.redis_handler.create_client(process_ids, client)
-        return client
-
+    # TODO: FIX -> Instead of service_name use service_id as this is only callable from client which is already connected to service.
     def create_request(
         self,
         process_ids: ProcessIds,
@@ -231,7 +225,13 @@ class ClientHandlers:
         )
         return request
 
-    def create_service(
+    def create_request_client(self, process_ids: ProcessIds, service_name: str):
+        request_client = self.supabase_handler.create_request_client(
+            process_ids=process_ids, service_name=service_name
+        )
+        self.redis_handler.set_request_client(request_client=request_client)
+
+    def create_request_service(
         self,
         process_ids: ProcessIds,
         name: str,
@@ -246,18 +246,31 @@ class ClientHandlers:
             request_name=request_name,
             tool_name=tool_name,
         )
-        service = self.supabase_handler.create_service(
+        request_service = self.supabase_handler.create_request_service(
             process_ids=process_ids, service_data=request_service_data
         )
-        self.redis_handler.set_service(service=service)
+        self.redis_handler.set_request_service(request_service=request_service)
 
-    def create_topic_subscription(self, process_id: str, topic_name: str):
-        topic_subscription = self.supabase_handler.create_topic_subscription(
-            process_id, topic_name
+    def create_topic_subscriber(self, process_ids: ProcessIds, topic_name: str):
+        topic_subscriber = self.supabase_handler.create_topic_subscriber(
+            process_ids, topic_name
         )
-        self.redis_handler.create_topic_subscription(process_id, topic_subscription)
+        self.redis_handler.create_topic_subscriber(
+            process_ids.process_id, topic_subscriber
+        )
         self.logger.info(
-            f"Created subscription of process_id: {process_id} to topic: {topic_name}"
+            f"Created subscriber for process_id: {process_ids.process_id} to topic: {topic_name}"
+        )
+
+    def create_topic_publisher(self, process_ids: ProcessIds, topic_name: str):
+        topic_publisher = self.supabase_handler.create_topic_publisher(
+            process_ids, topic_name
+        )
+        self.redis_handler.create_topic_publisher(
+            process_ids.process_id, topic_publisher
+        )
+        self.logger.info(
+            f"Created publisher for process_id: {process_ids.process_id} to topic: {topic_name}"
         )
 
     def create_topic(
