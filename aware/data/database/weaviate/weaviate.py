@@ -103,6 +103,7 @@ class WeaviateDB:
                 references=references,
             )
 
+    # TODO: FIX ME - How to describe the agent? Do we need description ?? address AgentData.
     def create_agent(self, user_id: str, agent_data: AgentData) -> WeaviateResult:
         try:
             agent_collection = self.client.collections.get("Agent")
@@ -244,7 +245,37 @@ class WeaviateDB:
         ]
         return tools
 
-    def store_tool(self, name: str, description: str):
+    def store_capability(
+        self, user_id: str, name: str, description: str
+    ) -> WeaviateResult:
+        """Store a tool in the database in case it doesn't exist yet"""
+
+        try:
+            # Search if the tool already exists
+            capability_collection = self.client.collections.get("Capability")
+            existing_capability = capability_collection.query.fetch_objects(
+                filters=wvc.query.Filter().by_property("name").equal(name)
+            )
+            if len(existing_capability.objects) > 0:
+                return existing_capability.objects[0].uuid
+
+            capability_uuid = capability_collection.data.insert(
+                properties={
+                    "name": name,
+                    "description": description,
+                },
+                references={
+                    "user": user_id,
+                },
+                # TODO: In the future we can add a reference to user, once we move to multi-agent.
+                vector=self.get_ada_embedding(description),
+            )
+            return WeaviateResult(data=capability_uuid)
+        except Exception as err:
+            print(f"Unexpected error {err} when storing capability")
+            return WeaviateResult(error=str(err))
+
+    def store_tool(self, user_id: str, name: str, description: str) -> WeaviateResult:
         """Store a tool in the database in case it doesn't exist yet"""
 
         try:
@@ -260,6 +291,9 @@ class WeaviateDB:
                 properties={
                     "name": name,
                     "description": description,
+                },
+                references={
+                    "user": user_id,
                 },
                 # TODO: In the future we can add a reference to user, once we move to multi-agent.
                 vector=self.get_ada_embedding(description),

@@ -29,6 +29,23 @@
             }
         }
     },
+    "Capability": {
+        "description": "A capability of the assistant",
+        "properties": {
+            "user": {
+                "type": "User",
+                "description": "The user id of the capability"
+            },
+            "name": {
+                "type": "text",
+                "description": "The name of the capability"
+            },
+            "description": {
+                "type": "text",
+                "description": "The description of the capability"
+            }
+        }
+    },
     "Conversation": {
         "description": "A conversation between user and the assistant",
         "properties": {
@@ -49,6 +66,10 @@
     "Info": {
         "description": "Information block",
         "properties": {
+            "user": {
+                "type": "User",
+                "description": "The user that provided the information"
+            },
             "data": {
                 "type": "text",
                 "description": "The data"
@@ -56,16 +77,16 @@
             "potential_query": {
                 "type": "text",
                 "description": "A potential query that could be used to search for this information"
-            },
-            "user": {
-                "type": "User",
-                "description": "The user that provided the information"
             }
         }
     },
     "Tool": {
         "description": "Tool information",
         "properties": {
+            "user": {
+                "type": "User",
+                "description": "The user who can use the tool"
+            },
             "name": {
                 "type": "text",
                 "description": "The name of the tool"

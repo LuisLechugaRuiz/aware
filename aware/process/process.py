@@ -27,8 +27,8 @@ class Process:
         self.process_states = process_info.process_states
         self.current_state = process_info.current_state
 
-        # Initialize tool
-        self.tools_manager = ToolsManager(self.get_logger())
+        # Initialize tool TODO: We should register tools outside of process. On start for each user depending on the tools have access to.
+        self.tools_manager = ToolsManager(process_ids=ids, self.get_logger())
         self.tools = self._get_tools(process_info=process_info)
 
     def get_prompt_kwargs(self) -> Dict[str, Any]:

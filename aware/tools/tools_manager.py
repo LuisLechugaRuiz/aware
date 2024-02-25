@@ -4,17 +4,21 @@ from typing import Callable, List, Optional, Type
 from openai.types.chat import ChatCompletionMessageToolCall
 
 from aware.chat.conversation_schemas import ToolResponseMessage
+from aware.process.process_ids import ProcessIds
 from aware.utils.logger.file_logger import FileLogger
 from aware.tools.tools import FunctionCall, Tools
 from aware.tools.tools_registry import ToolsRegistry
 
 
 class ToolsManager:
-    def __init__(self, logger: FileLogger):
+    def __init__(self, process_ids: ProcessIds, logger: FileLogger):
         self.module_path = "aware.tools.tools"
-        self.tools_registry = ToolsRegistry(["core", "private", "public"])
+        self.tools_registry = ToolsRegistry(
+            process_ids=process_ids, tools_folders=["core", "private", "public"]
+        )
         self.default_tools = []
         self.logger = logger
+        self.process_ids = process_ids
 
     def clean_tool_calls(self, tool_calls: List[ChatCompletionMessageToolCall]):
         """Clean the tool calls to replace any '.' in the name with ' _'."""

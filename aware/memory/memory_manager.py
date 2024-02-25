@@ -130,3 +130,19 @@ class MemoryManager:
         if store_result.error:
             return f"Error storing data: {store_result.error}"
         return "Data stored."
+    
+    def store_capability(self, name: str, description: str) -> WeaviateResult:
+        result = self.weaviate_db.store_capability(user_id=self.user_id, name=name, description=description)
+        if result.error:
+            self.logger.info(f"Error creating weaviate user: {result.error}")
+        else:
+            self.logger.info(f"User created, uuid: {result.data}")
+        return
+    
+    def store_tool(self, user_id: str, name: str, description: str) -> WeaviateResult:
+        result = self.weaviate_db.store_tool(user_id=user_id, name=name, description=description)
+        if result.error:
+            self.logger.info(f"Error creating weaviate user: {result.error}")
+        else:
+            self.logger.info(f"User created, uuid: {result.data}")
+        return

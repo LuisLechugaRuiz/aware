@@ -14,6 +14,7 @@ class AgentBuilder(Tools):
     ):
         super().__init__(process_info=process_info)
         self.agent_builder = InternalAgentBuilder(user_id=self.process_ids.user_id)
+        self.agent_state = ClientHandlers().get_stored_variable(process_ids=self.process_ids, variable_name="agent_state")
 
     def set_tools(self):
         return [
@@ -44,6 +45,9 @@ class AgentBuilder(Tools):
     #         return f"Agent {name} created successfully"
     #     except Exception as e:
     #         return f"Error creating agent {name}: {e}"
+
+    # TODO: Define the correct states to create process state machine. Define how to show the states in the prompt.
+    def create_state(self, state_name: str, task: str, instructions: str, tools: List[str]):
 
     def create_profile(self, name: str, fields: Dict[str, str]):
         """Create a specific profile for the agent providing a Dict where the keys are the fields and the values are the description of each field. This profile will be filled with historical information from the agent history and will be shared with the agent to optimize his performance. Consider this profile the most relevant info that the agnet should have access to based on his interactions

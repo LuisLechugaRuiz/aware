@@ -27,6 +27,7 @@ from aware.process.process_data import ProcessData, ProcessFlowType
 from aware.process.process_ids import ProcessIds
 from aware.process.process_communications import ProcessCommunications
 from aware.process.state_machine.state import ProcessState
+from aware.tools.capability import Capability
 from aware.tools.profile import Profile
 from aware.utils.logger.file_logger import FileLogger
 
@@ -185,6 +186,7 @@ class SupabaseHandler:
         self.logger.info(f"Creating tools for process state: {name}")
         for tool_name, transition_state_name in tools.items():
             data = (
+                # TODO: tools is not the right name, should be a transition
                 self.client.table("tools")
                 .insert(
                     {
@@ -522,6 +524,31 @@ class SupabaseHandler:
             content=existing_topic["content"],
             timestamp=existing_topic["updated_at"],
         )
+        
+    def create_capability(self, process_ids: ProcessIds, capability: Capability):
+        self.logger.info(f"Creating capability for process: {process_ids.process_id}")
+        response = (
+            self.client.table("capabilities").insert({
+                "user_id": process_ids.user_id,
+                "process_id": process_ids.process_id,
+                "name": capability.name,
+                "description": capability.description,
+            }).execute().data
+        )
+        self.logger.info(
+            f"Capability created for process: {process_ids.process_id}. Response: {response}"
+        )
+        return Capability(
+            process_ids=process_ids,
+            id=response["_id"],
+            name=capability.name,
+            description=capability.description,
+        )
+
+    def create_capability_var():
+
+    def create_tool():
+    
 
     def clear_conversation_buffer(self, process_id: str):
         response = self.client.rpc(
