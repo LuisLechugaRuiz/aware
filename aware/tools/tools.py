@@ -17,7 +17,6 @@ from aware.process.process_handler import ProcessHandler
 from aware.utils.logger.file_logger import FileLogger
 
 
-# TODO: EDIT DEFAULT TOOLS.
 class Tools(ABC):
     def __init__(
         self,
@@ -41,6 +40,12 @@ class Tools(ABC):
         self.finished = False
         self.async_request_scheduled = False
         self.sync_request_scheduled = False
+
+        # TODO: Check where to register capability!! Mode this to registry.
+        ClientHandlers().create_capability(
+            process_ids=self.process_ids, capability_name=self.get_tool_name()
+        )
+        # TODO: we need a way to update the variable when using a tool. Maybe a wrapper that initializes tool then calls the function and then updates the variable.
 
     def create_request(
         self, service_name: str, request_message: Dict[str, Any], is_async: bool
@@ -113,6 +118,10 @@ class Tools(ABC):
         process_tools = self.set_tools()
         process_tools.extend(self.default_tools)
         return process_tools
+
+    @classmethod
+    def get_description(cls):
+        return cls.__doc__
 
     @classmethod
     def get_tool_name(cls):
