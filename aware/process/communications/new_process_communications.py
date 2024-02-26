@@ -13,14 +13,13 @@ from aware.communications.requests.request_service import RequestService
 from aware.communications.events.event_subscriber import EventSubscriber
 
 
-# TODO: REFACTOR ME!!! ADD PUBLISHER/SUBSCRIBER/CLIENTS/SERVERS/EVENTS. NOT DEFINED BY THE KIND OF REQUESTS!!!
 @dataclass
 class ProcessCommunications:
     topic_publishers: List[TopicPublisher]
     topic_subscribers: List[TopicSubscriber]
     request_clients: List[RequestClient]
     request_services: List[RequestService]
-    events_subscribers: List[EventSubscriber]
+    event_subscribers: List[EventSubscriber]
 
     def to_dict(self):
         return {
@@ -37,27 +36,38 @@ class ProcessCommunications:
             "request_services": [
                 request_service.to_dict() for request_service in self.request_services
             ],
-            "events_subscribers": [
-                events_subscriber.to_dict()
-                for events_subscriber in self.events_subscribers
+            "event_subscribers": [
+                event_subscriber.to_dict()
+                for event_subscriber in self.event_subscribers
             ],
         }
 
     def to_json(self):
         return json.dumps(self.to_dict())
 
-    # TODO: Adapt me!!
     @staticmethod
     def from_json(json_str: str):
         data = json.loads(json_str)
-        data["outgoing_requests"] = [
-            Request(**request) for request in data["outgoing_requests"]
+        data["topic_publishers"] = [
+            TopicPublisher(**topic_publisher)
+            for topic_publisher in data["topic_publishers"]
         ]
-        if data["incoming_request"]:
-            data["incoming_request"] = Request(**data["incoming_request"])
-        if data["event"]:
-            data["event"] = Event(**data["event"])
-        data["topics"] = [Topic(**topic) for topic in data["topics"]]
+        data["topic_subscribers"] = [
+            TopicSubscriber(**topic_subscriber)
+            for topic_subscriber in data["topic_subscribers"]
+        ]
+        data["request_clients"] = [
+            RequestClient(**request_client)
+            for request_client in data["request_clients"]
+        ]
+        data["request_services"] = [
+            RequestService(**request_service)
+            for request_service in data["request_services"]
+        ]
+        data["event_subscribers"] = [
+            EventSubscriber(**event_subscriber)
+            for event_subscriber in data["event_subscribers"]
+        ]
         return ProcessCommunications(**data)
 
     # TODO: Get right requests from client/servers and data from pub/sub, TBD.

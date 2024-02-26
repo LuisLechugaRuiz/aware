@@ -1,8 +1,6 @@
 import json
 from dataclasses import dataclass
 
-from aware.process.process_ids import ProcessIds
-
 
 @dataclass
 class RequestServiceData:
@@ -30,15 +28,17 @@ class RequestServiceData:
 
 class RequestService:
     def __init__(
-        self, process_ids: ProcessIds, service_id: str, data: RequestServiceData
+        self, user_id: str, process_id: str, service_id: str, data: RequestServiceData
     ):
-        self.process_ids = process_ids
+        self.user_id = user_id
+        self.process_id = process_id
         self.service_id = service_id
         self.data = data
 
     def to_dict(self):
         return {
-            "process_ids": self.process_ids.to_dict(),
+            "user_id": self.user_id,
+            "process_id": self.process_id,
             "service_id": self.service_id,
             "data": self.data.to_dict(),
         }
@@ -49,6 +49,5 @@ class RequestService:
     @staticmethod
     def from_json(json_str: str):
         data = json.loads(json_str)
-        data["process_ids"] = ProcessIds.from_json(data["process_ids"])
         data["data"] = RequestServiceData.from_json(data["data"])
         return RequestService(**data)

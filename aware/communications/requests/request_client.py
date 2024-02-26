@@ -3,19 +3,25 @@ from typing import Any, Dict
 
 from aware.communications.requests.request import Request
 from aware.data.database.client_handlers import ClientHandlers
-from aware.process.process_ids import ProcessIds
 from aware.process.process_handler import ProcessHandler
 
 
 # TODO: Client should have an id from database so we can track it (Get it based on process ids and use it to schedule the specific request).
 class RequestClient:
     def __init__(
-        self, process_ids: ProcessIds, id: str, service_id: str, request_message_id: str
+        self,
+        user_id: str,
+        process_id: str,
+        process_name: str,
+        client_id: str,
+        service_id: str,
+        request_message_id: str,
     ):
-        self.process_ids = process_ids
-        self.process_info = ClientHandlers().get_process_info(process_ids=process_ids)
+        self.user_id = user_id
+        self.process_id = process_id
+        self.process_name = process_name
 
-        self.id = id
+        self.client_id = client_id
         self.service_id = service_id
         self.request_message_id = request_message_id
         self.process_handler = ProcessHandler()
@@ -28,8 +34,9 @@ class RequestClient:
     ) -> Request:
         # - Save request in database
         result = ClientHandlers().create_request(
-            client_process_ids=self.process_info.process_ids,
-            client_process_name=self.process_info.process_data.name,
+            user_id=self.user_id,
+            client_process_id=self.process_id,
+            client_process_name=self.process_name,
             service_id=self.service_id,
             request_message=request_message,
             is_async=is_async,
@@ -47,8 +54,10 @@ class RequestClient:
 
     def to_dict(self):
         return {
-            "process_ids": self.process_ids.to_dict(),
-            "id": self.id,
+            "user_id": self.user_id,
+            "process_id": self.process_id,
+            "process_name": self.process_name,
+            "client_id": self.client_id,
             "service_id": self.service_id,
             "request_message_id": self.request_message_id,
         }
@@ -58,5 +67,4 @@ class RequestClient:
 
     def from_json(json_str: str):
         data = json.loads(json_str)
-        data["process_ids"] = ProcessIds.from_json(data["process_ids"])
         return RequestClient(**data)

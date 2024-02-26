@@ -29,6 +29,7 @@ class UserBuilder:
             ClientHandlers().set_user_data(
                 UserData(user_id=self.user_id, user_name=user_name, api_key=api_key)
             )
+            # TODO: REMOVE THIS! Will be constructed as part of initialize_user_agents.
             self.initialize_events()
             self.initialize_topics()
 
