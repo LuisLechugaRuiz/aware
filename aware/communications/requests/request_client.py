@@ -1,3 +1,4 @@
+import json
 from typing import Any, Dict
 
 from aware.communications.requests.request import Request
@@ -22,21 +23,40 @@ class RequestClient:
     # TODO: This function should be called doing a translation at post model function call to specific request, accessing the right client.
     def create_request(
         self,
-        service_name: str,
         request_message: Dict[str, Any],
         is_async: bool,
     ) -> Request:
         # - Save request in database
-        request = ClientHandlers().create_request(
-            process_ids=self.process_info.process_ids,
+        result = ClientHandlers().create_request(
+            client_process_ids=self.process_info.process_ids,
             client_process_name=self.process_info.process_data.name,
-            service_name=service_name,
+            service_id=self.service_id,
             request_message=request_message,
             is_async=is_async,
         )
+        if result.error:
+            return f"Error creating request: {result.error}"
+
         # - Start the service process if not running
+        request = result.data
         service_process_ids = ClientHandlers().get_process_ids(
             process_id=request.service_process_id
         )
         self.process_handler.start(service_process_ids)
-        return request
+        return f"Request {request.id} created successfully"
+
+    def to_dict(self):
+        return {
+            "process_ids": self.process_ids.to_dict(),
+            "id": self.id,
+            "service_id": self.service_id,
+            "request_message_id": self.request_message_id,
+        }
+
+    def to_json(self):
+        return json.dumps(self.to_dict())
+
+    def from_json(json_str: str):
+        data = json.loads(json_str)
+        data["process_ids"] = ProcessIds.from_json(data["process_ids"])
+        return RequestClient(**data)

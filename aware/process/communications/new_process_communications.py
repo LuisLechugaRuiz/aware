@@ -2,48 +2,51 @@ import json
 from dataclasses import dataclass
 from typing import List, Optional
 
-from aware.communications.events.event import Event
-from aware.communications.requests.request import Request
-from aware.communications.topics.topic import Topic
+# from aware.communications.events.event import Event
+# from aware.communications.requests.request import Request
+# from aware.communications.topics.topic import Topic
 
-
-# "publisher": [],
-# "subscriber": [],
-# "clients": ["create_team"], //, "assign_task", "talk_to_user" as part of assistant tool.
-# "server": [
-#     {
-#         "name": "inform_user", -> name of service
-#         "description": "Send a request to assistant to inform the user about an important event", -> description of service
-#         "request": "inform_user", -> name of the request (the structured data)
-#         "tool": "inform_user", -> name of the tool to be called, by default NONE for any new agent, but used to call internal tools for some requests.
-#     }
-# ],
-# "event_subscriber": ["user_message"]
+from aware.communications.topics.topic_publisher import TopicPublisher
+from aware.communications.topics.topic_subscriber import TopicSubscriber
+from aware.communications.requests.request_client import RequestClient
+from aware.communications.requests.request_service import RequestService
+from aware.communications.events.event_subscriber import EventSubscriber
 
 
 # TODO: REFACTOR ME!!! ADD PUBLISHER/SUBSCRIBER/CLIENTS/SERVERS/EVENTS. NOT DEFINED BY THE KIND OF REQUESTS!!!
 @dataclass
 class ProcessCommunications:
-    outgoing_requests: List[Request]
-    incoming_request: Optional[Request]
-    event: Optional[Event]
-    topics: List[Topic]
+    topic_publishers: List[TopicPublisher]
+    topic_subscribers: List[TopicSubscriber]
+    request_clients: List[RequestClient]
+    request_services: List[RequestService]
+    events_subscribers: List[EventSubscriber]
 
     def to_dict(self):
         return {
-            "outgoing_requests": [
-                request.to_dict() for request in self.outgoing_requests
+            "topic_publishers": [
+                topic_publisher.to_dict() for topic_publisher in self.topic_publishers
             ],
-            "incoming_request": (
-                self.incoming_request.to_dict() if self.incoming_request else None
-            ),
-            "event": self.event.to_dict() if self.event else None,
-            "topics": [topic.to_dict() for topic in self.topics],
+            "topic_subscribers": [
+                topic_subscriber.to_dict()
+                for topic_subscriber in self.topic_subscribers
+            ],
+            "request_clients": [
+                request_client.to_dict() for request_client in self.request_clients
+            ],
+            "request_services": [
+                request_service.to_dict() for request_service in self.request_services
+            ],
+            "events_subscribers": [
+                events_subscriber.to_dict()
+                for events_subscriber in self.events_subscribers
+            ],
         }
 
     def to_json(self):
         return json.dumps(self.to_dict())
 
+    # TODO: Adapt me!!
     @staticmethod
     def from_json(json_str: str):
         data = json.loads(json_str)
@@ -57,6 +60,7 @@ class ProcessCommunications:
         data["topics"] = [Topic(**topic) for topic in data["topics"]]
         return ProcessCommunications(**data)
 
+    # TODO: Get right requests from client/servers and data from pub/sub, TBD.
     def to_prompt_kwargs(self):
         """Show permanent info on the prompt. Don't show event as it will be part of conversation."""
         prompt_kwargs = {}

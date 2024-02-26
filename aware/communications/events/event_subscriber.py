@@ -3,10 +3,12 @@ import json
 
 
 @dataclass
-class EventSubscription:
+class EventSubscriber:
+    id: str
     user_id: str
     process_id: str
-    event_type_id: str
+    event_id: str
+    event_message_id: str
     event_name: str
 
     def to_dict(self):

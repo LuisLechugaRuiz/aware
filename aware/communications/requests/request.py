@@ -1,9 +1,8 @@
+# Merge this minimal implementation with the requirements of the request (processes ids and other internal data needed).
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict
 import json
-from typing import Any, Dict, Optional
-
-from aware.tools.tools_manager import ToolsManager
 
 
 class RequestStatus(Enum):
@@ -11,24 +10,25 @@ class RequestStatus(Enum):
     IN_PROGRESS = "in_progress"
     SUCCESS = "success"
     FAILURE = "failure"
-    WAITING_USER_FEEDBACK = "waiting_user_feedback"
+    WAITING_USER_FEEDBACK = "waiting_user_feedback"  # TODO: Verify if needed.
 
 
+# TODO: Define the representation of the dicts into prompt.
 @dataclass
 class RequestData:
-    request_message: Dict[str, Any]
+    request: Dict[str, Any]
+    feedback: Dict[str, Any]
+    response: Dict[str, Any]
     is_async: bool
-    feedback: str
     status: RequestStatus
-    response: str
 
     def to_dict(self):
         return {
-            "request_message": self.request_message,
-            "is_async": self.is_async,
-            "status": self.status.value,
+            "request": self.request,
             "feedback": self.feedback,
             "response": self.response,
+            "is_async": self.is_async,
+            "status": self.status.value,
         }
 
     def to_json(self):
@@ -40,12 +40,11 @@ class RequestData:
         data["status"] = RequestStatus(data["status"])
         return cls(**data)
 
-    # TODO: Define how to translate the request_message from json to string
     def feedback_to_string(self):
-        return f"Request: {self.request_message}\nFeedback: {self.feedback}"
+        return f"Request: {self.request}\nFeedback: {self.feedback}"
 
     def query_to_string(self):
-        return f"Request: {self.request_message}"
+        return f"Request: {self.request}"
 
 
 # TODO: Remove dataclasss and edit it to start agent when this function is called.
@@ -102,7 +101,7 @@ class Request:
     def query_to_string(self) -> str:
         return self.data.query_to_string()
 
-    # TODO: Implement me!!
+    # TODO: Implement me!! I think this should be moved to Client, the client have a call function which creates the request on database and provide it back to the handler.
     def call(self, request_message: Dict[str, Any]) -> str:
         if self.tool is not None:
             requests_registry = RequestsRegistry(["requests"])
