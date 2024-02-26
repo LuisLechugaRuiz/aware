@@ -15,7 +15,7 @@ from aware.chat.conversation_schemas import (
 )
 from aware.chat.call_info import CallInfo
 from aware.communications.events.event import Event
-from aware.communications.events.event_subscription import EventSubscription
+from aware.communications.events.event_subscriber import EventSubscription
 from aware.communications.events.event_type import EventType
 from aware.communications.requests.request import Request
 from aware.communications.requests.request_service import RequestService

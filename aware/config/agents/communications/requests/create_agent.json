@@ -1,0 +1,11 @@
+{
+    "request": {
+        "name": "str",
+        "description": "str",
+        "tools": "str"
+    },
+    "feedback": {},
+    "response": {
+        "details": "str"
+    }
+}

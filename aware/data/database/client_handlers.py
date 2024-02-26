@@ -13,6 +13,7 @@ from aware.communications.events.event_type import EventType
 from aware.communications.requests.request import Request, RequestStatus
 from aware.communications.requests.request_service import RequestServiceData
 from aware.config.config import Config
+from aware.data.database.helpers import DatabaseResult
 from aware.data.database.supabase_handler.supabase_handler import SupabaseHandler
 from aware.data.database.redis_handler.redis_handler import RedisHandler
 from aware.data.database.redis_handler.async_redis_handler import AsyncRedisHandler
@@ -203,27 +204,30 @@ class ClientHandlers:
         )
         return event_type
 
-    # TODO: FIX -> Instead of service_name use service_id as this is only callable from client which is already connected to service.
+    # TODO: FIX -> Instead of service_name use service_id as this is only callable from client which is already connected to service. | Verify this.
     def create_request(
         self,
-        process_ids: ProcessIds,
+        client_process_ids: ProcessIds,
         client_process_name: str,
-        service_name: str,
+        service_id: str,
         request_message: Dict[str, Any],
         is_async: bool,
-    ) -> Request:
-        request = self.supabase_handler.create_request(
-            user_id=process_ids.user_id,
-            client_process_id=process_ids.process_id,
-            client_process_name=client_process_name,
-            service_name=service_name,
-            request_message=request_message,
-            is_async=is_async,
-        )
+    ) -> DatabaseResult[Request]:
+        try:
+            request = self.supabase_handler.create_request(
+                user_id=client_process_ids.user_id,
+                client_process_id=client_process_ids.process_id,
+                client_process_name=client_process_name,
+                service_id=service_id,
+                request_message=request_message,
+                is_async=is_async,
+            )
+        except Exception as e:
+            return DatabaseResult(error=f"Error creating request: {e}")
         self.redis_handler.create_request(
             request=request,
         )
-        return request
+        return DatabaseResult(data=request)
 
     def create_request_client(self, process_ids: ProcessIds, service_name: str):
         request_client = self.supabase_handler.create_request_client(

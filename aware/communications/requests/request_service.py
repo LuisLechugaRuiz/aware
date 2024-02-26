@@ -36,10 +36,19 @@ class RequestService:
         self.service_id = service_id
         self.data = data
 
+    def to_dict(self):
+        return {
+            "process_ids": self.process_ids.to_dict(),
+            "service_id": self.service_id,
+            "data": self.data.to_dict(),
+        }
+
     def to_json(self):
         return json.dumps(self.__dict__)
 
     @staticmethod
     def from_json(json_str: str):
         data = json.loads(json_str)
+        data["process_ids"] = ProcessIds.from_json(data["process_ids"])
+        data["data"] = RequestServiceData.from_json(data["data"])
         return RequestService(**data)

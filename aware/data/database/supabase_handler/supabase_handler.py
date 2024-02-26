@@ -10,7 +10,7 @@ from aware.agent.agent_data import (
 from aware.chat.conversation_schemas import ChatMessage, JSONMessage
 from aware.communications.events.event import Event, EventStatus
 from aware.communications.events.event_type import EventType
-from aware.communications.events.event_subscription import EventSubscription
+from aware.communications.events.event_subscriber import EventSubscription
 from aware.communications.requests.request import Request, RequestData, RequestStatus
 from aware.communications.requests.request_service import (
     RequestService,
@@ -357,20 +357,19 @@ class SupabaseHandler:
         user_id: str,
         client_process_id: str,
         client_process_name: str,
-        service_name: str,
+        service_id: str,
         request_message: Dict[str, Any],
         is_async: bool,
     ) -> Request:
-        self.logger.info(f"Creating request {service_name}")
+        self.logger.info(f"Creating request from client process: {client_process_name} to service: {service_id}")
         response = (
-            # TODO: Add me on supa - New request_message which is a full JSON format.
             self.client.rpc(
                 "create_request",
                 {
                     "p_user_id": user_id,
                     "p_client_process_id": client_process_id,
                     "p_client_process_name": client_process_name,
-                    "p_service_name": service_name,
+                    "p_service_id": service_id,
                     "p_request_message": request_message,
                     "p_is_async": is_async,
                 },
@@ -378,13 +377,13 @@ class SupabaseHandler:
             .execute()
             .data
         )
-        response = response[0]
+        # TODO: Verify this is the right data
         request_data = RequestData(
-            request_message=response["request_message"],
-            is_async=response["is_async"],
+            request=response["request"],
             feedback=response["feedback"],
-            status=RequestStatus(response["status"]),
             response=response["response"],
+            is_async=response["is_async"],
+            status=RequestStatus(response["status"]),
         )
         return Request(
             request_id=response["id"],
