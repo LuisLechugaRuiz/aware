@@ -3,7 +3,7 @@ import json
 
 
 @dataclass
-class EventSubscriber:
+class EventPublisher:
     id: str
     user_id: str
     process_id: str

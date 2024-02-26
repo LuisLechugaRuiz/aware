@@ -10,7 +10,8 @@ from aware.agent.agent_data import (
 from aware.chat.conversation_schemas import ChatMessage, JSONMessage
 from aware.communications.events.event import Event, EventStatus
 from aware.communications.events.event_type import EventType
-from aware.communications.events.event_subscriber import EventSubscription
+from aware.communications.events.event_subscriber import EventSubscriber
+from aware.communications.events.event_publisher import EventPublisher
 from aware.communications.requests.request import Request, RequestData, RequestStatus
 from aware.communications.requests.request_service import (
     RequestService,
@@ -208,7 +209,7 @@ class SupabaseHandler:
         )
 
     def create_event_type(
-        self, user_id: str, event_name: str, event_description: str
+        self, user_id: str, event_name: str, event_description: str, message_format: Dict[str, Any]
     ) -> Event:
         self.logger.info(
             f"Creating event type {event_name} with description: {event_description} for user: {user_id}"
@@ -220,6 +221,7 @@ class SupabaseHandler:
                     "user_id": user_id,
                     "name": event_name,
                     "description": event_description,
+                    "message_format": message_format,
                 }
             )
             .execute()
@@ -231,6 +233,7 @@ class SupabaseHandler:
             user_id=user_id,
             name=event_name,
             description=event_description,
+            message_format=message_format,
         )
 
     def create_event(
@@ -263,10 +266,9 @@ class SupabaseHandler:
             timestamp=response["created_at"],
         )
 
-    # TODO: FIX ME! Similar to topic_subscriber!
     def create_event_subscriber(
-        self, process_id: str, event_name: str
-    ) -> EventSubscription:
+        self, user_id: str, process_id: str, event_name: str
+    ) -> EventSubscriber:
         self.logger.info(
             f"Creating subscriber to event_type: {event_name} process: {process_id}"
         )
@@ -274,6 +276,7 @@ class SupabaseHandler:
             self.client.rpc(
                 "create_event_subscriber",
                 {
+                    "p_user_id": user_id,
                     "p_process_id": process_id,
                     "p_event_name": event_name,
                 },
@@ -281,10 +284,37 @@ class SupabaseHandler:
             .execute()
             .data[0]
         )
-        return EventSubscription(
-            user_id=response["returned_user_id"],
+        return EventSubscriber(
+            id=response["_id"],
+            user_id=user_id,
             process_id=process_id,
-            event_type_id=response["returned_event_type_id"],
+            event_type_id=response["_event_type_id"],
+            event_name=event_name,
+        )
+        
+    def create_event_publisher(
+        self, user_id: str, process_id: str, event_name: str
+    ) -> EventSubscriber:
+        self.logger.info(
+            f"Creating publisher to event_type: {event_name} process: {process_id}"
+        )
+        response = (
+            self.client.rpc(
+                "create_event_publisher",
+                {
+                    "p_user_id": user_id,
+                    "p_process_id": process_id,
+                    "p_event_name": event_name,
+                },
+            )
+            .execute()
+            .data[0]
+        )
+        return EventPublisher(
+            id=response["_id"],
+            user_id=user_id,
+            process_id=process_id,
+            event_type_id=response["_event_type_id"],
             event_name=event_name,
         )
 
@@ -395,14 +425,14 @@ class SupabaseHandler:
             data=request_data,
         )
 
-    def create_request_client(self, process_ids: ProcessIds, service_name: str):
-        self.logger.info(f"Creating client for process: {process_ids.process_id}")
+    def create_request_client(self, user_id: str, process_id: str, service_name: str):
+        self.logger.info(f"Creating client for process: {process_id}")
         response = (
             self.client.rpc(
                 "create_request_client",
                 {
-                    "p_user_id": process_ids.user_id,
-                    "p_process_id": process_ids.process_id,
+                    "p_user_id": user_id,
+                    "p_process_id": process_id,
                     "p_service_name": service_name,
                 },
             )
@@ -410,25 +440,27 @@ class SupabaseHandler:
             .data[0]
         )
         self.logger.info(
-            f"Client created for process: {process_ids.process_id}. Response: {response}"
+            f"Client created for process: {process_id}. Response: {response}"
         )
         return RequestClient(
-            process_ids=process_ids,
+            user_id=user_id,
+            process_id=process_id,
+            process_name=["_process_name"],
             id=response["_id"],
             service_id=response["_service_id"],
             request_message_id=response["_request_message_id"],
         )
 
     def create_request_service(
-        self, process_ids: ProcessIds, service_data: RequestServiceData
+        self, user_id: str, process_id: str, service_data: RequestServiceData
     ) -> RequestService:
         self.logger.info(f"Creating request service {service_data.name}")
         service_id = (
             self.client.rpc(
                 "create_request_service",
                 {
-                    "p_user_id": process_ids.user_id,
-                    "p_process_id": process_ids.process_id,
+                    "p_user_id": user_id,
+                    "p_process_id": process_id,
                     "p_name": service_data.name,
                     "p_description": service_data.description,
                     "p_request_name": service_data.request_name,
@@ -442,7 +474,7 @@ class SupabaseHandler:
             f"New service created at supabase. Name: {service_data.name}, id: {service_id}"
         )
         return RequestService(
-            process_ids=process_ids, service_id=service_id, data=service_data
+            user_id=user_id, process_id=process_id, service_id=service_id, data=service_data
         )
 
     # TODO: ADDRESS ME PROPERLY!

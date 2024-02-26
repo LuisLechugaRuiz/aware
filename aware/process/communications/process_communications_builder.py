@@ -63,6 +63,28 @@ class ProcessCommunicationsBuilder:
         # TODO: Fetch events from agent communications folder at config and create them as public.
         pass
 
+    # # TODO: We should have a dynamic blackboard where events are updated. Events are used to stream external info to specific process! (from now just .json file)
+    # def initialize_events(self):
+    #     events_data = get_events()
+    #     if events_data is None:
+    #         self.logger.info("No events.")
+    #         return
+    #     self.logger.info(f"Got events data: {events_data}")
+    #     for event_name, event_description in events_data.items() # TODO: FIX THIS!
+    #         ClientHandlers().create_event_type(
+    #             self.user_id, event_name, event_description, message_format
+    #         )
+
+    # TODO: We should have a dynamic blackboard where topics are updated. Topics are used to share info process to process! (from now just .json file)
+    # def initialize_topics(self):
+    #     topics_data = get_topics()
+    #     if topics_data is None:
+    #         self.logger.info("No topics.")
+    #         return
+    #     self.logger.info(f"Got topics data: {topics_data}")
+    #     for topic_name, topic_description in topics_data.items():
+    #         ClientHandlers().create_topic(self.user_id, topic_name, topic_description)
+
     def create_agent_topics(self):
         # TODO: Fetch topics from agent communications folder at config and create them as public.
         pass
@@ -73,7 +95,9 @@ class ProcessCommunicationsBuilder:
 
     def create_request_client(self, process_ids: ProcessIds, service_name: str):
         ClientHandlers().create_request_client(
-            process_ids=process_ids, service_name=service_name
+            user_id=process_ids.user_id,
+            process_id=process_ids.process_id,
+            service_name=service_name,
         )
 
     def create_request_service(

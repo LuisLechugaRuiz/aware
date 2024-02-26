@@ -15,9 +15,10 @@ from aware.chat.conversation_schemas import (
 )
 from aware.chat.call_info import CallInfo
 from aware.communications.events.event import Event
-from aware.communications.events.event_subscriber import EventSubscription
+from aware.communications.events.event_subscriber import EventSubscriber
 from aware.communications.events.event_type import EventType
 from aware.communications.requests.request import Request
+from aware.communications.requests.request_client import RequestClient
 from aware.communications.requests.request_service import RequestService
 from aware.communications.topics.topic import Topic
 from aware.communications.topics.topic_subscriber import TopicSubscriber
@@ -126,18 +127,31 @@ class RedisHandler:
             topic.to_json(),
         )
 
-    def create_topic_publisher(self, process_id: str, topic_publisher: TopicPublisher):
+    def create_topic_publisher(self, topic_publisher: TopicPublisher):
         self.client.sadd(
-            f"process:{process_id}:topic_publishers", topic_publisher.to_json()
+            f"process:{topic_publisher.process_id}:topic_publishers",
+            topic_publisher.to_json(),
         )
 
-    def create_topic_subscriber(
-        self, process_id: str, topic_subscriber: TopicSubscriber
-    ):
+    def create_topic_subscriber(self, topic_subscriber: TopicSubscriber):
         self.client.sadd(
-            f"process:{process_id}:topic_subscribers", topic_subscriber.to_json()
+            f"process:{topic_subscriber.process_id}:topic_subscribers",
+            topic_subscriber.to_json(),
         )
 
+    def create_request_client(self, request_client: RequestClient):
+        self.client.sadd(
+            f"process:{request_client.process_id}:request_clients",
+            request_client.to_json(),
+        )
+
+    def create_request_service(self, request_service: RequestService):
+        self.client.sadd(
+            f"process:{request_service.process_id}:request_service",
+            request_service.to_json(),
+        )
+
+    # TODO: refactor with new client/services
     def create_request(self, request: Request):
         # Key for storing the serialized request
         request_data_key = f"request:{request.id}"
@@ -296,7 +310,11 @@ class RedisHandler:
             )
         return events
 
+    # TODO: REFACTOR!
     def get_process_communications(self, process_id: str) -> ProcessCommunications:
+        #
+        self.get_request_service(service_id=process_id)
+
         outgoing_requests = self.get_requests(
             f"client_process:{process_id}:request:order"
         )
@@ -453,21 +471,6 @@ class RedisHandler:
         self.client.set(
             f"process_ids:{process_ids.process_id}",
             process_ids.to_json(),
-        )
-
-    def set_request_client(self, request_client: Request):
-        self.client.set(
-            f"request_client:{request_client.id}",
-            request_client.to_json(),
-        )
-
-    def set_request_service(
-        self,
-        request_service: RequestService,
-    ):
-        self.client.set(
-            f"request_service:{request_service.service_id}",
-            request_service.to_json(),
         )
 
     def set_user_data(self, user_data: UserData):
