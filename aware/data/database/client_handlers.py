@@ -184,9 +184,13 @@ class ClientHandlers:
 
     def create_event_subscriber(self, process_ids: ProcessIds, event_name: str):
         event_subscriber = self.supabase_handler.create_event_subscriber(
-            process_ids.process_id, event_name
+            user_id=process_ids.user_id,
+            process_id=process_ids.process_id,
+            event_name=event_name,
         )
-        self.redis_handler.create_event_subscriber(process_ids, event_subscriber)
+        self.redis_handler.create_event_subscriber(
+            process_ids=process_ids, event_subscriber=event_subscriber
+        )
         self.logger.info(
             f"Created subscription of process_id: {process_ids.process_id} to event: {event_name}"
         )
@@ -243,7 +247,8 @@ class ClientHandlers:
 
     def create_request_service(
         self,
-        process_ids: ProcessIds,
+        user_id: str,
+        process_id: str,
         name: str,
         description: str,
         request_name: str,
@@ -257,26 +262,32 @@ class ClientHandlers:
             tool_name=tool_name,
         )
         request_service = self.supabase_handler.create_request_service(
-            process_ids=process_ids, service_data=request_service_data
+            user_id=user_id,
+            process_id=process_id,
+            service_data=request_service_data,
         )
         self.redis_handler.create_request_service(request_service=request_service)
 
-    def create_topic_subscriber(self, process_ids: ProcessIds, topic_name: str):
+    def create_topic_subscriber(self, user_id: str, process_id: str, topic_name: str):
         topic_subscriber = self.supabase_handler.create_topic_subscriber(
-            process_ids, topic_name
+            user_id=user_id,
+            process_id=process_id,
+            topic_name=topic_name,
         )
         self.redis_handler.create_topic_subscriber(topic_subscriber)
         self.logger.info(
-            f"Created subscriber for process_id: {process_ids.process_id} to topic: {topic_name}"
+            f"Created subscriber for process_id: {process_id} to topic: {topic_name}"
         )
 
-    def create_topic_publisher(self, process_ids: ProcessIds, topic_name: str):
+    def create_topic_publisher(self, user_id: str, process_id: str, topic_name: str):
         topic_publisher = self.supabase_handler.create_topic_publisher(
-            process_ids, topic_name
+            user_id=user_id,
+            process_id=process_id,
+            topic_name=topic_name,
         )
         self.redis_handler.create_topic_publisher(topic_publisher)
         self.logger.info(
-            f"Created publisher for process_id: {process_ids.process_id} to topic: {topic_name}"
+            f"Created publisher for process_id: {process_id} to topic: {topic_name}"
         )
 
     def create_topic(

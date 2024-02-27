@@ -320,18 +320,19 @@ class SupabaseHandler:
 
     def create_topic_publisher(
         self,
-        process_ids: ProcessIds,
+        user_id: str,
+        process_id: str,
         topic_name: str,
     ) -> TopicPublisher:
         self.logger.info(
-            f"Creating topic publisher for process {process_ids.process_id}"
+            f"Creating topic publisher for process {process_id}"
         )
         response = (
             self.client.rpc(
                 "create_topic_publisher",
                 {
-                    "p_user_id": process_ids.user_id,
-                    "p_process_id": process_ids.process_id,
+                    "p_user_id": user_id,
+                    "p_process_id": process_id,
                     "p_topic_name": topic_name,
                 },
             )
@@ -339,12 +340,12 @@ class SupabaseHandler:
             .data[0]
         )
         self.logger.info(
-            f"Process {process_ids.process_id} published to topic {topic_name}."
+            f"Process {process_id} published to topic {topic_name}."
         )
         return TopicPublisher(
             id=response["_id"],
-            user_id=process_ids.user_id,
-            process_id=process_ids.process_id,
+            user_id=user_id,
+            process_id=process_id,
             topic_id=response["_topic_id"],
             topic_message_id=response["_topic_message_id"],
             topic_name=topic_name,
@@ -352,18 +353,19 @@ class SupabaseHandler:
 
     def create_topic_subscriber(
         self,
-        process_ids: ProcessIds,
+        user_id: str,
+        process_id: str,
         topic_name: str,
     ) -> TopicSubscriber:
         self.logger.info(
-            f"Creating topic subscription for process {process_ids.process_id}"
+            f"Creating topic subscription for process {process_id}"
         )
         response = (
             self.client.rpc(
                 "create_topic_subscriber",
                 {
-                    "p_user_id": process_ids.user_id,
-                    "p_process_id": process_ids.process_id,
+                    "p_user_id": user_id,
+                    "p_process_id": process_id,
                     "p_topic_name": topic_name,
                 },
             )
@@ -371,12 +373,12 @@ class SupabaseHandler:
             .data[0]
         )
         self.logger.info(
-            f"Process {process_ids.process_id} subscribed to topic {topic_name}."
+            f"Process {process_id} subscribed to topic {topic_name}."
         )
         return TopicSubscriber(
             id=response["_id"],
-            user_id=process_ids.user_id,
-            process_id=process_ids.process_id,
+            user_id=user_id,
+            process_id=process_id,
             topic_id=response["_topic_id"],
             topic_message_id=response["_topic_message_id"],
             topic_name=topic_name,

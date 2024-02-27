@@ -59,6 +59,7 @@ class ProcessCommunicationsBuilder:
             process_ids=process_ids, communications_config=communications_config
         )
 
+    # TODO: Merge this functions with existing create_event_type, create_topic and create_request_type (create_request_messsage?)
     def create_agent_events(self):
         # TODO: Fetch events from agent communications folder at config and create them as public.
         pass
@@ -104,7 +105,8 @@ class ProcessCommunicationsBuilder:
         self, process_ids: ProcessIds, service_config: Dict[str, Any]
     ):
         ClientHandlers().create_request_service(
-            process_ids=process_ids,
+            user_id=process_ids.user_id,
+            process_id=process_ids.process_id,
             name=service_config["name"],
             description=service_config["description"],
             request_name=service_config["request_name"],
@@ -143,12 +145,15 @@ class ProcessCommunicationsBuilder:
         topic_publishers = communications_config["topic_publishers"]
         for topic_name in topic_publishers:
             ClientHandlers().create_topic_publisher(
-                process_ids=process_ids, topic_name=topic_name
+                user_id=process_ids.user_id,
+                process_id=process_ids.process_id,
+                topic_name=topic_name,
             )
 
         topic_subscribers = communications_config["topic_subscribers"]
         for topic_name in topic_subscribers:
             ClientHandlers().create_topic_subscriber(
-                process_ids=process_ids,
+                user_id=process_ids.user_id,
+                process_id=process_ids.process_id,
                 topic_name=topic_name,
             )

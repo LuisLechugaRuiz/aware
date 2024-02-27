@@ -100,19 +100,18 @@ class RedisHandler:
         event_type_key = f"user_id:{event_type.user_id}:event_type:{event_type.name}"
         self.client.set(event_type_key, event_type.to_json())
 
-    # TODO: FIX ME!! event_subscriber similar to topic_subscriber
     def create_event_subscriber(
         self,
         process_ids: ProcessIds,
-        event_subscription: EventSubscription,  # This should be event_subscriber
+        event_subscriber: EventSubscriber,  # This should be event_subscriber
     ):
         # Create a map user-event to process_ids to retrieve the processes subscribed to specific event.
-        event_subscription_key = f"user_id:{event_subscription.user_id}:event_subscription:{event_subscription.event_name}"
+        event_subscription_key = f"user_id:{process_ids.user_id}:event_subscribed:{event_subscriber.event_name}"
         self.client.sadd(event_subscription_key, process_ids.to_json())
         # Create event subscriptions to get the specific events subscribed by the process.
         self.client.sadd(
-            f"process:{process_ids.process_id}:event_subscriptions",
-            event_subscription.to_json(),
+            f"process:{process_ids.process_id}:event_subscribers",
+            event_subscriber.to_json(),
         )
 
     def create_process_state(self, process_id: str, process_state: ProcessState):
@@ -361,7 +360,7 @@ class RedisHandler:
     def get_processes_subscribed_to_event(
         self, user_id: str, event: Event
     ) -> List[ProcessIds]:
-        event_subscription_key = f"user_id:{user_id}:event_subscription:{event.name}"
+        event_subscription_key = f"user_id:{user_id}:event_subscribed:{event.name}"
         process_ids = [
             ProcessIds.from_json(process_id)
             for process_id in self.client.smembers(event_subscription_key)
