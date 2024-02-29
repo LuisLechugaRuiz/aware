@@ -1,5 +1,8 @@
 from dataclasses import dataclass
 import json
+from typing import List
+
+from aware.communications.topics.topic import Topic
 
 
 @dataclass
@@ -21,3 +24,7 @@ class TopicPublisher:
     def from_json(cls, json_str):
         data = json.loads(json_str)
         return cls(**data)
+
+    # TODO: implement me:
+    def get_topics(self) -> List[Topic]:
+        pass

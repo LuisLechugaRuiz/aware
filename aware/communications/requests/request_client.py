@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from aware.communications.requests.request import Request
 from aware.data.database.client_handlers import ClientHandlers
@@ -68,3 +68,7 @@ class RequestClient:
     def from_json(json_str: str):
         data = json.loads(json_str)
         return RequestClient(**data)
+
+    # TODO: implement me:
+    def get_requests(self) -> List[Request]:
+        pass

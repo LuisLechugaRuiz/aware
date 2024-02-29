@@ -213,7 +213,6 @@ class ClientHandlers:
         )
         return event_type
 
-    # TODO: FIX -> Instead of service_name use service_id as this is only callable from client which is already connected to service. | Verify this.
     def create_request(
         self,
         user_id: str,
