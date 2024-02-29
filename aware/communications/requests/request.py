@@ -4,6 +4,8 @@ from enum import Enum
 from typing import Any, Dict
 import json
 
+from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
+
 
 class RequestStatus(Enum):
     PENDING = "pending"
@@ -59,6 +61,7 @@ class Request:
         client_process_name: str,
         timestamp: str,
         data: RequestData,
+        format: RequestFormat,
         tool: Optional[str] = None,
     ):
         self.id = request_id
@@ -101,8 +104,12 @@ class Request:
     def query_to_string(self) -> str:
         return self.data.query_to_string()
 
-    # TODO: Implement me!! I think this should be moved to Client, the client have a call function which creates the request on database and provide it back to the handler.
-    def call(self, request_message: Dict[str, Any]) -> str:
-        if self.tool is not None:
-            requests_registry = RequestsRegistry(["requests"])
-            requests_registry.get_request(self.tool).call(request_message)
+    # TODO: Add these new vars to request. We need to have access to format - to create the function. Service_name for the function name and description from service name to describe why to use this request for.
+    def to_function(self):
+        # Present the function info as a dict to be interpreted by OpenAI.
+        request_description = "Specific Intro for request" + self.service_description
+        return JsonPydanticParser.get_function_schema(
+            name=self.service_name,
+            args=self.format.request_format,
+            description=self.service_description,
+        )

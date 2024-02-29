@@ -202,6 +202,7 @@ class PydanticParser(Generic[T]):
         schema = cls._get_json_schema(model)
 
         docstring = inspect.getdoc(fn) or "No docstring provided"
+        # As specified by -> from openai.types.shared_params.function_definition
         function_info = {
             "type": "function",
             "function": {

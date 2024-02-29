@@ -6,6 +6,7 @@ from typing import List, Optional
 # from aware.communications.requests.request import Request
 # from aware.communications.topics.topic import Topic
 
+from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
 from aware.communications.topics.topic_publisher import TopicPublisher
 from aware.communications.topics.topic_subscriber import TopicSubscriber
 from aware.communications.requests.request_client import RequestClient
@@ -64,11 +65,23 @@ class ProcessCommunications:
             RequestService(**request_service)
             for request_service in data["request_services"]
         ]
+        # TODO: should we add event_publisher? Which is the difference between event and topic?
+        # I think topic is mean to be used between agents while events is from external world - to agent.
+        # This is why agent have only access to event_subscriber and not event_publisher.
         data["event_subscribers"] = [
             EventSubscriber(**event_subscriber)
             for event_subscriber in data["event_subscribers"]
         ]
         return ProcessCommunications(**data)
+
+    def to_functions_str(self):
+        functions_str: List[str] = []
+        # Get the functions that can be used by agent to communicate with other agents.
+        for topic in self.topic_publishers.get_topics():
+            # TODO: Should to_function return a Callable or a string directly? Should we use ToolManager (to translate)
+            functions_str.append(topic.to_function())
+        for request in self.request_clients.get_requests():
+            functions_str.append(request.to_function())
 
     # TODO: Get right requests from client/servers and data from pub/sub, TBD.
     def to_prompt_kwargs(self):
