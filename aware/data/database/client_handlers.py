@@ -248,22 +248,19 @@ class ClientHandlers:
         self,
         user_id: str,
         process_id: str,
-        name: str,
-        description: str,
+        service_name: str,
+        service_description: str,
         request_name: str,
-        tool_name: str,
+        tool_name: Optional[str] = None,
     ):
         """Create new service"""
-        request_service_data = RequestServiceData(
-            name=name,
-            description=description,
-            request_name=request_name,
-            tool_name=tool_name,
-        )
         request_service = self.supabase_handler.create_request_service(
             user_id=user_id,
             process_id=process_id,
-            service_data=request_service_data,
+            service_name=service_name,
+            service_description=service_description,
+            request_name=request_name,
+            tool_name=tool_name,
         )
         self.redis_handler.create_request_service(request_service=request_service)
 
@@ -501,11 +498,27 @@ class ClientHandlers:
 
         return user_data
 
+    def get_request_service_data(self, service_id: str) -> RequestServiceData:
+        request_service = self.redis_handler.get_request_service(service_id=service_id)
+
+        if request_service is None:
+            self.logger.info("Request Service not found in Redis")
+            request_service = self.supabase_handler.get_request_service(service_id)
+            if request_service is None:
+                raise Exception("Request Service not found")
+
+            self.redis_handler.create_request_service(request_service)
+
+        return request_service.data
+
     def get_request(self, process_id: str) -> Optional[Request]:
         requests = self.redis_handler.get_requests(process_id=process_id)
         if len(requests) > 0:
             return requests[0]
         return None
+
+    def get_request_format(self, service_id: str) -> RequestFormat:
+        return self.supabase_handler.get_request_format(service_id)
 
     def publish(self, user_id: str, topic_name: str, content: str):
         self.supabase_handler.set_topic_content(

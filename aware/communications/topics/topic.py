@@ -7,10 +7,10 @@ from typing import Any, Dict
 class Topic:
     id: str
     user_id: str
-    message_id: str
     name: str
     description: str
     message: Dict[str, Any]
+    message_format: Dict[str, Any]
     timestamp: str
 
     def to_dict(self):

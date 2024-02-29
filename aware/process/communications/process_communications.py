@@ -1,12 +1,11 @@
 import json
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Any, Dict, List
 
 # from aware.communications.events.event import Event
 # from aware.communications.requests.request import Request
 # from aware.communications.topics.topic import Topic
 
-from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
 from aware.communications.topics.topic_publisher import TopicPublisher
 from aware.communications.topics.topic_subscriber import TopicSubscriber
 from aware.communications.requests.request_client import RequestClient
@@ -75,13 +74,12 @@ class ProcessCommunications:
         return ProcessCommunications(**data)
 
     def to_functions_str(self):
-        functions_str: List[str] = []
-        # Get the functions that can be used by agent to communicate with other agents.
-        for topic in self.topic_publishers.get_topics():
-            # TODO: Should to_function return a Callable or a string directly? Should we use ToolManager (to translate)
-            functions_str.append(topic.to_function())
-        for request in self.request_clients.get_requests():
-            functions_str.append(request.to_function())
+        functions_str: List[Dict[str, Any]] = []
+        for publisher in self.topic_publishers:
+            functions_str.append(publisher.get_topic_as_function())
+        for client in self.request_clients:
+            functions_str.append(client.get_request_as_function())
+        return functions_str
 
     # TODO: Get right requests from client/servers and data from pub/sub, TBD.
     def to_prompt_kwargs(self):
