@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import json
+from typing import Dict
 
 
 @dataclass
@@ -8,8 +9,8 @@ class TopicSubscriber:
     user_id: str
     process_id: str
     topic_id: str
-    topic_message_id: str
     topic_name: str
+    message_format: Dict[str, str]
 
     def to_dict(self):
         return self.__dict__

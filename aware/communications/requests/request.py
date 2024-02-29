@@ -1,10 +1,7 @@
-# Merge this minimal implementation with the requirements of the request (processes ids and other internal data needed).
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 import json
-
-from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
 
 
 class RequestStatus(Enum):
@@ -15,7 +12,6 @@ class RequestStatus(Enum):
     WAITING_USER_FEEDBACK = "waiting_user_feedback"  # TODO: Verify if needed.
 
 
-# TODO: Define the representation of the dicts into prompt.
 @dataclass
 class RequestData:
     request: Dict[str, Any]
@@ -43,14 +39,15 @@ class RequestData:
         return cls(**data)
 
     def feedback_to_string(self):
-        return f"Request: {self.request}\nFeedback: {self.feedback}"
+        return f"Request: {self.dict_to_string(self.request)}\nFeedback: {self.dict_to_string(self.feedback)}"
 
     def query_to_string(self):
-        return f"Request: {self.request}"
+        return f"Request: {self.dict_to_string(self.request)}"
+
+    def dict_to_string(self, dict: Dict[str, Any]):
+        return "\n".join([f"{key}: {value}" for key, value in dict.items()])
 
 
-# TODO: Remove dataclasss and edit it to start agent when this function is called.
-@dataclass
 class Request:
     def __init__(
         self,
@@ -61,7 +58,6 @@ class Request:
         client_process_name: str,
         timestamp: str,
         data: RequestData,
-        format: RequestFormat,
         tool: Optional[str] = None,
     ):
         self.id = request_id
@@ -103,13 +99,3 @@ class Request:
 
     def query_to_string(self) -> str:
         return self.data.query_to_string()
-
-    # TODO: Add these new vars to request. We need to have access to format - to create the function. Service_name for the function name and description from service name to describe why to use this request for.
-    def to_function(self):
-        # Present the function info as a dict to be interpreted by OpenAI.
-        request_description = "Specific Intro for request" + self.service_description
-        return JsonPydanticParser.get_function_schema(
-            name=self.service_name,
-            args=self.format.request_format,
-            description=self.service_description,
-        )

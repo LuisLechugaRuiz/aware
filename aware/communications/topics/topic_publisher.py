@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 import json
-from typing import List
+from typing import Dict, List
 
+from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
 from aware.communications.topics.topic import Topic
 
 
@@ -11,8 +12,8 @@ class TopicPublisher:
     user_id: str
     process_id: str
     topic_id: str
-    topic_message_id: str
     topic_name: str
+    message_format: Dict[str, str]
 
     def to_dict(self):
         return self.__dict__
@@ -25,6 +26,12 @@ class TopicPublisher:
         data = json.loads(json_str)
         return cls(**data)
 
-    # TODO: implement me:
-    def get_topics(self) -> List[Topic]:
-        pass
+    # TODO: implement me, similar to get_request_formats
+    # TODO: Should we add description to each topic???
+    def get_topic_as_function(self) -> List[Topic]:
+        topic_description = f"Call this function to publish on topic: {self.topic_name}"
+        return JsonPydanticParser.get_function_schema(
+            name=self.topic_name,
+            args=self.message_format,
+            description=topic_description,
+        )

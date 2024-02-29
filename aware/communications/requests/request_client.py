@@ -15,7 +15,6 @@ class RequestClient:
         process_name: str,
         client_id: str,
         service_id: str,
-        request_message_id: str,
     ):
         self.user_id = user_id
         self.process_id = process_id
@@ -23,7 +22,6 @@ class RequestClient:
 
         self.client_id = client_id
         self.service_id = service_id
-        self.request_message_id = request_message_id
         self.process_handler = ProcessHandler()
 
     # TODO: This function should be called doing a translation at post model function call to specific request, accessing the right client.
@@ -59,7 +57,6 @@ class RequestClient:
             "process_name": self.process_name,
             "client_id": self.client_id,
             "service_id": self.service_id,
-            "request_message_id": self.request_message_id,
         }
 
     def to_json(self):
@@ -69,6 +66,12 @@ class RequestClient:
         data = json.loads(json_str)
         return RequestClient(**data)
 
-    # TODO: implement me:
+    # TODO: implement me - Instead of get_requests we should use get_request_formats! Get request will be used at service and subscribers to get active requests, but it should also enable get_feedback_format and get_response_format!
     def get_requests(self) -> List[Request]:
         pass
+
+    def get_request_as_function(self) -> Dict[str, Any]:
+        request_service_data = ClientHandlers().get_request_service_data(
+            service_id=self.service_id
+        )
+        return request_service_data.request_to_function()

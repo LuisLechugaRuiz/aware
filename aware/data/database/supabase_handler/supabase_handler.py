@@ -24,9 +24,9 @@ from aware.communications.topics.topic_publisher import TopicPublisher
 from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
 from aware.memory.user.user_data import UserData
+from aware.process.communications.process_communications import ProcessCommunications
 from aware.process.process_data import ProcessData, ProcessFlowType
 from aware.process.process_ids import ProcessIds
-from aware.process.process_communications import ProcessCommunications
 from aware.process.state_machine.state import ProcessState
 from aware.tools.capability import Capability
 from aware.tools.profile import Profile
@@ -209,7 +209,11 @@ class SupabaseHandler:
         )
 
     def create_event_type(
-        self, user_id: str, event_name: str, event_description: str, message_format: Dict[str, Any]
+        self,
+        user_id: str,
+        event_name: str,
+        event_description: str,
+        message_format: Dict[str, Any],
     ) -> Event:
         self.logger.info(
             f"Creating event type {event_name} with description: {event_description} for user: {user_id}"
@@ -291,7 +295,7 @@ class SupabaseHandler:
             event_type_id=response["_event_type_id"],
             event_name=event_name,
         )
-        
+
     def create_event_publisher(
         self, user_id: str, process_id: str, event_name: str
     ) -> EventSubscriber:
@@ -314,74 +318,9 @@ class SupabaseHandler:
             id=response["_id"],
             user_id=user_id,
             process_id=process_id,
-            event_type_id=response["_event_type_id"],
             event_name=event_name,
-        )
-
-    def create_topic_publisher(
-        self,
-        user_id: str,
-        process_id: str,
-        topic_name: str,
-    ) -> TopicPublisher:
-        self.logger.info(
-            f"Creating topic publisher for process {process_id}"
-        )
-        response = (
-            self.client.rpc(
-                "create_topic_publisher",
-                {
-                    "p_user_id": user_id,
-                    "p_process_id": process_id,
-                    "p_topic_name": topic_name,
-                },
-            )
-            .execute()
-            .data[0]
-        )
-        self.logger.info(
-            f"Process {process_id} published to topic {topic_name}."
-        )
-        return TopicPublisher(
-            id=response["_id"],
-            user_id=user_id,
-            process_id=process_id,
-            topic_id=response["_topic_id"],
-            topic_message_id=response["_topic_message_id"],
-            topic_name=topic_name,
-        )
-
-    def create_topic_subscriber(
-        self,
-        user_id: str,
-        process_id: str,
-        topic_name: str,
-    ) -> TopicSubscriber:
-        self.logger.info(
-            f"Creating topic subscription for process {process_id}"
-        )
-        response = (
-            self.client.rpc(
-                "create_topic_subscriber",
-                {
-                    "p_user_id": user_id,
-                    "p_process_id": process_id,
-                    "p_topic_name": topic_name,
-                },
-            )
-            .execute()
-            .data[0]
-        )
-        self.logger.info(
-            f"Process {process_id} subscribed to topic {topic_name}."
-        )
-        return TopicSubscriber(
-            id=response["_id"],
-            user_id=user_id,
-            process_id=process_id,
-            topic_id=response["_topic_id"],
-            topic_message_id=response["_topic_message_id"],
-            topic_name=topic_name,
+            event_description=response["_event_description"],
+            event_format=response["_event_format"],
         )
 
     def create_request(
@@ -393,7 +332,9 @@ class SupabaseHandler:
         request_message: Dict[str, Any],
         is_async: bool,
     ) -> Request:
-        self.logger.info(f"Creating request from client process: {client_process_name} to service: {service_id}")
+        self.logger.info(
+            f"Creating request from client process: {client_process_name} to service: {service_id}"
+        )
         response = (
             self.client.rpc(
                 "create_request",
@@ -448,73 +389,87 @@ class SupabaseHandler:
             user_id=user_id,
             process_id=process_id,
             process_name=["_process_name"],
-            id=response["_id"],
+            client_id=response["_id"],
             service_id=response["_service_id"],
-            request_message_id=response["_request_message_id"],
         )
 
     def create_request_service(
-        self, user_id: str, process_id: str, service_data: RequestServiceData
+        self,
+        user_id: str,
+        process_id: str,
+        service_name: str,
+        service_description: str,
+        request_name: str,
+        tool_name: Optional[str],
     ) -> RequestService:
-        self.logger.info(f"Creating request service {service_data.name}")
-        service_id = (
+        self.logger.info(f"Creating request service {service_name}")
+        response = (
             self.client.rpc(
                 "create_request_service",
                 {
                     "p_user_id": user_id,
                     "p_process_id": process_id,
-                    "p_name": service_data.name,
-                    "p_description": service_data.description,
-                    "p_request_name": service_data.request_name,
-                    "p_tool_name": service_data.tool_name,
+                    "p_name": service_name,
+                    "p_description": service_description,
+                    "p_request_name": request_name,
+                    "p_tool_name": tool_name,
                 },
             )
             .execute()
             .data
         )
+        service_data = RequestServiceData(
+            service_name=service_name,
+            service_description=service_description,
+            request_format=response["_request_format"],
+            feedback_format=response["_feedback_format"],
+            response_format=response["_response_format"],
+            tool_name=tool_name,
+        )
+        service_id = response["_id"]
         self.logger.info(
-            f"New service created at supabase. Name: {service_data.name}, id: {service_id}"
+            f"New service created at supabase. Name: {service_name}, id: {service_id}"
         )
         return RequestService(
-            user_id=user_id, process_id=process_id, service_id=service_id, data=service_data
+            user_id=user_id,
+            process_id=process_id,
+            service_id=service_id,
+            data=service_data,
         )
 
-    # TODO: ADDRESS ME PROPERLY!
     def create_request_message(
         self,
         user_id: str,
         request_name: str,
-        request_message_type: Dict[str, Any],
-        response_message_type: Dict[str, Any],
+        request_format: Dict[str, str],
+        feedback_format: Dict[str, str],
+        response_format: Dict[str, str],
     ):
         self.logger.info(f"Creating request type {request_name}")
         response = (
-            self.client.rpc(
-                "create_request_message",
+            self.client.table("request_messages")
+            .insert(
                 {
-                    "p_user_id": user_id,
-                    "p_request_name": request_name,
-                    "p_request_message_type": request_message_type,
-                    "p_response_message_type": response_message_type,
-                },
+                    "user_id": user_id,
+                    "name": request_name,
+                    "request_format": request_format,
+                    "feedback_format": feedback_format,
+                    "response_format": response_format,
+                }
             )
             .execute()
             .data
         )
         response = response[0]
-        return RequestType(
-            id=response["id"],
-            user_id=user_id,
-            name=request_name,
-            request_message_type=request_message_type,
-            response_message_type=response_message_type,
-        )
+        return response
 
+    # TODO: call it properly to initialize topics.
     def create_topic(
         self,
         user_id: str,
         topic_name: str,
         topic_description: str,
+        message_format: Dict[str, str],
         agent_id: Optional[str] = None,
         is_private: bool = False,
     ) -> Topic:
@@ -540,7 +495,7 @@ class SupabaseHandler:
                     "user_id": user_id,
                     "name": topic_name,
                     "description": topic_description,
-                    "content": "",
+                    "message_format": message_format,
                     "is_private": is_private,
                 }
             )
@@ -552,21 +507,85 @@ class SupabaseHandler:
         return Topic(
             id=existing_topic["id"],
             user_id=user_id,
-            topic_name=topic_name,
+            name=topic_name,
             description=topic_description,
-            content=existing_topic["content"],
+            message=existing_topic["message"],
+            message_format=message_format,
             timestamp=existing_topic["updated_at"],
         )
-        
+
+    def create_topic_publisher(
+        self,
+        user_id: str,
+        process_id: str,
+        topic_name: str,
+    ) -> TopicPublisher:
+        self.logger.info(f"Creating topic publisher for process {process_id}")
+        response = (
+            self.client.rpc(
+                "create_topic_publisher",
+                {
+                    "p_user_id": user_id,
+                    "p_process_id": process_id,
+                    "p_topic_name": topic_name,
+                },
+            )
+            .execute()
+            .data[0]
+        )
+        self.logger.info(f"Process {process_id} published to topic {topic_name}.")
+        return TopicPublisher(
+            id=response["_id"],
+            user_id=user_id,
+            process_id=process_id,
+            topic_id=response["_topic_id"],
+            topic_name=topic_name,
+            message_format=response["_message_format"],
+        )
+
+    def create_topic_subscriber(
+        self,
+        user_id: str,
+        process_id: str,
+        topic_name: str,
+    ) -> TopicSubscriber:
+        self.logger.info(f"Creating topic subscription for process {process_id}")
+        response = (
+            self.client.rpc(
+                "create_topic_subscriber",
+                {
+                    "p_user_id": user_id,
+                    "p_process_id": process_id,
+                    "p_topic_name": topic_name,
+                },
+            )
+            .execute()
+            .data[0]
+        )
+        self.logger.info(f"Process {process_id} subscribed to topic {topic_name}.")
+        return TopicSubscriber(
+            id=response["_id"],
+            user_id=user_id,
+            process_id=process_id,
+            topic_id=response["_topic_id"],
+            topic_name=topic_name,
+            message_format=response["_message_format"],
+        )
+
     def create_capability(self, process_ids: ProcessIds, capability: Capability):
         self.logger.info(f"Creating capability for process: {process_ids.process_id}")
         response = (
-            self.client.table("capabilities").insert({
-                "user_id": process_ids.user_id,
-                "process_id": process_ids.process_id,
-                "name": capability.name,
-                "description": capability.description,
-            }).execute().data
+            self.client.table("capabilities")
+            .insert(
+                {
+                    "user_id": process_ids.user_id,
+                    "process_id": process_ids.process_id,
+                    "name": capability.name,
+                    "description": capability.description,
+                }
+            )
+            .execute()
+            .data
         )
         self.logger.info(
             f"Capability created for process: {process_ids.process_id}. Response: {response}"
@@ -578,10 +597,10 @@ class SupabaseHandler:
             description=capability.description,
         )
 
-    def create_capability_var():
+    # TODO: FILL ME!
+    # def create_capability_var():
 
-    def create_tool():
-    
+    # def create_tool():
 
     def clear_conversation_buffer(self, process_id: str):
         response = self.client.rpc(
@@ -678,42 +697,51 @@ class SupabaseHandler:
             instructions=current_process_state["instructions"],
         )
 
-    def get_process_service_requests(self, process_id: str) -> List[Request]:
-        data = (
-            self.client.table("services")
-            .select("*")
-            .eq("process_id", process_id)
-            .execute()
-            .data
-        )
-        requests = []
-        if not data:
-            return requests
-        for row in data:
-            requests.extend(
-                self.get_requests(
-                    key_process_id="service_process_id", process_id=row["id"]
-                )
-            )
-        return requests
+    # def get_process_service_requests(self, process_id: str) -> List[Request]:
+    #     data = (
+    #         self.client.table("services")
+    #         .select("*")
+    #         .eq("process_id", process_id)
+    #         .execute()
+    #         .data
+    #     )
+    #     requests = []
+    #     if not data:
+    #         return requests
+    #     for row in data:
+    #         requests.extend(
+    #             self.get_requests(
+    #                 key_process_id="service_process_id", process_id=row["id"]
+    #             )
+    #         )
+    #     return requests
 
     def get_process_communications(self, process_id: str) -> ProcessCommunications:
-        outgoing_requests = self.get_requests(
-            key_process_id="client_process_id", process_id=process_id
-        )
-        incoming_requests = self.get_requests(
-            key_process_id="service_process_id", process_id=process_id
-        )
-        if len(incoming_requests) > 0:
-            incoming_request = incoming_requests[0]
-        else:
-            incoming_request = None
-        topics = self.get_subscribed_topics(process_id)
         return ProcessCommunications(
-            outgoing_requests=outgoing_requests,
-            incoming_request=incoming_request,
-            topics=topics,
+            topic_publishers=self.get_topic_subscribers(process_id),
+            topic_subscribers=self.get_topic_publishers(process_id),
+            request_clients=self.get_request_clients(process_id),
+            request_services=self.get_request_services(process_id),
+            event_subscribers=self.get_event_subscribers(process_id),
         )
+
+        # TODO: Refactor request system instead of client_process_id and service_process_id.
+        # outgoing_requests = self.get_requests(
+        #     key_process_id="client_process_id", process_id=process_id
+        # )
+        # incoming_requests = self.get_requests(
+        #     key_process_id="service_process_id", process_id=process_id
+        # )
+        # if len(incoming_requests) > 0:
+        #     incoming_request = incoming_requests[0]
+        # else:
+        #     incoming_request = None
+        # topics = self.get_subscribed_topics(process_id)
+        # return ProcessCommunications(
+        #     outgoing_requests=outgoing_requests,
+        #     incoming_request=incoming_request,
+        #     topics=topics,
+        # )
 
     def get_process_data(self, process_id: str) -> Optional[ProcessData]:
         data = (
@@ -804,6 +832,156 @@ class SupabaseHandler:
             )
         return requests
 
+    def get_event_subscribers(self, process_id: str) -> List[EventSubscriber]:
+        data = (
+            self.client.table("event_subscribers")
+            .select("*")
+            .eq("process_id", process_id)
+            .execute()
+            .data
+        )
+        event_subscribers = []
+        if not data:
+            return event_subscribers
+        for row in data:
+            event_subscribers.append(
+                EventSubscriber(
+                    id=row["id"],
+                    user_id=row["user_id"],
+                    process_id=process_id,
+                    event_name=row["event_name"],
+                    event_description=row["event_description"],
+                    event_format=row["event_format"],
+                )
+            )
+        return event_subscribers
+
+    def get_request_clients(self, process_id: str) -> List[RequestService]:
+        data = (
+            self.client.table("request_clients")
+            .select("*")
+            .eq("process_id", process_id)
+            .execute()
+            .data
+        )
+        request_services = []
+        if not data:
+            return request_services
+        for row in data:
+            request_services.append(
+                RequestClient(
+                    user_id=row["user_id"],
+                    process_id=process_id,
+                    process_name=row["name"],
+                    client_id=row["id"],
+                    service_id=row["service_id"],
+                )
+            )
+        return request_services
+
+    def get_request_services(self, process_id: str) -> List[RequestService]:
+        data = (
+            self.client.table("request_services")
+            .select("*")
+            .eq("process_id", process_id)
+            .execute()
+            .data
+        )
+        request_services = []
+        if not data:
+            return request_services
+        for row in data:
+            request_services.append(
+                RequestService(
+                    user_id=row["user_id"],
+                    process_id=process_id,
+                    service_id=row["id"],
+                    data=RequestServiceData(
+                        service_name=row["name"],
+                        service_description=row["description"],
+                        request_format=row["request_format"],
+                        feedback_format=row["feedback_format"],
+                        response_format=row["response_format"],
+                        tool_name=row["tool_name"],
+                    ),
+                )
+            )
+        return request_services
+
+    def get_topic_publishers(self, process_id: str) -> List[TopicPublisher]:
+        data = (
+            self.client.table("topic_publishers")
+            .select("*")
+            .eq("process_id", process_id)
+            .execute()
+            .data
+        )
+        topic_publishers = []
+        if not data:
+            return topic_publishers
+        for row in data:
+            topic_publishers.append(
+                TopicPublisher(
+                    id=row["id"],
+                    user_id=row["user_id"],
+                    process_id=process_id,
+                    topic_id=row["topic_id"],
+                    topic_name=row["topic_name"],
+                    message_format=row["message_format"],
+                )
+            )
+        return topic_publishers
+
+    def get_topic_subscribers(self, process_id: str) -> List[TopicSubscriber]:
+        data = (
+            self.client.table("topic_subscribers")
+            .select("*")
+            .eq("process_id", process_id)
+            .execute()
+            .data
+        )
+        topic_subscribers = []
+        if not data:
+            return topic_subscribers
+        for row in data:
+            topic_subscribers.append(
+                TopicSubscriber(
+                    id=row["id"],
+                    user_id=row["user_id"],
+                    process_id=process_id,
+                    topic_id=row["topic_id"],
+                    topic_name=row["topic_name"],
+                    message_format=row["message_format"],
+                )
+            )
+        return topic_subscribers
+
+    # def get_request_service(self, service_id: str) -> RequestService:
+    #     data = (
+    #         self.client.table("request_services")
+    #         .select("*")
+    #         .eq("id", service_id)
+    #         .execute()
+    #         .data
+    #     )
+    #     if not data:
+    #         return None
+    #     data = data[0]
+    #     return RequestService(
+    #         user_id=data["user_id"],
+    #         process_id=data["process_id"],
+    #         service_id=service_id,
+    #         data=RequestServiceData(
+    #             service_name=data["name"],
+    #             service_description=data["description"],
+    #             request_format=data["request_format"],
+    #             feedback_format=data["feedback_format"],
+    #             response_format=data["response_format"],
+    #             tool_name=data["tool_name"],
+    #         ),
+    #     )
+
+    # TODO: refactor, get topics from subscribers.
     def get_subscribed_topics(self, process_id: str) -> List[Topic]:
         data = (
             self.client.rpc("get_subscribed_topics", {"p_process_id": process_id})

@@ -92,6 +92,13 @@ class ProcessCommunicationsBuilder:
 
     def create_agent_requests(self):
         # TODO: Fetch requests from agent communications folder at config, no need of public or private as is always process to process.
+        ClientHandlers().create_request_message(
+            user_id,
+            request_name,
+            request_format,
+            response_format,
+            feedback_format,
+        )
         pass
 
     def create_request_client(self, process_ids: ProcessIds, service_name: str):
@@ -107,10 +114,10 @@ class ProcessCommunicationsBuilder:
         ClientHandlers().create_request_service(
             user_id=process_ids.user_id,
             process_id=process_ids.process_id,
-            name=service_config["name"],
-            description=service_config["description"],
+            service_name=service_config["name"],
+            service_description=service_config["description"],
             request_name=service_config["request_name"],
-            tool_name=service_config["tool_name"],
+            tool_name=service_config.get("tool_name", None),
         )
 
     def create_event_communications(

@@ -149,6 +149,9 @@ class RedisHandler:
             f"process:{request_service.process_id}:request_service",
             request_service.to_json(),
         )
+        self.client.sadd(
+            f"request_service:{request_service.service_id}", request_service.to_json()
+        )
 
     # TODO: refactor with new client/services
     def create_request(self, request: Request):
