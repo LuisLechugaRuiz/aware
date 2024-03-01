@@ -1,12 +1,9 @@
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict
 
-from aware.communications.requests.request import Request
-from aware.data.database.client_handlers import ClientHandlers
-from aware.process.process_handler import ProcessHandler
+from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
 
 
-# TODO: Client should have an id from database so we can track it (Get it based on process ids and use it to schedule the specific request).
 class RequestClient:
     def __init__(
         self,
@@ -15,6 +12,9 @@ class RequestClient:
         process_name: str,
         client_id: str,
         service_id: str,
+        service_name: str,
+        service_description: str,
+        request_format: Dict[str, Any],
     ):
         self.user_id = user_id
         self.process_id = process_id
@@ -22,33 +22,9 @@ class RequestClient:
 
         self.client_id = client_id
         self.service_id = service_id
-        self.process_handler = ProcessHandler()
-
-    # TODO: This function should be called doing a translation at post model function call to specific request, accessing the right client.
-    def create_request(
-        self,
-        request_message: Dict[str, Any],
-        is_async: bool,
-    ) -> Request:
-        # - Save request in database
-        result = ClientHandlers().create_request(
-            user_id=self.user_id,
-            client_process_id=self.process_id,
-            client_process_name=self.process_name,
-            service_id=self.service_id,
-            request_message=request_message,
-            is_async=is_async,
-        )
-        if result.error:
-            return f"Error creating request: {result.error}"
-
-        # - Start the service process if not running
-        request = result.data
-        service_process_ids = ClientHandlers().get_process_ids(
-            process_id=request.service_process_id
-        )
-        self.process_handler.start(service_process_ids)
-        return f"Request {request.id} created successfully"
+        self.service_name = service_name
+        self.service_description = service_description
+        self.request_format = request_format
 
     def to_dict(self):
         return {
@@ -57,6 +33,9 @@ class RequestClient:
             "process_name": self.process_name,
             "client_id": self.client_id,
             "service_id": self.service_id,
+            "service_name": self.service_name,
+            "service_description": self.service_description,
+            "request_format": self.request_format,
         }
 
     def to_json(self):
@@ -66,12 +45,10 @@ class RequestClient:
         data = json.loads(json_str)
         return RequestClient(**data)
 
-    # TODO: implement me - Instead of get_requests we should use get_request_formats! Get request will be used at service and subscribers to get active requests, but it should also enable get_feedback_format and get_response_format!
-    def get_requests(self) -> List[Request]:
-        pass
-
     def get_request_as_function(self) -> Dict[str, Any]:
-        request_service_data = ClientHandlers().get_request_service_data(
-            service_id=self.service_id
+        request_description = f"Call this function to send a request to the a service with the following description: {self.service_description}"
+        return JsonPydanticParser.get_function_schema(
+            name=self.service_name,
+            args=self.request_format,
+            description=request_description,
         )
-        return request_service_data.request_to_function()

@@ -2,8 +2,6 @@ import json
 from dataclasses import dataclass
 from typing import Any, Dict
 
-from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
-
 
 @dataclass
 class RequestServiceData:
@@ -32,14 +30,6 @@ class RequestServiceData:
         data = json.loads(json_str)
         return cls(**data)
 
-    def request_to_function(self) -> Dict[str, Any]:
-        request_description = f"Call this function to send a request to the a service with the following description: {self.service_description}"
-        return JsonPydanticParser.get_function_schema(
-            name=self.service_name,
-            args=self.request_format,
-            description=request_description,
-        )
-
 
 class RequestService:
     def __init__(
@@ -66,3 +56,6 @@ class RequestService:
         data = json.loads(json_str)
         data["data"] = RequestServiceData.from_json(data["data"])
         return RequestService(**data)
+    
+    def get_requests(self):
+        ClientHandlers().

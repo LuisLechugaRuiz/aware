@@ -10,6 +10,7 @@ class TopicSubscriber:
     process_id: str
     topic_id: str
     topic_name: str
+    topic_description: str
     message_format: Dict[str, str]
 
     def to_dict(self):

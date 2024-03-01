@@ -21,6 +21,7 @@ class ProcessHandler:
         self.redis_handler = ClientHandlers().get_redis_handler()
         self.logger = FileLogger(name="process_handler")
 
+    # TODO: Refactor!
     def add_communications(self, process_ids: ProcessIds):
         # Get communications
         process_communications = ClientHandlers().get_process_communications(
@@ -69,7 +70,7 @@ class ProcessHandler:
             )
             self._manage_conversation_buffer(process_ids)
 
-    # TODO: Thought should be an internal event, add it when we split between internal and external (Events - Requests - Topics)
+    # TODO: Thought should be an internal topic?
     def add_thought(
         self,
         process_ids: ProcessIds,
@@ -105,28 +106,12 @@ class ProcessHandler:
         for process_ids in processes_ids:
             self.start(process_ids)
 
-    def create_request(
-        self,
-        client_process_name: str,
-        client_process_ids: ProcessIds,
-        service_name: str,
-        query: str,
-        is_async: bool,
-    ) -> Request:
-        # - Save request in database
-        request = ClientHandlers().create_request(
-            process_ids=client_process_ids,
-            client_process_name=client_process_name,
-            service_name=service_name,
-            query=query,
-            is_async=is_async,
-        )
-        # - Start the service process if not running
+    def process_request(self, request: Request) -> Request:
         service_process_ids = ClientHandlers().get_process_ids(
             process_id=request.service_process_id
         )
         self.start(service_process_ids)
-        return request
+        return f"Request {request.id} created successfully"
 
     def get_process_ids(self, user_id: str, agent_id: str, process_name: str):
         process_id = ClientHandlers().get_agent_process_id(
