@@ -391,6 +391,9 @@ class SupabaseHandler:
             process_name=["_process_name"],
             client_id=response["_id"],
             service_id=response["_service_id"],
+            service_name=service_name,
+            service_description=response["_service_description"],
+            request_format=response["_request_format"],
         )
 
     def create_request_service(
@@ -540,6 +543,7 @@ class SupabaseHandler:
             process_id=process_id,
             topic_id=response["_topic_id"],
             topic_name=topic_name,
+            topic_description=response["_topic_description"],
             message_format=response["_message_format"],
         )
 
@@ -569,6 +573,7 @@ class SupabaseHandler:
             process_id=process_id,
             topic_id=response["_topic_id"],
             topic_name=topic_name,
+            topic_description=response["_topic_description"],
             message_format=response["_message_format"],
         )
 
@@ -856,7 +861,7 @@ class SupabaseHandler:
             )
         return event_subscribers
 
-    def get_request_clients(self, process_id: str) -> List[RequestService]:
+    def get_request_clients(self, process_id: str) -> Dict[str, RequestClient]:
         data = (
             self.client.table("request_clients")
             .select("*")
@@ -864,22 +869,24 @@ class SupabaseHandler:
             .execute()
             .data
         )
-        request_services = []
+        request_clients = {}
         if not data:
-            return request_services
+            return request_clients
         for row in data:
-            request_services.append(
-                RequestClient(
-                    user_id=row["user_id"],
-                    process_id=process_id,
-                    process_name=row["name"],
-                    client_id=row["id"],
-                    service_id=row["service_id"],
-                )
+            service_name = row["service_name"]
+            request_clients[service_name] = RequestClient(
+                user_id=row["user_id"],
+                process_id=process_id,
+                process_name=row["name"],
+                client_id=row["id"],
+                service_id=row["service_id"],
+                service_name=service_name,
+                service_description=row["service_description"],
+                request_format=row["request_format"],
             )
-        return request_services
+        return request_clients
 
-    def get_request_services(self, process_id: str) -> List[RequestService]:
+    def get_request_services(self, process_id: str) -> Dict[str, RequestService]:
         data = (
             self.client.table("request_services")
             .select("*")
@@ -887,28 +894,27 @@ class SupabaseHandler:
             .execute()
             .data
         )
-        request_services = []
+        request_services = {}
         if not data:
             return request_services
         for row in data:
-            request_services.append(
-                RequestService(
-                    user_id=row["user_id"],
-                    process_id=process_id,
-                    service_id=row["id"],
-                    data=RequestServiceData(
-                        service_name=row["name"],
-                        service_description=row["description"],
-                        request_format=row["request_format"],
-                        feedback_format=row["feedback_format"],
-                        response_format=row["response_format"],
-                        tool_name=row["tool_name"],
-                    ),
-                )
+            service_name = row["name"]
+            request_services[service_name] = RequestService(
+                user_id=row["user_id"],
+                process_id=process_id,
+                service_id=row["id"],
+                data=RequestServiceData(
+                    service_name=row["name"],
+                    service_description=row["description"],
+                    request_format=row["request_format"],
+                    feedback_format=row["feedback_format"],
+                    response_format=row["response_format"],
+                    tool_name=row["tool_name"],
+                ),
             )
         return request_services
 
-    def get_topic_publishers(self, process_id: str) -> List[TopicPublisher]:
+    def get_topic_publishers(self, process_id: str) -> Dict[str, TopicPublisher]:
         data = (
             self.client.table("topic_publishers")
             .select("*")
@@ -916,23 +922,23 @@ class SupabaseHandler:
             .execute()
             .data
         )
-        topic_publishers = []
+        topic_publishers = {}
         if not data:
             return topic_publishers
         for row in data:
-            topic_publishers.append(
-                TopicPublisher(
-                    id=row["id"],
-                    user_id=row["user_id"],
-                    process_id=process_id,
-                    topic_id=row["topic_id"],
-                    topic_name=row["topic_name"],
-                    message_format=row["message_format"],
-                )
+            topic_name = row["topic_name"]
+            topic_publishers[topic_name] = TopicPublisher(
+                id=row["id"],
+                user_id=row["user_id"],
+                process_id=process_id,
+                topic_id=row["topic_id"],
+                topic_name=topic_name,
+                topic_description=row["topic_description"],
+                message_format=row["message_format"],
             )
         return topic_publishers
 
-    def get_topic_subscribers(self, process_id: str) -> List[TopicSubscriber]:
+    def get_topic_subscribers(self, process_id: str) -> Dict[str, TopicSubscriber]:
         data = (
             self.client.table("topic_subscribers")
             .select("*")
@@ -940,19 +946,19 @@ class SupabaseHandler:
             .execute()
             .data
         )
-        topic_subscribers = []
+        topic_subscribers = {}
         if not data:
             return topic_subscribers
         for row in data:
-            topic_subscribers.append(
-                TopicSubscriber(
-                    id=row["id"],
-                    user_id=row["user_id"],
-                    process_id=process_id,
-                    topic_id=row["topic_id"],
-                    topic_name=row["topic_name"],
-                    message_format=row["message_format"],
-                )
+            topic_name = row["topic_name"]
+            topic_subscribers[topic_name] = TopicSubscriber(
+                id=row["id"],
+                user_id=row["user_id"],
+                process_id=process_id,
+                topic_id=row["topic_id"],
+                topic_name=topic_name,
+                topic_description=row["topic_description"],
+                message_format=row["message_format"],
             )
         return topic_subscribers
 

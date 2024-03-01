@@ -1,10 +1,9 @@
-from typing import Callable, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 import uuid
 
 from aware.chat.call_info import CallInfo
 from aware.chat.conversation import Conversation
 from aware.chat.conversation_schemas import SystemMessage
-from aware.chat.parser.pydantic_parser import PydanticParser
 from aware.data.database.client_handlers import ClientHandlers
 from aware.prompts.load import load_prompt_from_args
 from aware.process.process_ids import ProcessIds
@@ -54,13 +53,8 @@ class Chat:
         args.update(prompt_kwargs)
         return load_prompt_from_args("meta", args=args)
 
-    def request_response(self, functions: List[Callable]):
+    def request_response(self, function_schemas: List[Dict[str, Any]]):
         self.conversation.trim_conversation()
-
-        function_schemas = []
-        for function in functions:
-            # TODO: Can we save this already on Supabase so we don't need to convert it again?
-            function_schemas.append(PydanticParser.get_function_schema(function))
 
         call_info = CallInfo(
             call_id=str(uuid.uuid4()),

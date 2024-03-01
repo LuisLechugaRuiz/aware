@@ -13,6 +13,7 @@ class TopicPublisher:
     process_id: str
     topic_id: str
     topic_name: str
+    topic_description: str
     message_format: Dict[str, str]
 
     def to_dict(self):
@@ -26,10 +27,8 @@ class TopicPublisher:
         data = json.loads(json_str)
         return cls(**data)
 
-    # TODO: implement me, similar to get_request_formats
-    # TODO: Should we add description to each topic???
     def get_topic_as_function(self) -> List[Topic]:
-        topic_description = f"Call this function to publish on topic: {self.topic_name}"
+        topic_description = f"Call this function to publish on topic: {self.topic_name} with description: {self.topic_description}"
         return JsonPydanticParser.get_function_schema(
             name=self.topic_name,
             args=self.message_format,

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import List
 
 from aware.agent.agent_data import AgentData
-from aware.process.process_communications import ProcessCommunications
+from aware.process.communications.process_communications import ProcessCommunications
 from aware.process.process_data import ProcessData
 from aware.process.process_ids import ProcessIds
 from aware.process.state_machine.state import ProcessState
