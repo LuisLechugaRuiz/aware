@@ -16,7 +16,6 @@ class RequestClient:
         service_name: str,
         service_description: str,
         request_format: Dict[str, Any],
-        requests: List[Request],
     ):
         self.user_id = user_id
         self.process_id = process_id
@@ -27,6 +26,9 @@ class RequestClient:
         self.service_name = service_name
         self.service_description = service_description
         self.request_format = request_format
+        self.request = None
+
+    def add_requests(self, requests: List[Request]):
         self.requests = requests
 
     def to_dict(self):
@@ -39,19 +41,20 @@ class RequestClient:
             "service_name": self.service_name,
             "service_description": self.service_description,
             "request_format": self.request_format,
-            "requests": [request.to_dict() for request in self.requests],
         }
 
     def to_json(self):
         return json.dumps(self.to_dict())
 
-    def from_json(json_str: str):
+    @staticmethod
+    def from_json(json_str: str) -> "RequestClient":
         data = json.loads(json_str)
-        data["requests"] = [Request.from_json(request) for request in data["requests"]]
         return RequestClient(**data)
 
+    # TODO: create a more explicit way to set default args.
     def get_request_as_function(self) -> Dict[str, Any]:
         self.request_format["is_async"] = "bool"
+        self.request_format["priority"] = "int"
         request_description = f"Call this function to send a request to the a service with the following description: {self.service_description}"
         return JsonPydanticParser.get_function_schema(
             name=self.service_name,

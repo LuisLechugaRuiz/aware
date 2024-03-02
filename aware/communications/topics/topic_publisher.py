@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import json
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
 from aware.communications.topics.topic import Topic
@@ -15,6 +15,10 @@ class TopicPublisher:
     topic_name: str
     topic_description: str
     message_format: Dict[str, str]
+    topic: Optional[Topic] = None
+
+    def add_topic(self, topic: Topic):
+        self.topic = topic
 
     def to_dict(self):
         return self.__dict__

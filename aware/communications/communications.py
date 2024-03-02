@@ -1,5 +1,4 @@
 import json
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 # from aware.communications.events.event import Event
@@ -13,13 +12,20 @@ from aware.communications.requests.request_service import RequestService
 from aware.communications.events.event_subscriber import EventSubscriber
 
 
-@dataclass
 class Communications:
-    topic_publishers: Dict[str, TopicPublisher]
-    topic_subscribers: Dict[str, TopicSubscriber]
-    request_clients: Dict[str, RequestClient]
-    request_services: Dict[str, RequestService]
-    event_subscribers: Dict[str, EventSubscriber]
+    def __init__(
+        self,
+        topic_publishers: Dict[str, TopicPublisher],
+        topic_subscribers: Dict[str, TopicSubscriber],
+        request_clients: Dict[str, RequestClient],
+        request_services: Dict[str, RequestService],
+        event_subscribers: Dict[str, EventSubscriber],
+    ):
+        self.topic_publishers = topic_publishers
+        self.topic_subscribers = topic_subscribers
+        self.request_clients = request_clients
+        self.request_services = request_services
+        self.event_subscribers = event_subscribers
 
     def to_dict(self):
         return {
@@ -50,6 +56,7 @@ class Communications:
 
     @staticmethod
     def from_json(json_str: str):
+        # TODO: Add topics and events.
         data = json.loads(json_str)
         data["topic_publishers"] = {
             topic_name: TopicPublisher(**topic_publisher)
@@ -85,7 +92,7 @@ class Communications:
             function_schemas.append(client.get_request_as_function())
 
         # Add functions to set request as completed or send feedback.
-        current_request = self.get_request()
+        current_request = self.get_highest_prio_request()
         if current_request:
             for service in self.request_services.values():
                 if current_request.service_id == service.service_id:
@@ -102,18 +109,20 @@ class Communications:
             return None
         return publisher.topic_id
 
-    def get_client_service_id(self, service_name: str) -> Optional[str]:
-        client = self.request_clients.get(service_name, None)
-        if client is None:
-            return None
-        return client.service_id
+    def get_client(self, service_name: str) -> Optional[RequestClient]:
+        return self.request_clients.get(service_name, None)
 
-    # TODO: FIX ME!
-    def get_request(self) -> Optional[Request]:
-        # Get the highest prio request from all the services.
+    def get_highest_prio_request(self) -> Optional[Request]:
+        highest_prio_request = None
         for request_service in self.request_services.values():
-            if request_service.requests:
-                return request_service.requests[0]
+            if request_service.request:
+                if (
+                    highest_prio_request is None
+                    or request_service.request.data.priority
+                    > highest_prio_request.data.priority
+                ):
+                    highest_prio_request = request_service.request
+        return highest_prio_request
 
     # TODO: Get right requests from client/servers and data from pub/sub, TBD.
     def to_prompt_kwargs(self):
@@ -126,14 +135,22 @@ class Communications:
                 for clients in self.request_clients.values()
             ]
         )
-        # TODO: Rename outgoing_requests.
+        # TODO: Rename outgoing_requests to client_requests?
         prompt_kwargs.update({"outgoing_requests": requests_feedback})
 
-        # TODO: Get highest prio requests. For now we just get oldest request.
-        prompt_kwargs.update(
-            {"incoming_request": self.incoming_request.query_to_string()}
+        # TODO: Rename to service_request?
+        incoming_request = self.get_highest_prio_request()
+        if incoming_request:
+            prompt_kwargs.update(
+                {"incoming_request": incoming_request.query_to_string()}
+            )
+
+        # TODO: Get topics from topic_subscriber!
+        topic_updates = "\n".join(
+            [
+                topic_subscriber.get_topic_update()
+                for topic_subscriber in self.topic_subscribers.values()
+            ]
         )
-        if self.topics:
-            topics_info = "\n".join([topic.to_string() for topic in self.topics])
-            prompt_kwargs.update({"topics": topics_info})
+        prompt_kwargs.update({"topics": "\n".join(topic_updates)})
         return prompt_kwargs

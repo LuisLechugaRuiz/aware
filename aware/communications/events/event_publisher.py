@@ -8,6 +8,7 @@ class EventPublisher:
     id: str
     user_id: str
     process_id: str
+    event_type_id: str
     event_name: str
     event_description: str
     event_format: Dict[str, str]

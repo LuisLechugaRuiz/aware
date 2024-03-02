@@ -27,25 +27,29 @@ class CommunicationsHandler:
     ):
         self.process_ids = process_ids
         self.communications = communications
-        self.current_request = self.communications.get_request()
+        self.current_request = self.communications.get_highest_prio_request()
 
         self.process_handler = ProcessHandler()
 
     def create_request(
         self,
         function_call_id: str,
-        client_process_name: str,
         service_id: str,
+        client_id: str,
+        client_process_name: str,
         request_message: Dict[str, Any],
+        priority: int,
         is_async: bool,
     ) -> str:
         # - Save request in database
         result = ClientHandlers().create_request(
             user_id=self.process_ids.user_id,
+            service_id=service_id,
+            client_id=client_id,
             client_process_id=self.process_ids.process_id,
             client_process_name=client_process_name,
-            service_id=service_id,
             request_message=request_message,
+            priority=priority,
             is_async=is_async,
         )
         if result.error:
@@ -140,17 +144,20 @@ class CommunicationsHandler:
         self, process_name: str, tool_call: ChatCompletionMessageToolCall
     ) -> ProcessToolCallResponse:
         tool_name = tool_call.function.name
-        service_id = self.communications.get_client_service_id(service_name=tool_name)
+        client = self.communications.get_client(service_name=tool_name)
         topic_id = self.communications.get_publisher_topic_id(topic_name=tool_name)
 
         function_args = self.tool_call_to_args(tool_call)
-        if service_id is not None:
+        if client is not None:
             is_async = function_args.pop("is_async")
+            priority = function_args.pop("priority")
             self.create_request(
                 function_call_id=tool_call.id,
+                service_id=client.service_id,
+                client_id=client.client_id,
                 client_process_name=process_name,
-                service_id=service_id,
                 request_message=function_args,
+                priority=priority,
                 is_async=is_async,
             )
             if is_async:

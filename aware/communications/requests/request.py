@@ -17,6 +17,7 @@ class RequestData:
     request: Dict[str, Any]
     feedback: Dict[str, Any]
     response: Dict[str, Any]
+    priority: int
     is_async: bool
     status: RequestStatus
 
@@ -25,6 +26,7 @@ class RequestData:
             "request": self.request,
             "feedback": self.feedback,
             "response": self.response,
+            "priority": self.priority,
             "is_async": self.is_async,
             "status": self.status.value,
         }
@@ -54,6 +56,7 @@ class Request:
         request_id: str,
         service_id: str,
         service_process_id: str,
+        client_id: str,
         client_process_id: str,
         client_process_name: str,
         timestamp: str,
@@ -64,6 +67,7 @@ class Request:
         self.service_id = service_id
         self.service_process_id = service_process_id
         self.client_process_id = client_process_id
+        self.client_id = client_id
         self.client_process_name = client_process_name
         self.timestamp = timestamp
         self.data = data
@@ -75,6 +79,7 @@ class Request:
             "service_id": self.service_id,
             "service_process_id": self.service_process_id,
             "client_process_id": self.client_process_id,
+            "client_id": self.client_id,
             "client_process_name": self.client_process_name,
             "timestamp": self.timestamp,
             "data": self.data.to_json(),

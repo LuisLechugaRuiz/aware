@@ -1,6 +1,6 @@
 import json
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from aware.communications.requests.request import Request
 
@@ -35,18 +35,24 @@ class RequestServiceData:
 
 class RequestService:
     def __init__(
-        self,
-        user_id: str,
-        process_id: str,
-        service_id: str,
-        data: RequestServiceData,
-        requests: List[Request],
+        self, user_id: str, process_id: str, service_id: str, data: RequestServiceData
     ):
         self.user_id = user_id
         self.process_id = process_id
         self.service_id = service_id
         self.data = data
-        self.requests = requests
+        self.request = None
+
+    def _get_highest_prio_request(self, requests: List[Request]):
+        # Iterate to find highest priority request.
+        highest_prio_request: Optional[Request] = None
+        for request in requests:
+            if (
+                highest_prio_request is None
+                or request.data.priority > highest_prio_request.data.priority
+            ):
+                highest_prio_request = request
+        return highest_prio_request
 
     def to_dict(self):
         return {
@@ -54,21 +60,24 @@ class RequestService:
             "process_id": self.process_id,
             "service_id": self.service_id,
             "data": self.data.to_dict(),
-            "requests": [request.to_dict() for request in self.requests],
         }
 
     def to_json(self):
-        return json.dumps(self.__dict__)
+        return json.dumps(self.to_dict())
 
     @staticmethod
-    def from_json(json_str: str):
+    def from_json(json_str: str) -> "RequestService":
         data = json.loads(json_str)
         data["data"] = RequestServiceData.from_json(data["data"])
-        data["requests"] = [Request.from_json(request) for request in data["requests"]]
         return RequestService(**data)
 
-    def get_request_query(self) -> str:
-        return self.requests[0].query_to_string()
+    def add_requests(self, requests: List[Request]):
+        self.request = self._get_highest_prio_request(requests)
+
+    def get_request_query(self) -> Optional[str]:
+        if self.request:
+            return self.request.query_to_string()
+        return None
 
     def get_set_request_completed_function(self) -> Dict[str, Any]:
         # Add success flag and details to the response format
