@@ -8,6 +8,7 @@ from aware.agent.agent_data import (
     ThoughtGeneratorMode,
 )
 from aware.chat.conversation_schemas import ChatMessage, JSONMessage
+from aware.communications.communications import Communications
 from aware.communications.events.event import Event, EventStatus
 from aware.communications.events.event_type import EventType
 from aware.communications.events.event_subscriber import EventSubscriber
@@ -24,7 +25,6 @@ from aware.communications.topics.topic_publisher import TopicPublisher
 from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
 from aware.memory.user.user_data import UserData
-from aware.process.communications.process_communications import ProcessCommunications
 from aware.process.process_data import ProcessData, ProcessFlowType
 from aware.process.process_ids import ProcessIds
 from aware.process.state_machine.state import ProcessState
@@ -721,8 +721,8 @@ class SupabaseHandler:
     #         )
     #     return requests
 
-    def get_process_communications(self, process_id: str) -> ProcessCommunications:
-        return ProcessCommunications(
+    def get_communications(self, process_id: str) -> Communications:
+        return Communications(
             topic_publishers=self.get_topic_subscribers(process_id),
             topic_subscribers=self.get_topic_publishers(process_id),
             request_clients=self.get_request_clients(process_id),
@@ -742,7 +742,7 @@ class SupabaseHandler:
         # else:
         #     incoming_request = None
         # topics = self.get_subscribed_topics(process_id)
-        # return ProcessCommunications(
+        # return Communications(
         #     outgoing_requests=outgoing_requests,
         #     incoming_request=incoming_request,
         #     topics=topics,
@@ -805,6 +805,14 @@ class SupabaseHandler:
             )
         return process_states
 
+    def get_client_requests(self, process_id: str) -> List[Request]:
+        return self.get_requests(
+            key_process_id="client_process_id", process_id=process_id
+        )
+
+    def get_service_requests(self, process_id: str) -> List[Request]:
+        return
+
     def get_requests(self, key_process_id: str, process_id: str) -> List[Request]:
         data = (
             self.client.table("requests")
@@ -818,13 +826,14 @@ class SupabaseHandler:
             return requests
         for row in data:
             request_data = RequestData(
-                request_message=row["request_message"],
-                is_async=row["is_async"],
+                request=row["request"],
                 feedback=row["feedback"],
-                status=RequestStatus(row["status"]),
                 response=row["response"],
+                is_async=row["is_async"],
+                status=RequestStatus(row["status"]),
             )
             requests.append(
+                # TODO: define if we need tool again.
                 Request(
                     request_id=row["id"],
                     service_id=row["service_id"],
@@ -904,12 +913,15 @@ class SupabaseHandler:
                 process_id=process_id,
                 service_id=row["id"],
                 data=RequestServiceData(
-                    service_name=row["name"],
+                    service_name=service_name,
                     service_description=row["description"],
                     request_format=row["request_format"],
                     feedback_format=row["feedback_format"],
                     response_format=row["response_format"],
                     tool_name=row["tool_name"],
+                ),
+                requests=self.get_requests(
+                    key_process_id="service_process_id", process_id=process_id
                 ),
             )
         return request_services

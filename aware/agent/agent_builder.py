@@ -4,8 +4,8 @@ from aware.agent.agent_data import AgentMemoryMode, ThoughtGeneratorMode
 from aware.config import get_default_agents_path, get_internal_processes_path
 from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
-from aware.process.communications.process_communications_builder import (
-    ProcessCommunicationsBuilder,
+from aware.communications.communications_builder import (
+    CommunicationsBuilder,
 )
 from aware.process.process_builder import ProcessBuilder
 from aware.process.process_ids import ProcessIds
@@ -35,8 +35,8 @@ class AgentBuilder:
         )
 
         # TODO: Define how to setup all services and clients properly!! Also for internal processes!
-        process_communication_builder = ProcessCommunicationsBuilder()
-        process_communication_builder.setup_communications()
+        communication_builder = CommunicationsBuilder()
+        communication_builder.setup_communications()
 
         for agent_folder, agent_files in agent_files_dict.items():
             agent_name = agent_files["config"]["name"]
@@ -46,10 +46,10 @@ class AgentBuilder:
             self.create_agent(
                 agent_name=agent_name,
                 agent_files=agent_files,
-                process_communication_builder=process_communication_builder,
+                communication_builder=communication_builder,
             )
 
-        process_communication_builder.end_setup()
+        communication_builder.end_setup()
 
     # TODO: THIS SHOULD BE THE ENTRY POINT TO CREATE AGENTS FROM AGENTBUILDER TOOL
     # TODO: Add a default config -> All tools transition to continue and stop to end? Or request the AgentBuilder to build the states - Transitions of each agent if needed..
@@ -57,10 +57,10 @@ class AgentBuilder:
         self,
         agent_name: str,
         agent_files: Dict[str, Any],
-        process_communication_builder: Optional[ProcessCommunicationsBuilder] = None,
+        communication_builder: Optional[CommunicationsBuilder] = None,
     ):
-        if process_communication_builder is None:
-            process_communication_builder = ProcessCommunicationsBuilder()
+        if communication_builder is None:
+            communication_builder = CommunicationsBuilder()
             standalone_create_agent = True
         else:
             standalone_create_agent = False
@@ -70,14 +70,14 @@ class AgentBuilder:
             agent_config=agent_files["config"],
             agent_state_machine_config=agent_files["state_machine"],
             agent_communications_config=agent_files["communications"],
-            process_communication_builder=process_communication_builder,
+            communication_builder=communication_builder,
         )
         self.create_agent_profile(
             process_ids=main_process_ids, profile_config=agent_files["profile"]
         )
 
         if standalone_create_agent:
-            process_communication_builder.end_setup()
+            communication_builder.end_setup()
 
     def create_agent_by_config(
         self,
@@ -85,7 +85,7 @@ class AgentBuilder:
         agent_config: Dict[str, Any],
         agent_state_machine_config: Dict[str, Any],
         agent_communications_config: Dict[str, Any],
-        process_communication_builder: ProcessCommunicationsBuilder,
+        communication_builder: CommunicationsBuilder,
     ) -> ProcessIds:
         main_process_ids = self.create_new_agent(
             agent_name=agent_name,
@@ -95,7 +95,7 @@ class AgentBuilder:
             thought_generator_mode=ThoughtGeneratorMode(
                 agent_config["thought_generator_mode"]
             ),
-            process_communication_builder=process_communication_builder,
+            communication_builder=communication_builder,
         )
         process_builder = ProcessBuilder(
             user_id=self.user_id,
@@ -106,7 +106,7 @@ class AgentBuilder:
             state_machine_config=agent_state_machine_config,
         )
         # Setup external communications for main process (the communications of the agent).
-        process_communication_builder.setup_process(
+        communication_builder.setup_process(
             process_ids=main_process_ids,
             communications_config=agent_communications_config,
         )
@@ -127,7 +127,7 @@ class AgentBuilder:
         memory_mode: AgentMemoryMode,
         modalities: List[str],
         thought_generator_mode: ThoughtGeneratorMode,
-        process_communication_builder: ProcessCommunicationsBuilder,
+        communication_builder: CommunicationsBuilder,
     ) -> ProcessIds:
         """Create a new agent"""
         try:
@@ -152,7 +152,7 @@ class AgentBuilder:
                 agent_id=agent_data.id,
                 agent_name=agent_name,
                 tools_class=tools_class,
-                process_communication_builder=process_communication_builder,
+                communication_builder=communication_builder,
             )
 
             return main_process_ids
@@ -165,7 +165,7 @@ class AgentBuilder:
         agent_id: str,
         agent_name: str,
         tools_class: str,
-        process_communication_builder: ProcessCommunicationsBuilder,
+        communication_builder: CommunicationsBuilder,
     ):
         """Create the internal processes for the agent"""
         internal_processes_path = get_internal_processes_path()
@@ -185,7 +185,7 @@ class AgentBuilder:
         main_internal_communications_config = internal_processes_json_loader.get_file(
             "communications.json"
         )
-        process_communication_builder.setup_process(
+        communication_builder.setup_process(
             process_ids=main_process_ids,
             communications_config=main_internal_communications_config,
         )
@@ -202,7 +202,7 @@ class AgentBuilder:
                 process_ids=process_ids,
                 state_machine_config=process_files["state_machine"],
             )
-            process_communication_builder.setup_process(
+            communication_builder.setup_process(
                 process_ids=process_ids,
                 communications_config=process_files["communications"],
             )

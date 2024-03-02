@@ -8,6 +8,7 @@ from aware.agent.agent_data import AgentData
 from aware.chat.conversation_schemas import (
     JSONMessage,
 )
+from aware.communications.communications import Communications
 from aware.communications.events.event import Event, EventStatus
 from aware.communications.events.event_type import EventType
 from aware.communications.requests.request import Request, RequestStatus
@@ -18,7 +19,6 @@ from aware.data.database.supabase_handler.supabase_handler import SupabaseHandle
 from aware.data.database.redis_handler.redis_handler import RedisHandler
 from aware.data.database.redis_handler.async_redis_handler import AsyncRedisHandler
 from aware.process.process_ids import ProcessIds
-from aware.process.process_communications import ProcessCommunications
 from aware.process.process_data import ProcessData, ProcessFlowType
 from aware.process.process_info import ProcessInfo
 from aware.process.state_machine.state import ProcessState
@@ -403,26 +403,26 @@ class ClientHandlers:
 
         return process_data
 
-    def get_process_communications(self, process_id: str) -> ProcessCommunications:
-        process_communications = self.redis_handler.get_process_communications(
+    def get_communications(self, process_id: str) -> Communications:
+        communications = self.redis_handler.get_communications(
             process_id=process_id,
         )
 
-        if process_communications is None:
+        if communications is None:
             self.logger.info("Process Communications not found in Redis")
-            process_communications = self.supabase_handler.get_process_communications(
+            communications = self.supabase_handler.get_communications(
                 process_id=process_id
             )
-            if process_communications is None:
+            if communications is None:
                 raise Exception("Process Communications not found on Supabase")
 
-            self.redis_handler.set_process_communications(
-                process_id=process_id, process_communications=process_communications
+            self.redis_handler.set_communications(
+                process_id=process_id, communications=communications
             )
         else:
             self.logger.info("Process Communications found in Redis")
 
-        return process_communications
+        return communications
 
     def get_process_ids(self, process_id: str) -> ProcessIds:
         process_ids = self.redis_handler.get_process_ids(process_id)
@@ -457,9 +457,7 @@ class ClientHandlers:
     def get_process_info(self, process_ids: ProcessIds) -> ProcessInfo:
         agent_data = self.get_agent_data(agent_id=process_ids.agent_id)
         process_data = self.get_process_data(process_id=process_ids.process_id)
-        process_communications = self.get_process_communications(
-            process_id=process_ids.process_id
-        )
+        communications = self.get_communications(process_id=process_ids.process_id)
         process_states = self.get_process_states(process_id=process_ids.process_id)
         current_state = self.get_current_process_state(
             process_id=process_ids.process_id
@@ -469,7 +467,7 @@ class ClientHandlers:
             agent_data=agent_data,
             process_ids=process_ids,
             process_data=process_data,
-            process_communications=process_communications,
+            communications=communications,
             process_states=process_states,
             current_state=current_state,
         )
@@ -541,7 +539,9 @@ class ClientHandlers:
         self.redis_handler.delete_event(event)
         self.supabase_handler.update_event(event)
 
-    def set_request_completed(self, request: Request, success: bool, response: str):
+    def set_request_completed(
+        self, request: Request, success: bool, response: Dict[str, Any]
+    ):
         request.data.response = response
         if success:
             request.data.status = RequestStatus.SUCCESS

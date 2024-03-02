@@ -14,6 +14,7 @@ from aware.chat.conversation_schemas import (
     ToolCalls,
 )
 from aware.chat.call_info import CallInfo
+from aware.communications.communications import Communications
 from aware.communications.events.event import Event
 from aware.communications.events.event_subscriber import EventSubscriber
 from aware.communications.events.event_type import EventType
@@ -25,7 +26,6 @@ from aware.communications.topics.topic_subscriber import TopicSubscriber
 from aware.communications.topics.topic_publisher import TopicPublisher
 from aware.process.process_data import ProcessData
 from aware.process.process_ids import ProcessIds
-from aware.process.process_communications import ProcessCommunications
 from aware.process.state_machine.state import ProcessState
 from aware.utils.helpers import convert_timestamp_to_epoch, get_current_date_iso8601
 
@@ -313,7 +313,7 @@ class RedisHandler:
         return events
 
     # TODO: REFACTOR!
-    def get_process_communications(self, process_id: str) -> ProcessCommunications:
+    def get_communications(self, process_id: str) -> Communications:
         #
         self.get_request_service(service_id=process_id)
 
@@ -335,7 +335,7 @@ class RedisHandler:
             event = None
 
         topics = self.get_subscribed_topics(process_id)
-        return ProcessCommunications(
+        return Communications(
             outgoing_requests=outgoing_requests,
             incoming_request=incoming_request,
             event=event,
@@ -445,16 +445,15 @@ class RedisHandler:
             process_state.to_json(),
         )
 
-    def set_process_communications(
-        self, process_id: str, process_communications: ProcessCommunications
-    ):
-        if process_communications.incoming_request:
-            self.create_request(process_communications.incoming_request)
-        for request in process_communications.outgoing_requests:
+    # TODO: REFACTOR!
+    def set_communications(self, process_id: str, communications: Communications):
+        if communications.incoming_request:
+            self.create_request(communications.incoming_request)
+        for request in communications.outgoing_requests:
             self.create_request(request)
 
-        # TODO: Get topic subscribers from process_communications instead of forming them here.
-        for topic in process_communications.topics:
+        # TODO: Get topic subscribers from communications instead of forming them here.
+        for topic in communications.topics:
             topic_subscriber = TopicSubscriber(
                 user_id=topic.user_id,
                 process_id=process_id,
