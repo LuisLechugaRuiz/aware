@@ -241,7 +241,7 @@ class SupabaseHandler:
         )
 
     def create_event(
-        self, user_id: str, event_name: str, message_name: str, content: str
+        self, user_id: str, event_name: str, event_message: Dict[str, Any]
     ) -> Event:
         self.logger.info(
             f"Creating event {event_name} with content: {content} for user {user_id}"
@@ -252,8 +252,7 @@ class SupabaseHandler:
                 {
                     "p_user_id": user_id,
                     "p_event_name": event_name,
-                    "p_message_name": message_name,
-                    "p_content": content,
+                    "p_event_message": event_message,
                 },
             )
             .execute()
@@ -263,10 +262,12 @@ class SupabaseHandler:
         return Event(
             id=response["id"],
             user_id=user_id,
-            name=event_name,
-            message_name=message_name,
-            content=content,
-            status=EventStatus(response["status"]),
+            event_type_id=response["event_type_id"],
+            event_name=event_name,
+            event_description=response["event_description"],
+            event_message=event_message,
+            event_format=response["event_format"],
+            status=EventStatus(response["_status"]),
             timestamp=response["created_at"],
         )
 
@@ -294,6 +295,8 @@ class SupabaseHandler:
             process_id=process_id,
             event_type_id=response["_event_type_id"],
             event_name=event_name,
+            event_description=response["_event_description"],
+            event_format=response["_event_format"],
         )
 
     def create_event_publisher(
@@ -318,6 +321,7 @@ class SupabaseHandler:
             id=response["_id"],
             user_id=user_id,
             process_id=process_id,
+            event_type_id=response["_event_type_id"],
             event_name=event_name,
             event_description=response["_event_description"],
             event_format=response["_event_format"],
@@ -326,10 +330,12 @@ class SupabaseHandler:
     def create_request(
         self,
         user_id: str,
+        service_id: str,
+        client_id: str,
         client_process_id: str,
         client_process_name: str,
-        service_id: str,
         request_message: Dict[str, Any],
+        priority: int,
         is_async: bool,
     ) -> Request:
         self.logger.info(
@@ -340,28 +346,31 @@ class SupabaseHandler:
                 "create_request",
                 {
                     "p_user_id": user_id,
+                    "p_service_id": service_id,
+                    "p_client_id": client_id,
                     "p_client_process_id": client_process_id,
                     "p_client_process_name": client_process_name,
-                    "p_service_id": service_id,
                     "p_request_message": request_message,
+                    "p_priority": priority,
                     "p_is_async": is_async,
                 },
             )
             .execute()
             .data
         )
-        # TODO: Verify this is the right data
         request_data = RequestData(
             request=response["request"],
             feedback=response["feedback"],
             response=response["response"],
+            priority=response["priority"],
             is_async=response["is_async"],
             status=RequestStatus(response["status"]),
         )
         return Request(
             request_id=response["id"],
-            service_id=response["service_id"],
+            service_id=service_id,
             service_process_id=response["service_process_id"],
+            client_id=client_id,
             client_process_id=client_process_id,
             client_process_name=client_process_name,
             timestamp=response["created_at"],
@@ -438,6 +447,7 @@ class SupabaseHandler:
             process_id=process_id,
             service_id=service_id,
             data=service_data,
+            requests=[],
         )
 
     def create_request_message(
@@ -575,6 +585,7 @@ class SupabaseHandler:
             topic_name=topic_name,
             topic_description=response["_topic_description"],
             message_format=response["_message_format"],
+            topic=self.get_topic(user_id, topic_name),
         )
 
     def create_capability(self, process_ids: ProcessIds, capability: Capability):
@@ -723,8 +734,8 @@ class SupabaseHandler:
 
     def get_communications(self, process_id: str) -> Communications:
         return Communications(
-            topic_publishers=self.get_topic_subscribers(process_id),
-            topic_subscribers=self.get_topic_publishers(process_id),
+            topic_publishers=self.get_topic_publishers(process_id),
+            topic_subscribers=self.get_topic_subscribers(process_id),
             request_clients=self.get_request_clients(process_id),
             request_services=self.get_request_services(process_id),
             event_subscribers=self.get_event_subscribers(process_id),
@@ -805,14 +816,6 @@ class SupabaseHandler:
             )
         return process_states
 
-    def get_client_requests(self, process_id: str) -> List[Request]:
-        return self.get_requests(
-            key_process_id="client_process_id", process_id=process_id
-        )
-
-    def get_service_requests(self, process_id: str) -> List[Request]:
-        return
-
     def get_requests(self, key_process_id: str, process_id: str) -> List[Request]:
         data = (
             self.client.table("requests")
@@ -858,15 +861,19 @@ class SupabaseHandler:
         if not data:
             return event_subscribers
         for row in data:
+            event_type_id = row["event_type_id"]
+            # TODO: implement me!
+            events = self.get_events(event_type_id)
             event_subscribers.append(
                 EventSubscriber(
                     id=row["id"],
                     user_id=row["user_id"],
                     process_id=process_id,
+                    event_type_id=row["event_type_id"],
                     event_name=row["event_name"],
                     event_description=row["event_description"],
                     event_format=row["event_format"],
-                )
+                ).add_events(events)
             )
         return event_subscribers
 
@@ -883,6 +890,9 @@ class SupabaseHandler:
             return request_clients
         for row in data:
             service_name = row["service_name"]
+            requests = self.get_requests(
+                key_process_id="client_process_id", process_id=process_id
+            )
             request_clients[service_name] = RequestClient(
                 user_id=row["user_id"],
                 process_id=process_id,
@@ -892,7 +902,7 @@ class SupabaseHandler:
                 service_name=service_name,
                 service_description=row["service_description"],
                 request_format=row["request_format"],
-            )
+            ).add_requests(requests)
         return request_clients
 
     def get_request_services(self, process_id: str) -> Dict[str, RequestService]:
@@ -908,6 +918,9 @@ class SupabaseHandler:
             return request_services
         for row in data:
             service_name = row["name"]
+            requests = self.get_requests(
+                key_process_id="service_process_id", process_id=process_id
+            )
             request_services[service_name] = RequestService(
                 user_id=row["user_id"],
                 process_id=process_id,
@@ -920,10 +933,7 @@ class SupabaseHandler:
                     response_format=row["response_format"],
                     tool_name=row["tool_name"],
                 ),
-                requests=self.get_requests(
-                    key_process_id="service_process_id", process_id=process_id
-                ),
-            )
+            ).add_requests(requests)
         return request_services
 
     def get_topic_publishers(self, process_id: str) -> Dict[str, TopicPublisher]:
@@ -971,6 +981,7 @@ class SupabaseHandler:
                 topic_name=topic_name,
                 topic_description=row["topic_description"],
                 message_format=row["message_format"],
+                topic=self.get_topic(row["user_id"], topic_name),
             )
         return topic_subscribers
 
@@ -1023,8 +1034,7 @@ class SupabaseHandler:
             )
         return topics
 
-    # TODO: Refactor! Get topic message
-    def get_topic_content(self, user_id: str, name: str):
+    def get_topic(self, user_id: str, name: str):
         data = (
             self.client.table("topics")
             .select("*")
@@ -1036,7 +1046,15 @@ class SupabaseHandler:
         if not data:
             return None
         data = data[0]
-        return data["content"]
+        return Topic(
+            id=data["id"],
+            user_id=user_id,
+            name=name,
+            description=data["description"],
+            message=data["message"],
+            message_format=data["message_format"],
+            timestamp=data["updated_at"],
+        )
 
     def get_user_data(self, user_id: str) -> Optional[UserData]:
         data = (

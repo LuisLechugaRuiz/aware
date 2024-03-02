@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 import json
-from typing import Dict
+from typing import Dict, Optional
+
+from aware.communications.topics.topic import Topic
 
 
 # TODO: How to have access to current requests from subscriber?
@@ -18,6 +20,10 @@ class TopicSubscriber:
     topic_name: str
     topic_description: str
     message_format: Dict[str, str]
+    topic: Optional[Topic] = None
+
+    def add_topic(self, topic: Topic):
+        self.topic = topic
 
     def to_dict(self):
         return self.__dict__
@@ -29,3 +35,6 @@ class TopicSubscriber:
     def from_json(cls, json_str):
         data = json.loads(json_str)
         return cls(**data)
+
+    def get_topic_update(self) -> str:
+        return self.topic.to_string()

@@ -3,6 +3,7 @@ import json
 from typing import Any, Dict
 
 
+# TODO: Make this public/private. Add agent_id as optional str and is_private flag.
 @dataclass
 class Topic:
     id: str
@@ -25,4 +26,7 @@ class Topic:
         return cls(**data)
 
     def to_string(self):
-        return f"{self.description}\n{self.message}"
+        message_str = "\n".join(
+            [f"{key}: {value}" for key, value in self.message.items()]
+        )
+        return f"{self.description}\n{message_str}"

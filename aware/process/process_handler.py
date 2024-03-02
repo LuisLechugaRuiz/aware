@@ -86,6 +86,7 @@ class ProcessHandler:
         self._manage_conversation_buffer(process_ids)
 
     # TODO: Move to EventClient! - Here we should only have the logic to trigger the services.
+    # TODO: MOVE TO COMMUNICATION HANDLER!!
     def create_event(
         self, user_id: str, event_name: str, message_name: str, content: str
     ):

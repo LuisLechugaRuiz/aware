@@ -216,19 +216,23 @@ class ClientHandlers:
     def create_request(
         self,
         user_id: str,
+        service_id: str,
+        client_id: str,
         client_process_id: str,
         client_process_name: str,
-        service_id: str,
         request_message: Dict[str, Any],
+        priority: int,
         is_async: bool,
     ) -> DatabaseResult[Request]:
         try:
             request = self.supabase_handler.create_request(
                 user_id=user_id,
+                service_id=service_id,
+                client_id=client_id,
                 client_process_id=client_process_id,
                 client_process_name=client_process_name,
-                service_id=service_id,
                 request_message=request_message,
+                priority=priority,
                 is_async=is_async,
             )
         except Exception as e:
@@ -471,11 +475,6 @@ class ClientHandlers:
             process_states=process_states,
             current_state=current_state,
         )
-
-    def get_processes_subscribed_to_event(
-        self, user_id: str, event: Event
-    ) -> List[ProcessIds]:
-        return self.redis_handler.get_processes_subscribed_to_event(user_id, event)
 
     def get_user_data(self, user_id: str) -> UserData:
         redis_handler = ClientHandlers().get_redis_handler()
