@@ -9,7 +9,6 @@ import re
 import uuid
 import inspect
 
-from aware.communications.requests.request_client import Client
 from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
 from aware.process.process_info import ProcessInfo
@@ -26,64 +25,21 @@ class Tools(ABC):
         self.agent_data = process_info.agent_data
         self.process_ids = process_info.process_ids
         self.process_data = process_info.process_data
-        self.request = process_info.process_communications.incoming_request
-
         self.logger = FileLogger(process_info.get_name())
 
-        self.default_tools = self._get_default_tools()
         self.memory_manager = MemoryManager(
             user_id=self.process_ids.user_id, logger=self.logger
         )
         self.process_handler = ProcessHandler()
 
         self.run_remote = False  # TODO: Make this a decorator for each function!
-        self.finished = False
-        self.async_request_scheduled = False
-        self.sync_request_scheduled = False
+        self.finished = False  # TODO: Implement this better!
 
         # TODO: Check where to register capability!! Mode this to registry.
         ClientHandlers().create_capability(
             process_ids=self.process_ids, capability_name=self.get_tool_name()
         )
         # TODO: we need a way to update the variable when using a tool. Maybe a wrapper that initializes tool then calls the function and then updates the variable.
-
-    def create_request(
-        self, service_name: str, request_message: Dict[str, Any], is_async: bool
-    ):
-        """Create a request to a specific service providing the request message with the exact fields needed. Define if the request is async or not (if the agent needs to wait for the response or not).
-        Args:
-            service_name (str): The name of the service to send the request to.
-            request_message (Dict[str, Any]): The message to send to the service.
-            is_async (bool): If the request is async or not.
-        """
-
-        if is_async:
-            self.async_request_scheduled = True
-        else:
-            self.sync_request_scheduled = True
-
-        request = Client(process_info=self.process_info).create_request(
-            service_name=service_name,
-            request_message=request_message,
-            is_async=is_async,
-        )
-        if request.tool is not None:
-            request.call(request_message)
-
-        return "Request scheduled."
-
-    def publish_message(self, topic_name: str, message: Dict[str, Any]):
-        """
-        Publish a message to a specific topic.
-        Args:
-            topic_name (str): The name of the topic to publish the message to.
-            message (Dict[str, Any]): The message to publish to the topic.
-        """
-
-        return ClientHandlers().publish_message(
-            topic_name=topic_name,
-            message=message,
-        )
 
     def _construct_arguments_dict(self, func: Callable, content: str):
         signature = inspect.signature(func)
@@ -96,28 +52,13 @@ class Tools(ABC):
             )
         return {args[0]: content}
 
-    def _get_default_tools(self) -> List[Callable]:
-        default_tools = []
-        if self.process_info.process_communications.clients is not None:
-            default_tools.append(self.create_request)
-        if self.process_info.process_communications.publishers is not None:
-            default_tools.append(self.publish_message)
-
-        if self.request is not None:
-            default_tools.append(self.set_request_completed)
-            if self.request.is_async():
-                default_tools.append(self.send_feedback)
-        return default_tools
-
     def get_process_name(self) -> str:
         if self.process_data.name == "main":
             return self.agent_data.name
         return self.get_tool_name()
 
     def get_tools(self) -> List[Callable]:
-        process_tools = self.set_tools()
-        process_tools.extend(self.default_tools)
-        return process_tools
+        return self.set_tools()
 
     @classmethod
     def get_description(cls):
@@ -157,12 +98,6 @@ class Tools(ABC):
     def is_process_finished(self) -> bool:
         return self.finished
 
-    def is_async_request_scheduled(self) -> bool:
-        return self.async_request_scheduled
-
-    def is_sync_request_scheduled(self) -> bool:
-        return self.sync_request_scheduled
-
     def update_agent_data(self):
         return ClientHandlers().update_agent_data(
             agent_data=self.agent_data,
@@ -171,26 +106,6 @@ class Tools(ABC):
     @abstractmethod
     def set_tools(self) -> List[Callable]:
         pass
-
-    def send_feedback(self, feedback: str):
-        """Send feedback to the client.
-
-        Args:
-            feedback (str): The feedback to send to the client.
-        """
-        return ClientHandlers().update_request_feedback(
-            request=self.request, feedback=feedback
-        )
-
-    def set_request_completed(self, response: str, success: bool):
-        """Set request as completed and provide the response to the client.
-
-        Args:
-            response (str): The response to the request.
-        """
-        self.process_handler.set_request_completed(
-            request=self.request, response=response, success=success
-        )
 
     def finish_process(self):
         self.finished = True

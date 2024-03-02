@@ -4,7 +4,7 @@ from aware.data.database.client_handlers import ClientHandlers
 from aware.process.process_ids import ProcessIds
 
 
-class ProcessCommunicationsBuilder:
+class CommunicationsBuilder:
     def __init__(self):
         self.clients: Dict[ProcessIds, Dict[str, Any]] = {}
         self.services: Dict[ProcessIds, Dict[str, Any]] = {}

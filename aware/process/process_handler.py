@@ -24,10 +24,10 @@ class ProcessHandler:
     # TODO: Refactor!
     def add_communications(self, process_ids: ProcessIds):
         # Get communications
-        process_communications = ClientHandlers().get_process_communications(
+        communications = ClientHandlers().get_communications(
             process_id=process_ids.process_id
         )
-        event = process_communications.event
+        event = communications.event
         if event is not None:
             self.add_message(
                 process_ids=process_ids,
@@ -36,7 +36,7 @@ class ProcessHandler:
             # Set event to notified and remove it from redis.
             ClientHandlers().set_event_notified(event)
 
-        request = process_communications.incoming_request
+        request = communications.incoming_request
         if request is not None and request.data.status == RequestStatus.NOT_STARTED:
             self.add_message(
                 process_ids=process_ids,
@@ -158,41 +158,6 @@ class ProcessHandler:
         self.logger.info(f"Preprocessing process: {ids.process_id}")
         app.send_task("server.preprocess", kwargs={"process_ids_str": ids.to_json()})
 
-    def set_request_completed(self, request: Request, response: str, success: bool):
-        service_process_name = (
-            ClientHandlers().get_process_data(request.service_process_id).name
-        )
-
-        redis_handler = ClientHandlers().get_redis_handler()
-        client_process_ids = (
-            ClientHandlers().get_process_info(request.client_process_id).process_ids
-        )
-
-        # Add message to client process.
-        if request.is_async():
-            # - Async requests: Add new message with the response and start the client process.
-            self.add_message(
-                process_ids=client_process_ids,
-                json_message=UserMessage(name=service_process_name, content=response),
-            )
-            self.start(process_ids=client_process_ids)
-        else:
-            # - Sync requests: Update last conversation message with the response and step (continue from current state) the client process.
-            client_conversation_with_keys = redis_handler.get_conversation_with_keys(
-                request.client_process_id
-            )
-            message_key, message = client_conversation_with_keys[-1]
-            if not isinstance(message, ToolResponseMessage):
-                raise ValueError("Last message is not a tool response message.")
-            message.content = request.data.response
-            redis_handler.update_message(message_key, message)
-            # TODO: Refine this logic, we should have more control over agents that are waiting for a response, split between the current transition and the state.
-            self.step(process_ids=client_process_ids)
-
-        return ClientHandlers().set_request_completed(
-            request=request, success=success, response=response
-        )
-
     def start(self, process_ids: ProcessIds):
         redis_handler = ClientHandlers().get_redis_handler()
         if not redis_handler.is_agent_active(process_ids.agent_id):
@@ -221,7 +186,7 @@ class ProcessHandler:
 
         agent_state_machine = AgentStateMachine(
             agent_data=agent_data,
-            process_communications=process_info.process_communications,
+            communications=process_info.communications,
             is_process_finished=is_process_finished,
         )
         next_state = agent_state_machine.step()

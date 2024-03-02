@@ -37,7 +37,7 @@ class ProcessBuilder:
         )
         return process_ids
 
-    def create_process_communications(
+    def create_communications(
         self, process_ids: ProcessIds, communications_config: Dict[str, Any]
     ) -> None:
         internal_events = communications_config["internal_events"]

@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 # from aware.communications.events.event import Event
-# from aware.communications.requests.request import Request
 # from aware.communications.topics.topic import Topic
+from aware.communications.requests.request import Request
 
 from aware.communications.topics.topic_publisher import TopicPublisher
 from aware.communications.topics.topic_subscriber import TopicSubscriber
@@ -14,7 +14,7 @@ from aware.communications.events.event_subscriber import EventSubscriber
 
 
 @dataclass
-class ProcessCommunications:
+class Communications:
     topic_publishers: Dict[str, TopicPublisher]
     topic_subscribers: Dict[str, TopicSubscriber]
     request_clients: Dict[str, RequestClient]
@@ -74,14 +74,26 @@ class ProcessCommunications:
             event_name: EventSubscriber(**event_subscriber)
             for event_name, event_subscriber in data["event_subscribers"].items()
         }
-        return ProcessCommunications(**data)
+        return Communications(**data)
 
-    def get_function_schemas(self):
+    def get_function_schemas(self) -> List[Dict[str, Any]]:
+        # Add functions to create new request or publish new message.
         function_schemas: List[Dict[str, Any]] = []
         for publisher in self.topic_publishers.values():
             function_schemas.append(publisher.get_topic_as_function())
         for client in self.request_clients.values():
             function_schemas.append(client.get_request_as_function())
+
+        # Add functions to set request as completed or send feedback.
+        current_request = self.get_request()
+        if current_request:
+            for service in self.request_services.values():
+                if current_request.service_id == service.service_id:
+                    function_schemas.append(
+                        service.get_set_request_completed_function()
+                    )
+                    if current_request.is_async():
+                        function_schemas.append(service.get_send_feedback_function())
         return function_schemas
 
     def get_publisher_topic_id(self, topic_name: str) -> Optional[str]:
@@ -96,21 +108,31 @@ class ProcessCommunications:
             return None
         return client.service_id
 
+    # TODO: FIX ME!
+    def get_request(self) -> Optional[Request]:
+        # Get the highest prio request from all the services.
+        for request_service in self.request_services.values():
+            if request_service.requests:
+                return request_service.requests[0]
+
     # TODO: Get right requests from client/servers and data from pub/sub, TBD.
     def to_prompt_kwargs(self):
         """Show permanent info on the prompt. Don't show event as it will be part of conversation."""
         prompt_kwargs = {}
-        if self.outgoing_requests:
-            # Add the feedback of all the outgoing requests
-            requests_feedback = "\n".join(
-                [request.feedback_to_string() for request in self.outgoing_requests]
-            )
-            prompt_kwargs.update({"outgoing_requests": requests_feedback})
-        if self.incoming_request is not None:
-            # Add the query of the incoming request
-            prompt_kwargs.update(
-                {"incoming_request": self.incoming_request.query_to_string()}
-            )
+        # Add the feedback of all the client requests
+        requests_feedback = "\n".join(
+            [
+                clients.get_request_feedback()
+                for clients in self.request_clients.values()
+            ]
+        )
+        # TODO: Rename outgoing_requests.
+        prompt_kwargs.update({"outgoing_requests": requests_feedback})
+
+        # TODO: Get highest prio requests. For now we just get oldest request.
+        prompt_kwargs.update(
+            {"incoming_request": self.incoming_request.query_to_string()}
+        )
         if self.topics:
             topics_info = "\n".join([topic.to_string() for topic in self.topics])
             prompt_kwargs.update({"topics": topics_info})

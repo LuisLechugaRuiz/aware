@@ -3,6 +3,12 @@ import json
 from typing import Dict
 
 
+# TODO: How to have access to current requests from subscriber?
+# - We can't access here to ClientHandlers, so we have two options:
+#   1. We can pass the request to the subscriber when it is created.
+#       - Pros: We can access the request directy at subscriber.
+#       - Cons: We need to pass the request to the subscriber everytime we access it.
+#   2. We can use an external class to retrieve the request for the specific subscriber.
 @dataclass
 class TopicSubscriber:
     id: str

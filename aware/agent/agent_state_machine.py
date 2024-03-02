@@ -1,23 +1,24 @@
 from aware.agent.agent_data import AgentData, AgentState, ThoughtGeneratorMode
-from aware.process.process_communications import ProcessCommunications
+from aware.communications.communications import Communications
 
 
 class AgentStateMachine:
     def __init__(
         self,
         agent_data: AgentData,
-        process_communications: ProcessCommunications,
+        communications: Communications,
         is_process_finished: bool,
     ):
         self.state = agent_data.state
         self.thought_generator_mode = agent_data.thought_generator_mode
-        self.process_has_input = self._has_input(process_communications)
+        self.process_has_input = self._has_input(communications)
         self.is_process_finished = is_process_finished
 
-    def _has_input(self, process_communications: ProcessCommunications) -> bool:
+    # TODO: REFACTOR!
+    def _has_input(self, communications: Communications) -> bool:
         return (
-            process_communications.incoming_request is not None
-            or process_communications.event is not None
+            communications.incoming_request is not None
+            or communications.event is not None
         )
 
     def step(
