@@ -1,6 +1,7 @@
 from typing import Dict, List
 
 from aware.agent.agent_builder import AgentBuilder as InternalAgentBuilder
+from aware.agent.database.agent_database_handler import AgentDatabaseHandler
 from aware.process.process_info import ProcessInfo
 from aware.tools.tools import Tools
 
@@ -14,6 +15,7 @@ class AgentBuilder(Tools):
     ):
         super().__init__(process_info=process_info)
         self.agent_builder = InternalAgentBuilder(user_id=self.process_ids.user_id)
+        # TODO: implement tool database handlers.
         self.agent_state = ClientHandlers().get_stored_variable(process_ids=self.process_ids, variable_name="agent_state") # TODO: Implement me, verify if we need agent_state as local var, probably should be used just on the process creation.
 
     def set_tools(self):

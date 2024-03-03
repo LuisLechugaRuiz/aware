@@ -3,7 +3,7 @@ import json
 from typing import Dict, List, Optional
 
 from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
-from aware.communications.topics.topic import Topic
+from aware.communication.primitives.topic import Topic
 
 
 @dataclass

@@ -22,6 +22,7 @@ class Conversation:
         self.process_id = process_id
 
         self.model_name = Config().openai_model  # TODO: Enable more models.
+        # TODO: implement chat database handler!
         self.redis_handler = ClientHandlers().get_redis_handler()
         self.supabase_handler = ClientHandlers().get_supabase_handler()
         conversation_messages = self.redis_handler.get_conversation(process_id)

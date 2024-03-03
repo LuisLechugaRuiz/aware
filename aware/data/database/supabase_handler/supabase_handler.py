@@ -8,20 +8,20 @@ from aware.agent.agent_data import (
     ThoughtGeneratorMode,
 )
 from aware.chat.conversation_schemas import ChatMessage, JSONMessage
-from aware.communications.communications import Communications
-from aware.communications.events.event import Event, EventStatus
-from aware.communications.events.event_type import EventType
-from aware.communications.events.event_subscriber import EventSubscriber
-from aware.communications.events.event_publisher import EventPublisher
-from aware.communications.requests.request import Request, RequestData, RequestStatus
-from aware.communications.requests.request_service import (
+from aware.communication.communication_protocols import Communications
+from aware.communication.events.event import Event, EventStatus
+from aware.communication.events.event_type import EventType
+from aware.communication.events.event_subscriber import EventSubscriber
+from aware.communication.events.event_publisher import EventPublisher
+from aware.communication.requests.request import Request, RequestData, RequestStatus
+from aware.communication.requests.request_service import (
     RequestService,
     RequestServiceData,
 )
-from aware.communications.requests.request_client import RequestClient
-from aware.communications.topics.topic import Topic
-from aware.communications.topics.topic_subscriber import TopicSubscriber
-from aware.communications.topics.topic_publisher import TopicPublisher
+from aware.communication.requests.request_client import RequestClient
+from aware.communication.topics.topic import Topic
+from aware.communication.topics.topic_subscriber import TopicSubscriber
+from aware.communication.topics.topic_publisher import TopicPublisher
 from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
 from aware.memory.user.user_data import UserData
@@ -29,7 +29,7 @@ from aware.process.process_data import ProcessData, ProcessFlowType
 from aware.process.process_ids import ProcessIds
 from aware.process.state_machine.state import ProcessState
 from aware.tools.capability import Capability
-from aware.tools.profile import Profile
+from aware.agent.agent_profile import Profile
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -240,18 +240,15 @@ class SupabaseHandler:
             message_format=message_format,
         )
 
-    def create_event(
-        self, user_id: str, event_name: str, event_message: Dict[str, Any]
-    ) -> Event:
+    def create_event(self, publisher_id: str, event_message: Dict[str, Any]) -> Event:
         self.logger.info(
-            f"Creating event {event_name} with content: {content} for user {user_id}"
+            f"Creating event using publisher: {publisher_id} with message: {event_message}"
         )
         response = (
             self.client.rpc(
                 "create_event",
                 {
-                    "p_user_id": user_id,
-                    "p_event_name": event_name,
+                    "p_publisher_id": publisher_id,
                     "p_event_message": event_message,
                 },
             )
@@ -261,13 +258,13 @@ class SupabaseHandler:
         response = response[0]
         return Event(
             id=response["id"],
-            user_id=user_id,
+            user_id=response["user_id"],
             event_type_id=response["event_type_id"],
-            event_name=event_name,
+            event_name=response["event_name"],
             event_description=response["event_description"],
             event_message=event_message,
-            event_format=response["event_format"],
-            status=EventStatus(response["_status"]),
+            event_format=response["message_format"],
+            status=EventStatus(response["status"]),
             timestamp=response["created_at"],
         )
 
@@ -450,7 +447,7 @@ class SupabaseHandler:
             requests=[],
         )
 
-    def create_request_message(
+    def create_request_type(
         self,
         user_id: str,
         request_name: str,
@@ -460,7 +457,7 @@ class SupabaseHandler:
     ):
         self.logger.info(f"Creating request type {request_name}")
         response = (
-            self.client.table("request_messages")
+            self.client.table("request_types")
             .insert(
                 {
                     "user_id": user_id,

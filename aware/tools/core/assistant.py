@@ -47,6 +47,7 @@ class Assistant(Tools):
         """
         assistant_message = AssistantMessage(name=self.agent_data.name, content=message)
         self.logger.info(f"Sending message to user: {assistant_message.to_string()}")
+        # TODO: Remove dependencies to ClientHandlers
         ClientHandlers().get_supabase_handler().send_message_to_user(
             user_id=self.process_ids.user_id,
             process_id=self.process_ids.process_id,

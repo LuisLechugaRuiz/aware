@@ -39,6 +39,7 @@ class ThoughtGenerator(Tools):
         Args:
             thought (str): The thought to be processed.
         """
+        # TODO: Tools should never have access to process_handler. They should have access to communication_handler? In this case we are creating event thought!
         self.process_handler.add_thought(process_ids=self.process_ids, thought=thought)
         self.finish_process()
         return "Final thought saved, transmited to the agent."

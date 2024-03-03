@@ -6,26 +6,37 @@ from aware.chat.conversation_schemas import (
     JSONMessage,
 )
 from aware.chat.conversation_buffer import ConversationBuffer
-from aware.communications.requests.request import Request, RequestStatus
+from aware.communication.primitives.request import Request, RequestStatus
 from aware.data.database.client_handlers import ClientHandlers
+
+from aware.agent.database.agent_database_handler import AgentDatabaseHandler
+from aware.process.database.process_database_handler import ProcessDatabaseHandler
+from aware.communication.protocols.database.protocols_database_handler import (
+    ProtocolsDatabaseHandler,
+)
+
 from aware.process.process_ids import ProcessIds
 from aware.process.process_data import ProcessFlowType
 from aware.process.process_info import ProcessInfo
-from aware.utils.logger.file_logger import FileLogger
+from aware.utils.logger.process_loger import ProcessLogger
 from aware.server.celery_app import app
 
 
+# TODO: REMOVE ALL DEPENDENCIES OF CLIENTHANDLERS.
 class ProcessHandler:
-    def __init__(self):
-        self.supabase_handler = ClientHandlers().get_supabase_handler()
-        self.redis_handler = ClientHandlers().get_redis_handler()
-        self.logger = FileLogger(name="process_handler")
+    def __init__(self, process_logger: ProcessLogger):
+        self.logger = process_logger.get_logger("process_handler")
+        self.comm_protocols_database_handler = ProtocolsDatabaseHandler()
+        self.agent_database_handler = AgentDatabaseHandler()
+        self.process_database_handler = ProcessDatabaseHandler()
 
     # TODO: Refactor!
     def add_communications(self, process_ids: ProcessIds):
         # Get communications
-        communications = ClientHandlers().get_communications(
-            process_id=process_ids.process_id
+        communication_protocols = (
+            self.comm_protocols_database_handler.get_communication_protocols(
+                process_id=process_ids.process_id
+            )
         )
         event = communications.event
         if event is not None:
@@ -34,7 +45,8 @@ class ProcessHandler:
                 message=UserMessage(name=event.message_name, content=event.content),
             )
             # Set event to notified and remove it from redis.
-            ClientHandlers().set_event_notified(event)
+            # TODO: Add me!
+            self.comm_protocols_database_handler.set_event_notified(event)
 
         request = communications.incoming_request
         if request is not None and request.data.status == RequestStatus.NOT_STARTED:
@@ -45,14 +57,18 @@ class ProcessHandler:
                     content=request.query_to_string(),
                 ),
             )
-            ClientHandlers().update_request_status(request, RequestStatus.IN_PROGRESS)
+            # TODO: Add me!
+            self.comm_protocols_database_handler.update_request_status(
+                request, RequestStatus.IN_PROGRESS
+            )
 
     def add_message(
         self,
         process_ids: ProcessIds,
         message: JSONMessage,
     ):
-        agent_data = ClientHandlers().get_agent_data(process_ids.agent_id)
+        agent_data = self.agent_database_handler.get_agent_data(process_ids.agent_id)
+        # TODO: modify by chat database handler
         ClientHandlers().add_message(
             process_ids=process_ids,
             json_message=message,
@@ -70,7 +86,7 @@ class ProcessHandler:
             )
             self._manage_conversation_buffer(process_ids)
 
-    # TODO: Thought should be an internal topic?
+    # TODO: Thought should be an internal topic? - TODO: determine this as this will modify if we add it on conversation or as part of System message.
     def add_thought(
         self,
         process_ids: ProcessIds,
@@ -85,37 +101,15 @@ class ProcessHandler:
         ClientHandlers().add_message(process_ids=main_process_ids, json_message=message)
         self._manage_conversation_buffer(process_ids)
 
-    # TODO: Move to EventClient! - Here we should only have the logic to trigger the services.
-    # TODO: MOVE TO COMMUNICATION HANDLER!!
-    def create_event(
-        self, user_id: str, event_name: str, message_name: str, content: str
-    ):
-        self.logger.info(f"Creating event: {event_name} - {content}")
-        # - Add event to database
-        event = ClientHandlers().create_event(
-            user_id=user_id,
-            event_name=event_name,
-            message_name=message_name,
-            content=content,
-        )
-        self.logger.info("Event created on database")
-        # - Trigger the subscribed processes
-        processes_ids = ClientHandlers().get_processes_subscribed_to_event(
-            user_id=user_id, event=event
-        )
-        self.logger.info(f"Processes subscribed to event: {processes_ids}")
-        for process_ids in processes_ids:
-            self.start(process_ids)
-
     def process_request(self, request: Request) -> Request:
-        service_process_ids = ClientHandlers().get_process_ids(
+        service_process_ids = self.process_database_handler.get_process_ids(
             process_id=request.service_process_id
         )
         self.start(service_process_ids)
         return f"Request {request.id} created successfully"
 
     def get_process_ids(self, user_id: str, agent_id: str, process_name: str):
-        process_id = ClientHandlers().get_agent_process_id(
+        process_id = self.agent_database_handler.get_agent_process_id(
             agent_id=agent_id, process_name=process_name
         )
         return ProcessIds(
@@ -135,6 +129,7 @@ class ProcessHandler:
             process_id=main_ids.process_id
         )
 
+        # TODO: modify by communication database handler and verify with internal topics...
         ClientHandlers().publish(
             user_id=main_ids.user_id,
             topic_name="agent_interactions",
@@ -160,8 +155,7 @@ class ProcessHandler:
         app.send_task("server.preprocess", kwargs={"process_ids_str": ids.to_json()})
 
     def start(self, process_ids: ProcessIds):
-        redis_handler = ClientHandlers().get_redis_handler()
-        if not redis_handler.is_agent_active(process_ids.agent_id):
+        if not self.agent_database_handler.is_agent_active(process_ids.agent_id):
             self.logger.info(f"Starting agent: {process_ids.agent_id}")
             self.step(process_ids=process_ids, is_process_finished=False)
         else:
@@ -169,7 +163,7 @@ class ProcessHandler:
 
     def step(self, process_ids: ProcessIds, is_process_finished: bool = False):
         self.logger.info(f"On step: {process_ids.process_id}")
-        process_info = ClientHandlers().get_process_info(process_ids)
+        process_info = self.process_database_handler.get_process_info(process_ids)
         if process_info.process_data.flow_type == ProcessFlowType.INTERACTIVE:
             self.step_state_machine(process_info, is_process_finished)
         elif process_info.process_data.flow_type == ProcessFlowType.INDEPENDENT:
@@ -179,7 +173,7 @@ class ProcessHandler:
         agent_data = process_info.agent_data
         if agent_data.state == AgentState.IDLE:
             # Initialize process
-            ClientHandlers().add_active_agent(
+            self.agent_database_handler.add_active_agent(
                 agent_id=process_info.process_ids.agent_id
             )
             # Add communications
@@ -192,7 +186,7 @@ class ProcessHandler:
         )
         next_state = agent_state_machine.step()
         agent_data.state = next_state
-        ClientHandlers().update_agent_data(agent_data)
+        self.agent_database_handler.update_agent_data(agent_data)
         self.logger.info(f"Next state: {next_state.value}")
         self.trigger_transition(process_info.process_ids, next_state)
 
@@ -212,7 +206,7 @@ class ProcessHandler:
             )
             self.preprocess(thought_generator_ids)
         elif next_state == AgentState.IDLE:
-            ClientHandlers().remove_active_agent(process_ids.agent_id)
+            self.agent_database_handler.remove_active_agent(process_ids.agent_id)
 
     def trigger_until_completion(
         self, process_ids: ProcessIds, is_process_finished: bool

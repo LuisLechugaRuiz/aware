@@ -1,34 +1,28 @@
 import logging
 import os
 
-from aware.permanent_storage.permanent_storage import get_permanent_storage_path
-
 
 class FileLogger(logging.Logger):
-    _instances = {}  # A class-level attribute used to store unique instances
+    _instances = {}
 
-    def __new__(cls, name, *args, **kwargs):
-        # If an instance with this name exists, return it
-        if name in cls._instances:
-            return cls._instances[name]
+    def __new__(cls, file_path, *args, **kwargs):
+        if file_path in cls._instances:
+            return cls._instances[file_path]
 
-        # Create a new instance because one doesn't exist
         instance = super(FileLogger, cls).__new__(cls)
-        cls._instances[name] = instance
+        cls._instances[file_path] = instance
         return instance
 
-    def __init__(self, name, should_print=True, level=logging.NOTSET):
-        # If we have already initialized this instance, we don't want to do it again
+    def __init__(self, file_path, should_print=True, level=logging.NOTSET):
         if getattr(self, "_initialized", False):
             return
 
+        name = os.path.basename(file_path).split(".")[0]  # Extract name from file_path
         super().__init__(name, level)
         self.should_print = should_print
 
-        # File handler setup
-        logger_path = os.path.join(get_permanent_storage_path(), "logs", f"{name}.log")
-        os.makedirs(os.path.dirname(logger_path), exist_ok=True)
-        file_handler = logging.FileHandler(logger_path)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        file_handler = logging.FileHandler(file_path)
         file_handler.setLevel(logging.INFO)
 
         formatter = logging.Formatter(
@@ -37,9 +31,6 @@ class FileLogger(logging.Logger):
         file_handler.setFormatter(formatter)
 
         self.addHandler(file_handler)
-
-        # TODO: ADD CONSOLE LOGGER!
-        # self.console_logger = ConsoleLogger(name)
 
         self._initialized = True
 

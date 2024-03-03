@@ -1,11 +1,12 @@
 from typing import Any, Dict, List, Optional
 
 from aware.agent.agent_data import AgentMemoryMode, ThoughtGeneratorMode
+from aware.agent.database.agent_database_handler import AgentDatabaseHandler
 from aware.config import get_default_agents_path, get_internal_processes_path
 from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
-from aware.communications.communications_builder import (
-    CommunicationsBuilder,
+from aware.communication.communication_builder import (
+    CommunicationBuilder,
 )
 from aware.process.process_builder import ProcessBuilder
 from aware.process.process_ids import ProcessIds
@@ -19,6 +20,7 @@ class AgentBuilder:
         self.logger = FileLogger("agent_builder")
         self.user_id = user_id
         self.memory_manager = MemoryManager(user_id=user_id, logger=self.logger)
+        self.agent_database_handler = AgentDatabaseHandler()
 
     def initialize_user_agents(self, assistant_name: str):
         """Create the initial agents for the user"""
@@ -28,15 +30,15 @@ class AgentBuilder:
         agent_files_dict = default_agents_json_loader.search_files(
             file_names=[
                 "config.json",
-                "communications.json",
+                "communication.json",
                 "profile.json",
                 "state_machine.json",
             ]
         )
 
         # TODO: Define how to setup all services and clients properly!! Also for internal processes!
-        communication_builder = CommunicationsBuilder()
-        communication_builder.setup_communications()
+        communication_builder = CommunicationBuilder()
+        communication_builder.setup_communication()
 
         for agent_folder, agent_files in agent_files_dict.items():
             agent_name = agent_files["config"]["name"]
@@ -57,10 +59,10 @@ class AgentBuilder:
         self,
         agent_name: str,
         agent_files: Dict[str, Any],
-        communication_builder: Optional[CommunicationsBuilder] = None,
+        communication_builder: Optional[CommunicationBuilder] = None,
     ):
         if communication_builder is None:
-            communication_builder = CommunicationsBuilder()
+            communication_builder = CommunicationBuilder()
             standalone_create_agent = True
         else:
             standalone_create_agent = False
@@ -69,7 +71,7 @@ class AgentBuilder:
             agent_name=agent_name,
             agent_config=agent_files["config"],
             agent_state_machine_config=agent_files["state_machine"],
-            agent_communications_config=agent_files["communications"],
+            agent_communication_config=agent_files["communication"],
             communication_builder=communication_builder,
         )
         self.create_agent_profile(
@@ -84,8 +86,8 @@ class AgentBuilder:
         agent_name: str,
         agent_config: Dict[str, Any],
         agent_state_machine_config: Dict[str, Any],
-        agent_communications_config: Dict[str, Any],
-        communication_builder: CommunicationsBuilder,
+        agent_communication_config: Dict[str, Any],
+        communication_builder: CommunicationBuilder,
     ) -> ProcessIds:
         main_process_ids = self.create_new_agent(
             agent_name=agent_name,
@@ -105,10 +107,10 @@ class AgentBuilder:
             process_ids=main_process_ids,
             state_machine_config=agent_state_machine_config,
         )
-        # Setup external communications for main process (the communications of the agent).
+        # Setup external communication for main process (the communication of the agent).
         communication_builder.setup_process(
             process_ids=main_process_ids,
-            communications_config=agent_communications_config,
+            communication_config=agent_communication_config,
         )
         return main_process_ids
 
@@ -116,7 +118,7 @@ class AgentBuilder:
         self, process_ids: ProcessIds, profile_config: Dict[str, Any]
     ):
         # TODO: implement me
-        ClientHandlers().create_profile(
+        self.agent_database_handler.create_profile(
             process_ids=process_ids, profile_config=profile_config
         )
 
@@ -127,12 +129,12 @@ class AgentBuilder:
         memory_mode: AgentMemoryMode,
         modalities: List[str],
         thought_generator_mode: ThoughtGeneratorMode,
-        communication_builder: CommunicationsBuilder,
+        communication_builder: CommunicationBuilder,
     ) -> ProcessIds:
         """Create a new agent"""
         try:
             # Store agent on database
-            agent_data = ClientHandlers().create_agent(
+            agent_data = self.agent_database_handler.create_agent(
                 user_id=self.user_id,
                 name=agent_name,
                 tools_class=tools_class,
@@ -165,13 +167,13 @@ class AgentBuilder:
         agent_id: str,
         agent_name: str,
         tools_class: str,
-        communication_builder: CommunicationsBuilder,
+        communication_builder: CommunicationBuilder,
     ):
         """Create the internal processes for the agent"""
         internal_processes_path = get_internal_processes_path()
         internal_processes_json_loader = JsonLoader(root_dir=internal_processes_path)
 
-        # Create main -> Fixed config and internal communications
+        # Create main -> Fixed config and internal communication
         main_config = {
             "name": "main",
             "tools_class": tools_class,
@@ -182,17 +184,17 @@ class AgentBuilder:
             process_config=main_config, service_name=agent_name
         )
 
-        main_internal_communications_config = internal_processes_json_loader.get_file(
-            "communications.json"
+        main_internal_communication_config = internal_processes_json_loader.get_file(
+            "communication.json"
         )
         communication_builder.setup_process(
             process_ids=main_process_ids,
-            communications_config=main_internal_communications_config,
+            communication_config=main_internal_communication_config,
         )
 
         # Create the internal processes
         internal_processes_files_dict = internal_processes_json_loader.search_files(
-            file_names=["communications.json", "config.json", "state_machine.json"]
+            file_names=["communication.json", "config.json", "state_machine.json"]
         )
         for process_folder, process_files in internal_processes_files_dict.items():
             process_ids = process_builder.create_process_by_config(
@@ -204,7 +206,7 @@ class AgentBuilder:
             )
             communication_builder.setup_process(
                 process_ids=process_ids,
-                communications_config=process_files["communications"],
+                communication_config=process_files["communication"],
             )
 
         return main_process_ids

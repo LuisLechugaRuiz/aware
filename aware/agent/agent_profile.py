@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Dict
 
 
-class Profile:
+class AgentProfile:
     def __init__(self, profile: Dict[str, str]):
         self.profile = profile
 

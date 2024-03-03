@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 import json
-from typing import Dict, List
+from typing import Dict
 
-from aware.communications.events.event import Event
+from aware.communication.primitives.event import Event
 
 
 @dataclass
@@ -14,10 +14,6 @@ class EventSubscriber:
     event_name: str
     event_description: str
     event_format: Dict[str, str]
-    events: List[Event] = []
-
-    def add_events(self, events: List[Event]):
-        self.events = events
 
     def to_dict(self):
         return self.__dict__
@@ -29,3 +25,8 @@ class EventSubscriber:
     def from_json(cls, json_str):
         data = json.loads(json_str)
         return cls(**data)
+
+    # TODO: Do we need this?
+    # def get_event(self) -> str:
+    #     events = CommunicationPrimitivesHandler().get_event(self.event_type_id)
+    #     return topic.to_string()

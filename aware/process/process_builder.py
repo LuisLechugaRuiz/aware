@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-from aware.data.database.client_handlers import ClientHandlers
+from aware.process.database.process_database_handler import ProcessDatabaseHandler
 from aware.process.process_ids import ProcessIds
 from aware.process.process_data import ProcessFlowType
 from aware.process.state_machine.state import ProcessState
@@ -14,6 +14,7 @@ class ProcessBuilder:
     ):
         self.user_id = user_id
         self.agent_id = agent_id
+        self.process_database_handler = ProcessDatabaseHandler()
 
     def create_process_by_config(
         self,
@@ -22,7 +23,7 @@ class ProcessBuilder:
             str
         ] = None,  # TODO: Remove when refactoring service - requests.
     ) -> ProcessIds:
-        process_data = ClientHandlers().create_process(
+        process_data = self.process_database_handler.create_process(
             user_id=self.user_id,
             agent_id=self.agent_id,
             name=process_config["name"],
@@ -37,6 +38,7 @@ class ProcessBuilder:
         )
         return process_ids
 
+    # TODO: FILL ME PROPERLY! REFACTOR.
     def create_communications(
         self, process_ids: ProcessIds, communications_config: Dict[str, Any]
     ) -> None:
@@ -66,7 +68,7 @@ class ProcessBuilder:
         process_states: List[ProcessState] = []
         for state_name, state_info in state_machine_config.items():
             process_states.append(
-                ClientHandlers().create_process_state(
+                self.process_database_handler.create_process_state(
                     user_id=self.user_id,
                     process_id=process_ids.process_id,
                     name=state_name,
@@ -75,7 +77,7 @@ class ProcessBuilder:
                     tools=state_info["tools"],
                 )
             )
-        ClientHandlers().create_current_process_state(
+        self.process_database_handler.create_current_process_state(
             user_id=self.user_id,
             process_id=process_ids.process_id,
             process_state=process_states[

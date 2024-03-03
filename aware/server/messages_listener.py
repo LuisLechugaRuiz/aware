@@ -38,6 +38,7 @@ class MessagesListener:
 
             user_id = message["user_id"]
             content = message["content"]
+            # TODO: Refactor, remove dependencies to ClientHandlers
             user_data = ClientHandlers().get_user_data(user_id=user_id)
             logger.info(f"Processing new user message: {content}")
             ProcessHandler().create_event(
