@@ -25,3 +25,7 @@ We need:
 - PRIORITIES
 
 For tracking we need to implement the logic at [Communications](/aware/communications/communications.py)
+
+## Update
+
+An initial version of PRIORITIES has been created by just adding the LLM to determine the priority. This is a very short-term implementation as this is not properly done. To stablish priorities we need a general vision of current execution, it should not be the own agent determining the priority, it should be an agent (or the team-leader) which has an overview of current executions.

@@ -61,6 +61,7 @@ class ToolsRegistry:
                     name=name,
                     description=obj.get_description(),
                 )
+                # TODO: Remove dependencies to ClientHandlers
                 ClientHandlers().create_capability(
                     process_ids=self.process_ids, capability_name=name
                 )

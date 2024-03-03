@@ -5,19 +5,19 @@ from openai.types.chat import ChatCompletionMessageToolCall
 
 from aware.chat.conversation_schemas import ToolResponseMessage
 from aware.process.process_ids import ProcessIds
-from aware.utils.logger.file_logger import FileLogger
+from aware.utils.logger.process_loger import ProcessLogger
 from aware.tools.tools import FunctionCall, Tools
 from aware.tools.tools_registry import ToolsRegistry
 
 
 class ToolsManager:
-    def __init__(self, process_ids: ProcessIds, logger: FileLogger):
+    def __init__(self, process_ids: ProcessIds, process_logger: ProcessLogger):
         self.module_path = "aware.tools.tools"
         self.tools_registry = ToolsRegistry(
             process_ids=process_ids, tools_folders=["core", "private", "public"]
         )
         self.default_tools = []
-        self.logger = logger
+        self.logger = process_logger.get_logger("tools_manager")
         self.process_ids = process_ids
 
     def clean_tool_call(

@@ -1,6 +1,6 @@
 import json
 from redis import Redis
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from aware.agent.agent_data import AgentData
 from aware.memory.user.user_data import UserData
@@ -14,17 +14,17 @@ from aware.chat.conversation_schemas import (
     ToolCalls,
 )
 from aware.chat.call_info import CallInfo
-from aware.communications.communications import Communications
-from aware.communications.events.event import Event
-from aware.communications.events.event_subscriber import EventSubscriber
-from aware.communications.events.event_publisher import EventPublisher
-from aware.communications.events.event_type import EventType
-from aware.communications.requests.request import Request
-from aware.communications.requests.request_client import RequestClient
-from aware.communications.requests.request_service import RequestService
-from aware.communications.topics.topic import Topic
-from aware.communications.topics.topic_subscriber import TopicSubscriber
-from aware.communications.topics.topic_publisher import TopicPublisher
+from aware.communication.communication_protocols import Communications
+from aware.communication.events.event import Event
+from aware.communication.events.event_subscriber import EventSubscriber
+from aware.communication.events.event_publisher import EventPublisher
+from aware.communication.events.event_type import EventType
+from aware.communication.requests.request import Request
+from aware.communication.requests.request_client import RequestClient
+from aware.communication.requests.request_service import RequestService
+from aware.communication.topics.topic import Topic
+from aware.communication.topics.topic_subscriber import TopicSubscriber
+from aware.communication.topics.topic_publisher import TopicPublisher
 from aware.process.process_data import ProcessData
 from aware.process.process_ids import ProcessIds
 from aware.process.state_machine.state import ProcessState
@@ -476,13 +476,13 @@ class RedisHandler:
             user_data.to_json(),
         )
 
-    def set_topic_content(self, user_id: str, topic_name: str, content: str):
-        topic = self.get_topic(user_id, topic_name)
-        topic.content = content
+    def set_topic_message(self, topic_id: str, message: Dict[str, Any]):
+        topic = self.get_topic(topic_id)
+        topic.message = message
         topic.timestamp = get_current_date_iso8601()
 
         self.client.set(
-            f"user_id:{user_id}:topic:{topic_name}",
+            f"topic:{topic_id}",
             topic.to_json(),
         )
 

@@ -9,13 +9,13 @@ from aware.chat.conversation_schemas import (
 )
 from aware.chat.parser.pydantic_parser import PydanticParser
 from aware.data.database.client_handlers import ClientHandlers
-from aware.communications.communications_handler import CommunicationsHandler
+from aware.communications.communication_handler import CommunicationHandler
 from aware.process.process_ids import ProcessIds
 from aware.process.process_info import ProcessInfo
 from aware.process.process_handler import ProcessHandler
 from aware.tools.tools_manager import ToolsManager
 from aware.tools.tools import Tools
-from aware.utils.logger.file_logger import FileLogger
+from aware.utils.logger.process_loger import ProcessLogger
 
 
 class Process:
@@ -27,8 +27,12 @@ class Process:
         process_info = ClientHandlers().get_process_info(process_ids=ids)
         self.name = process_info.get_name()
 
-        # TODO: Split logger into agent/process folder!!
-        self.logger = FileLogger(self.name)
+        self.process_logger = ProcessLogger(
+            user_id=ids.user_id,
+            agent_name=process_info.agent_data.name,
+            process_name=self.process_data.name,
+        )
+        self.logger = self.process_logger.get_logger("process")
 
         # Get process info
         self.agent_data = process_info.agent_data
@@ -37,18 +41,22 @@ class Process:
         self.current_state = process_info.current_state
 
         # Initialize tool TODO: We should register tools outside of process. On start for each user depending on the tools have access to.
-        self.tools_manager = ToolsManager(process_ids=ids, logger=self.logger)
+        self.tools_manager = ToolsManager(
+            process_ids=ids, process_logger=self.process_logger
+        )
         self.tools = self._get_tools(process_info=process_info)
 
         self.process_handler = ProcessHandler()
-        self.communications_handler = CommunicationsHandler(
-            process_ids=self.ids, communications=process_info.communications
+        self.communication_handler = CommunicationHandler(
+            process_ids=self.ids,
+            communications=process_info.communications,
+            process_logger=self.process_logger,
         )
 
     def _get_prompt_kwargs(self) -> Dict[str, Any]:
         prompt_kwargs = {"name": self.name}
         prompt_kwargs.update(self.current_state.to_prompt_kwargs())
-        prompt_kwargs.update(self.communications_handler.to_prompt_kwargs())
+        prompt_kwargs.update(self.communication_handler.to_prompt_kwargs())
         prompt_kwargs.update(self.agent_data.to_prompt_kwargs())
         return prompt_kwargs
 
@@ -69,7 +77,7 @@ class Process:
         # TODO: Get from out current_state.tools filter instead of get_tools.
         for function in self.tools.get_tools():
             function_schemas.append(PydanticParser.get_function_schema(function))
-        function_schemas.extend(self.communications_handler.get_function_schemas())
+        function_schemas.extend(self.communication_handler.get_function_schemas())
         return function_schemas
 
     def preprocess(self):
@@ -131,7 +139,7 @@ class Process:
     ) -> bool:
         should_step = True
         for tool_call in tool_calls:
-            response = self.communications_handler.process_tool_call(
+            response = self.communication_handler.process_tool_call(
                 process_name=self.name, tool_call=tool_call
             )
             if response.SYNC_REQUEST_SCHEDULED:

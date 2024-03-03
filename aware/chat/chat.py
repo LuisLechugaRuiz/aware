@@ -28,6 +28,7 @@ class Chat:
             prompt_kwargs=prompt_kwargs,
         )
         self.conversation = Conversation(process_id=self.process_ids.process_id)
+        # TODO: implement chat database handler!
         self.redis_handler = ClientHandlers().get_redis_handler()
 
         self.logger = logger

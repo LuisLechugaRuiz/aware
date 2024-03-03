@@ -4,10 +4,14 @@ from typing import Any, Dict
 from openai.types.chat import ChatCompletionMessageToolCall
 
 from aware.chat.conversation_schemas import UserMessage, ToolResponseMessage
-from aware.communications.communications import Communications
+from aware.communication.communication_protocols import CommunicationProtocols
+from aware.communication.primitives.database.primitives_database_handler import (
+    PrimitivesDatabaseHandler,
+)
 from aware.data.database.client_handlers import ClientHandlers
 from aware.process.process_ids import ProcessIds
 from aware.process.process_handler import ProcessHandler
+from aware.utils.logger.process_loger import ProcessLogger
 
 
 class ProcessToolCallResponse(Enum):
@@ -19,17 +23,20 @@ class ProcessToolCallResponse(Enum):
     NOT_COMMUNICATION_SCHEDULED = 6
 
 
-class CommunicationsHandler:
+# TODO: Refactor! Move logic to specific protocols.
+class CommunicationHandler:
     def __init__(
         self,
         process_ids: ProcessIds,
-        communications: Communications,
+        communication_protocols: CommunicationProtocols,
+        process_logger: ProcessLogger,
     ):
         self.process_ids = process_ids
-        self.communications = communications
-        self.current_request = self.communications.get_highest_prio_request()
+        self.communication_protocols = communication_protocols
+        self.current_request = self.communication_protocols.get_highest_prio_request()
 
-        self.process_handler = ProcessHandler()
+        self.process_handler = ProcessHandler(process_logger)
+        self.logger = process_logger.get_logger("communication_handler")
 
     def create_request(
         self,
@@ -41,6 +48,9 @@ class CommunicationsHandler:
         priority: int,
         is_async: bool,
     ) -> str:
+        self.logger.info(
+            f"Creating request on service: {service_id} with message: {request_message} - priority: {priority} - is_async: {is_async}"
+        )
         # - Save request in database
         result = ClientHandlers().create_request(
             user_id=self.process_ids.user_id,
@@ -60,6 +70,7 @@ class CommunicationsHandler:
             self.process_handler.add_message(
                 process_ids=self.process_ids, message=request_error_response
             )
+            self.logger.error(error)
             return error
 
         request = result.data
@@ -71,6 +82,7 @@ class CommunicationsHandler:
             self.process_handler.add_message(
                 process_ids=self.process_ids, message=request_ack_response
             )
+            self.logger.info(acknowledge)
 
         self.process_handler.process_request(request)
 
@@ -81,6 +93,26 @@ class CommunicationsHandler:
         )
         self.process_handler.start(service_process_ids)
         return f"Request {request.id} created successfully"
+
+    # Are events dependent on user_id?
+    # Events should come from external sources which are agnostic of our internal structure.... How do we know which user_id to use...?
+    # Are all events the same for all users? Do this even make sense? Maybe users should live at Organization level and events should be available for all of them..
+    # TODO: This create_event should be part of Publisher... we should split the logic, publisher, subscribers.. are the ones that should contain the methods to manage internal requests. Then we need another logic to trigger certain processes at system level... to be considered..
+    def create_event(self, publisher_id: str, event_message: Dict[str, Any]):
+        self.logger.info(
+            f"Creating event for publisher: {publisher_id} with message: {event_message}"
+        )
+        # - Add event to database
+        event = ClientHandlers().create_event(
+            publisher_id=publisher_id,
+            event_message=event_message,
+        )
+        self.logger.info("Event created on database")
+        # - Trigger the subscribed processes - based on event_type_id!!
+        processes_ids = ClientHandlers().get_events(user_id=user_id, event=event)
+        self.logger.info(f"Processes subscribed to event: {processes_ids}")
+        for process_ids in processes_ids:
+            self.start(process_ids)
 
     def publish_message(self, topic_name: str, message: Dict[str, Any]) -> str:
         # TODO: implement me.

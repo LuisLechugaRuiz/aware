@@ -1,8 +1,11 @@
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
-from aware.communications.requests.request import Request
+
+from aware.communication.primitives.database.communication_primitives_handler import (
+    CommunicationPrimitivesHandler,
+)
 
 
 class RequestClient:
@@ -26,10 +29,6 @@ class RequestClient:
         self.service_name = service_name
         self.service_description = service_description
         self.request_format = request_format
-        self.request = None
-
-    def add_requests(self, requests: List[Request]):
-        self.requests = requests
 
     def to_dict(self):
         return {
@@ -51,10 +50,10 @@ class RequestClient:
         data = json.loads(json_str)
         return RequestClient(**data)
 
-    # TODO: create a more explicit way to set default args.
     def get_request_as_function(self) -> Dict[str, Any]:
         self.request_format["is_async"] = "bool"
         self.request_format["priority"] = "int"
+
         request_description = f"Call this function to send a request to the a service with the following description: {self.service_description}"
         return JsonPydanticParser.get_function_schema(
             name=self.service_name,
@@ -63,4 +62,5 @@ class RequestClient:
         )
 
     def get_request_feedback(self) -> str:
-        return self.requests[0].feedback_to_string()
+        requests = CommunicationPrimitivesHandler().get_client_requests(self.client_id)
+        return "\n".join([request.feedback_to_string() for request in requests])

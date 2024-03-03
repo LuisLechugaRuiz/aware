@@ -1,13 +1,20 @@
 from typing import Dict, Any
 
-from aware.data.database.client_handlers import ClientHandlers
+from aware.communication.primitives.database.primitives_database_handler import (
+    PrimitivesDatabaseHandler,
+)
+from aware.communication.protocols.database.protocols_database_handler import (
+    ProtocolsDatabaseHandler,
+)
 from aware.process.process_ids import ProcessIds
 
 
-class CommunicationsBuilder:
+class CommunicationBuilder:
     def __init__(self):
         self.clients: Dict[ProcessIds, Dict[str, Any]] = {}
         self.services: Dict[ProcessIds, Dict[str, Any]] = {}
+        self.primitives_database_handler = PrimitivesDatabaseHandler()
+        self.protocols_database_handler = ProtocolsDatabaseHandler()
 
     def end_setup(self):
         # Create clients and services
@@ -72,7 +79,7 @@ class CommunicationsBuilder:
     #         return
     #     self.logger.info(f"Got events data: {events_data}")
     #     for event_name, event_description in events_data.items() # TODO: FIX THIS!
-    #         ClientHandlers().create_event_type(
+    #         self.primitives_database_handler.create_event_type(
     #             self.user_id, event_name, event_description, message_format
     #         )
 
@@ -84,7 +91,7 @@ class CommunicationsBuilder:
     #         return
     #     self.logger.info(f"Got topics data: {topics_data}")
     #     for topic_name, topic_description in topics_data.items():
-    #         ClientHandlers().create_topic(self.user_id, topic_name, topic_description)
+    #         self.primitives_database_handler.create_topic(self.user_id, topic_name, topic_description)
 
     def create_agent_topics(self):
         # TODO: Fetch topics from agent communications folder at config and create them as public.
@@ -92,7 +99,7 @@ class CommunicationsBuilder:
 
     def create_agent_requests(self):
         # TODO: Fetch requests from agent communications folder at config, no need of public or private as is always process to process.
-        ClientHandlers().create_request_message(
+        self.primitives_database_handler.create_request_type(
             user_id,
             request_name,
             request_format,
@@ -102,7 +109,7 @@ class CommunicationsBuilder:
         pass
 
     def create_request_client(self, process_ids: ProcessIds, service_name: str):
-        ClientHandlers().create_request_client(
+        self.protocols_database_handler.create_request_client(
             user_id=process_ids.user_id,
             process_id=process_ids.process_id,
             service_name=service_name,
@@ -111,7 +118,7 @@ class CommunicationsBuilder:
     def create_request_service(
         self, process_ids: ProcessIds, service_config: Dict[str, Any]
     ):
-        ClientHandlers().create_request_service(
+        self.protocols_database_handler.create_request_service(
             user_id=process_ids.user_id,
             process_id=process_ids.process_id,
             service_name=service_config["name"],
@@ -127,7 +134,7 @@ class CommunicationsBuilder:
         # Processes should ONLY subscribe as the publishers should be external!
         event_subscribers = communications_config["event_subscribers"]
         for event_name in event_subscribers:
-            ClientHandlers().create_event_subscriber(
+            self.protocols_database_handler.create_event_subscriber(
                 process_ids=process_ids,
                 event_name=event_name,
             )
@@ -151,7 +158,7 @@ class CommunicationsBuilder:
 
         topic_publishers = communications_config["topic_publishers"]
         for topic_name in topic_publishers:
-            ClientHandlers().create_topic_publisher(
+            self.protocols_database_handler.create_topic_publisher(
                 user_id=process_ids.user_id,
                 process_id=process_ids.process_id,
                 topic_name=topic_name,
@@ -159,7 +166,7 @@ class CommunicationsBuilder:
 
         topic_subscribers = communications_config["topic_subscribers"]
         for topic_name in topic_subscribers:
-            ClientHandlers().create_topic_subscriber(
+            self.protocols_database_handler.create_topic_subscriber(
                 user_id=process_ids.user_id,
                 process_id=process_ids.process_id,
                 topic_name=topic_name,

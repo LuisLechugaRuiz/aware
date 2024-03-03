@@ -8,11 +8,11 @@ from aware.agent.agent_data import AgentData
 from aware.chat.conversation_schemas import (
     JSONMessage,
 )
-from aware.communications.communications import Communications
-from aware.communications.events.event import Event, EventStatus
-from aware.communications.events.event_type import EventType
-from aware.communications.requests.request import Request, RequestStatus
-from aware.communications.requests.request_service import RequestServiceData
+from aware.communication.communication_protocols import Communications
+from aware.communication.events.event import Event, EventStatus
+from aware.communication.events.event_type import EventType
+from aware.communication.requests.request import Request, RequestStatus
+from aware.communication.requests.request_service import RequestServiceData
 from aware.config.config import Config
 from aware.data.database.helpers import DatabaseResult
 from aware.data.database.supabase_handler.supabase_handler import SupabaseHandler
@@ -168,18 +168,12 @@ class ClientHandlers:
         )
         return process_state
 
-    def create_event(
-        self, user_id: str, event_name: str, message_name: str, content: str
-    ) -> Event:
+    def create_event(self, publisher_id: str, event_message: Dict[str, Any]) -> Event:
         event = self.supabase_handler.create_event(
-            user_id=user_id,
-            event_name=event_name,
-            message_name=message_name,
-            content=content,
+            publisher_id=publisher_id,
+            event_message=event_message,
         )
-        self.redis_handler.create_event(
-            event=event,
-        )
+        self.redis_handler.create_event(event=event)
         return event
 
     def create_event_subscriber(self, process_ids: ProcessIds, event_name: str):
@@ -407,7 +401,7 @@ class ClientHandlers:
 
         return process_data
 
-    def get_communications(self, process_id: str) -> Communications:
+    def get_communication_protocols(self, process_id: str) -> CommunicationProtocols:
         communications = self.redis_handler.get_communications(
             process_id=process_id,
         )
@@ -461,7 +455,9 @@ class ClientHandlers:
     def get_process_info(self, process_ids: ProcessIds) -> ProcessInfo:
         agent_data = self.get_agent_data(agent_id=process_ids.agent_id)
         process_data = self.get_process_data(process_id=process_ids.process_id)
-        communications = self.get_communications(process_id=process_ids.process_id)
+        communications = self.get_communication_protocols(
+            process_id=process_ids.process_id
+        )
         process_states = self.get_process_states(process_id=process_ids.process_id)
         current_state = self.get_current_process_state(
             process_id=process_ids.process_id

@@ -1,8 +1,11 @@
 import json
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
-from aware.communications.requests.request import Request
+from aware.communication.primitives.request import Request
+from aware.communication.primitives.database.communication_primitives_handler import (
+    CommunicationPrimitivesHandler,
+)
 
 
 @dataclass
@@ -41,11 +44,13 @@ class RequestService:
         self.process_id = process_id
         self.service_id = service_id
         self.data = data
-        self.request = None
 
-    def _get_highest_prio_request(self, requests: List[Request]):
+    def get_highest_prio_request(self) -> Optional[Request]:
         # Iterate to find highest priority request.
         highest_prio_request: Optional[Request] = None
+        requests = CommunicationPrimitivesHandler().get_service_requests(
+            self.service_id
+        )
         for request in requests:
             if (
                 highest_prio_request is None
@@ -71,12 +76,10 @@ class RequestService:
         data["data"] = RequestServiceData.from_json(data["data"])
         return RequestService(**data)
 
-    def add_requests(self, requests: List[Request]):
-        self.request = self._get_highest_prio_request(requests)
-
     def get_request_query(self) -> Optional[str]:
-        if self.request:
-            return self.request.query_to_string()
+        request = self.get_highest_prio_request()
+        if request:
+            return request.query_to_string()
         return None
 
     def get_set_request_completed_function(self) -> Dict[str, Any]:

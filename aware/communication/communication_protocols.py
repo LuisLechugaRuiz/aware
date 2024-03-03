@@ -3,16 +3,17 @@ from typing import Any, Dict, List, Optional
 
 # from aware.communications.events.event import Event
 # from aware.communications.topics.topic import Topic
-from aware.communications.requests.request import Request
+from aware.communication.primitives import Request
+from aware.communication.protocols import (
+    EventSubscriber,
+    RequestClient,
+    RequestService,
+    TopicPublisher,
+    TopicSubscriber,
+)
 
-from aware.communications.topics.topic_publisher import TopicPublisher
-from aware.communications.topics.topic_subscriber import TopicSubscriber
-from aware.communications.requests.request_client import RequestClient
-from aware.communications.requests.request_service import RequestService
-from aware.communications.events.event_subscriber import EventSubscriber
 
-
-class Communications:
+class CommunicationProtocols:
     def __init__(
         self,
         topic_publishers: Dict[str, TopicPublisher],
@@ -56,7 +57,6 @@ class Communications:
 
     @staticmethod
     def from_json(json_str: str):
-        # TODO: Add topics and events.
         data = json.loads(json_str)
         data["topic_publishers"] = {
             topic_name: TopicPublisher(**topic_publisher)
@@ -81,7 +81,7 @@ class Communications:
             event_name: EventSubscriber(**event_subscriber)
             for event_name, event_subscriber in data["event_subscribers"].items()
         }
-        return Communications(**data)
+        return CommunicationProtocols(**data)
 
     def get_function_schemas(self) -> List[Dict[str, Any]]:
         # Add functions to create new request or publish new message.
@@ -115,16 +115,15 @@ class Communications:
     def get_highest_prio_request(self) -> Optional[Request]:
         highest_prio_request = None
         for request_service in self.request_services.values():
-            if request_service.request:
+            request = request_service.get_highest_prio_request()
+            if request:
                 if (
                     highest_prio_request is None
-                    or request_service.request.data.priority
-                    > highest_prio_request.data.priority
+                    or request.data.priority > highest_prio_request.data.priority
                 ):
-                    highest_prio_request = request_service.request
+                    highest_prio_request = request
         return highest_prio_request
 
-    # TODO: Get right requests from client/servers and data from pub/sub, TBD.
     def to_prompt_kwargs(self):
         """Show permanent info on the prompt. Don't show event as it will be part of conversation."""
         prompt_kwargs = {}

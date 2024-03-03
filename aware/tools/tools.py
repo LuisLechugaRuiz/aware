@@ -13,7 +13,7 @@ from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
 from aware.process.process_info import ProcessInfo
 from aware.process.process_handler import ProcessHandler
-from aware.utils.logger.file_logger import FileLogger
+from aware.utils.logger.process_loger import ProcessLogger
 
 
 class Tools(ABC):
@@ -25,17 +25,24 @@ class Tools(ABC):
         self.agent_data = process_info.agent_data
         self.process_ids = process_info.process_ids
         self.process_data = process_info.process_data
-        self.logger = FileLogger(process_info.get_name())
+        self.process_logger = ProcessLogger(
+            user_id=self.process_ids.user_id,
+            agent_name=self.agent_data.name,
+            process_name=self.process_data.name,
+        )
+        self.logger = self.process_logger.get_logger(self.get_tool_name())
 
         self.memory_manager = MemoryManager(
             user_id=self.process_ids.user_id, logger=self.logger
         )
+        # TODO: Remove, override by communication handler
         self.process_handler = ProcessHandler()
 
         self.run_remote = False  # TODO: Make this a decorator for each function!
         self.finished = False  # TODO: Implement this better!
 
         # TODO: Check where to register capability!! Mode this to registry.
+        # TODO: Remove dependencies to ClientHandlers
         ClientHandlers().create_capability(
             process_ids=self.process_ids, capability_name=self.get_tool_name()
         )
@@ -99,6 +106,7 @@ class Tools(ABC):
         return self.finished
 
     def update_agent_data(self):
+        # TODO: Remove dependencies to ClientHandlers
         return ClientHandlers().update_agent_data(
             agent_data=self.agent_data,
         )
