@@ -1,7 +1,7 @@
 from typing import List
 
 from aware.config.config import Config
-from aware.data.database.client_handlers import ClientHandlers
+from aware.chat.database.chat_database_handler import ChatDatabaseHandler
 from aware.data.data_saver import DataSaver
 from aware.utils.helpers import count_message_tokens
 
@@ -22,23 +22,10 @@ class ConversationBuffer:
         self.process_id = process_id
 
         self.model_name = Config().openai_model  # TODO: Enable more models.
-        # TODO: implement chat database handler!
-        self.redis_handler = ClientHandlers().get_redis_handler()
-        self.supabase_handler = ClientHandlers().get_supabase_handler()
-        # Get the buffered messages from redis.
-        conversation_messages = self.redis_handler.get_conversation_buffer(process_id)
-        for index, message in enumerate(conversation_messages):
-            self.logger.info(f"BUFFERED REDIS MESSAGE {index}: {message.to_string()}")
-        if not conversation_messages:
-            # If there are no buffered messages, get the buffered messages from supabase.
-            conversation_messages = self.supabase_handler.get_buffered_messages(
-                process_id
-            )
-            for message in conversation_messages:
-                self.redis_handler.add_message_to_buffer(
-                    process_id=process_id, chat_message=message
-                )
-        self.messages: List[ChatMessage] = conversation_messages
+        self.chat_database_handler = ChatDatabaseHandler()
+        self.messages: List[ChatMessage] = (
+            self.chat_database_handler.get_conversation_buffer(process_id=process_id)
+        )
 
     def get_current_tokens(self):
         """Get the current number of tokens in the conversation, excluding the system message."""
@@ -52,11 +39,7 @@ class ConversationBuffer:
         return Config().max_conversation_tokens - self.get_current_tokens()
 
     def reset(self):
-        response = self.supabase_handler.clear_conversation_buffer(
-            process_id=self.process_id
-        )
-        self.logger.info(f"Reset conversation buffer response: {response}")
-        self.redis_handler.clear_conversation_buffer(process_id=self.process_id)
+        self.chat_database_handler.clear_conversation_buffer(process_id=self.process_id)
 
     def should_trigger_warning(self):
         warning_tokens = (

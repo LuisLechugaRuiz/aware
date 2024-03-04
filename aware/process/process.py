@@ -8,8 +8,8 @@ from aware.chat.conversation_schemas import (
     ToolResponseMessage,
 )
 from aware.chat.parser.pydantic_parser import PydanticParser
-from aware.data.database.client_handlers import ClientHandlers
-from aware.communications.communication_handler import CommunicationHandler
+from aware.communication.communication_handler import CommunicationHandler
+from aware.process.database.process_database_handler import ProcessDatabaseHandler
 from aware.process.process_ids import ProcessIds
 from aware.process.process_info import ProcessInfo
 from aware.process.process_handler import ProcessHandler
@@ -24,7 +24,7 @@ class Process:
         ids: ProcessIds,
     ):
         self.ids = ids
-        process_info = ClientHandlers().get_process_info(process_ids=ids)
+        process_info = ProcessDatabaseHandler().get_process_info(process_ids=ids)
         self.name = process_info.get_name()
 
         self.process_logger = ProcessLogger(

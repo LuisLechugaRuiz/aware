@@ -1,20 +1,17 @@
 from aware.agent.agent_state_machine import AgentState, AgentStateMachine
+from aware.agent.database.agent_database_handler import AgentDatabaseHandler
 from aware.chat.conversation_schemas import (
     AssistantMessage,
     UserMessage,
-    ToolResponseMessage,
     JSONMessage,
 )
 from aware.chat.conversation_buffer import ConversationBuffer
-from aware.communication.primitives.request import Request, RequestStatus
-from aware.data.database.client_handlers import ClientHandlers
-
-from aware.agent.database.agent_database_handler import AgentDatabaseHandler
-from aware.process.database.process_database_handler import ProcessDatabaseHandler
+from aware.chat.database.chat_database_handler import ChatDatabaseHandler
 from aware.communication.protocols.database.protocols_database_handler import (
     ProtocolsDatabaseHandler,
 )
-
+from aware.communication.primitives.request import Request, RequestStatus
+from aware.process.database.process_database_handler import ProcessDatabaseHandler
 from aware.process.process_ids import ProcessIds
 from aware.process.process_data import ProcessFlowType
 from aware.process.process_info import ProcessInfo
@@ -28,6 +25,7 @@ class ProcessHandler:
         self.logger = process_logger.get_logger("process_handler")
         self.comm_protocols_database_handler = ProtocolsDatabaseHandler()
         self.agent_database_handler = AgentDatabaseHandler()
+        self.chat_database_handler = ChatDatabaseHandler()
         self.process_database_handler = ProcessDatabaseHandler()
 
     # TODO: Refactor!
@@ -68,8 +66,7 @@ class ProcessHandler:
         message: JSONMessage,
     ):
         agent_data = self.agent_database_handler.get_agent_data(process_ids.agent_id)
-        # TODO: modify by chat database handler
-        ClientHandlers().add_message(
+        self.chat_database_handler.add_message(
             process_ids=process_ids,
             json_message=message,
         )
@@ -80,7 +77,7 @@ class ProcessHandler:
                 agent_id=process_ids.agent_id,
                 process_name="thought_generator",
             )
-            ClientHandlers().add_message(
+            self.chat_database_handler.add_message(
                 process_ids=thought_generator_process_ids,
                 json_message=message,
             )
@@ -98,7 +95,9 @@ class ProcessHandler:
             process_name="main",
         )
         message = AssistantMessage(name="thought", content=thought)
-        ClientHandlers().add_message(process_ids=main_process_ids, json_message=message)
+        self.chat_database_handler.add_message(
+            process_ids=main_process_ids, json_message=message
+        )
         self._manage_conversation_buffer(process_ids)
 
     def process_request(self, request: Request) -> Request:
@@ -130,11 +129,12 @@ class ProcessHandler:
         )
 
         # TODO: modify by communication database handler and verify with internal topics...
-        ClientHandlers().publish(
-            user_id=main_ids.user_id,
-            topic_name="agent_interactions",
-            content=assistant_conversation_buffer.to_string(),
-        )
+        # TODO: we need to get publisher to publish agent_interactions. Determine if this should be a topic or directly AgentInfo.
+        # agent_info.publish(
+        #     user_id=main_ids.user_id,
+        #     topic_name="agent_interactions",
+        #     content=assistant_conversation_buffer.to_string(),
+        # )
 
         if assistant_conversation_buffer.should_trigger_warning():
             self.logger.info(

@@ -1,5 +1,5 @@
 from aware.chat.conversation_schemas import AssistantMessage
-from aware.data.database.client_handlers import ClientHandlers
+from aware.chat.database.chat_database_handler import ChatDatabaseHandler
 from aware.process.process_info import ProcessInfo
 from aware.tools.decorators import default_function
 from aware.tools.tools import Tools
@@ -12,6 +12,7 @@ class Assistant(Tools):
         process_info: ProcessInfo,
     ):
         super().__init__(process_info=process_info)
+        self.chat_database_handler = ChatDatabaseHandler()
 
     def set_tools(self):
         return [
@@ -47,8 +48,7 @@ class Assistant(Tools):
         """
         assistant_message = AssistantMessage(name=self.agent_data.name, content=message)
         self.logger.info(f"Sending message to user: {assistant_message.to_string()}")
-        # TODO: Remove dependencies to ClientHandlers
-        ClientHandlers().get_supabase_handler().send_message_to_user(
+        self.chat_database_handler.send_message_to_user(
             user_id=self.process_ids.user_id,
             process_id=self.process_ids.process_id,
             message_type=assistant_message.__class__.__name__,

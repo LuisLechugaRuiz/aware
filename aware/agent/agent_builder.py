@@ -3,8 +3,7 @@ from typing import Any, Dict, List, Optional
 from aware.agent.agent_data import AgentMemoryMode, ThoughtGeneratorMode
 from aware.agent.database.agent_database_handler import AgentDatabaseHandler
 from aware.config import get_default_agents_path, get_internal_processes_path
-from aware.data.database.client_handlers import ClientHandlers
-from aware.memory.memory_manager import MemoryManager
+from aware.database.weaviate.memory_manager import MemoryManager
 from aware.communication.communication_builder import (
     CommunicationBuilder,
 )

@@ -3,8 +3,8 @@ from typing import Any, Dict
 
 from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
 
-from aware.communication.primitives.database.communication_primitives_handler import (
-    CommunicationPrimitivesHandler,
+from aware.communication.primitives.database.primitives_database_handler import (
+    PrimitivesDatabaseHandler,
 )
 
 
@@ -62,5 +62,5 @@ class RequestClient:
         )
 
     def get_request_feedback(self) -> str:
-        requests = CommunicationPrimitivesHandler().get_client_requests(self.client_id)
+        requests = PrimitivesDatabaseHandler().get_client_requests(self.client_id)
         return "\n".join([request.feedback_to_string() for request in requests])

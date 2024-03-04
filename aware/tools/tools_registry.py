@@ -1,15 +1,13 @@
-from pathlib import Path
-
-# import glob
-import os
 import importlib.util
 import inspect
+import os
+from pathlib import Path
 from typing import Dict, Optional, Type
 
-from aware.data.database.client_handlers import ClientHandlers
-from aware.memory.memory_manager import MemoryManager
+from aware.database.weaviate.memory_manager import MemoryManager
 from aware.process.process_ids import ProcessIds
 from aware.tools.tools import Tools
+from aware.tools.database.tool_database_handler import ToolDatabaseHandler
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -19,11 +17,10 @@ class ToolsRegistry:
     tools: Dict[str, Type[Tools]]
     logger: FileLogger
 
-    def __new__(cls, user_id: str, tools_folders: Optional[list[str]] = None):
+    def __new__(cls, tools_folders: Optional[list[str]] = None):
         if cls._instance is None:
             cls._instance = super(ToolsRegistry, cls).__new__(cls)
             cls._instance.tools = {}
-            cls._instance.user_id = user_id
             cls._instance.logger = FileLogger("tools_registry")
             if tools_folders is not None:
                 cls._instance.register_tools(tools_folders)
@@ -61,8 +58,7 @@ class ToolsRegistry:
                     name=name,
                     description=obj.get_description(),
                 )
-                # TODO: Remove dependencies to ClientHandlers
-                ClientHandlers().create_capability(
+                ToolDatabaseHandler().create_capability(
                     process_ids=self.process_ids, capability_name=name
                 )
 

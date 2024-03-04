@@ -1,8 +1,6 @@
-from typing import List
-
+from aware.chat.database.chat_database_handler import ChatDatabaseHandler
 from aware.config.config import Config
-from aware.data.database.client_handlers import ClientHandlers
-from aware.data.data_saver import DataSaver
+from aware.data.data_saver import DataSaver  # TODO: Refactor it to save traces.
 from aware.utils.helpers import count_message_tokens
 
 from aware.chat.conversation_schemas import (
@@ -22,29 +20,14 @@ class Conversation:
         self.process_id = process_id
 
         self.model_name = Config().openai_model  # TODO: Enable more models.
-        # TODO: implement chat database handler!
-        self.redis_handler = ClientHandlers().get_redis_handler()
-        self.supabase_handler = ClientHandlers().get_supabase_handler()
-        conversation_messages = self.redis_handler.get_conversation(process_id)
-        for index, message in enumerate(conversation_messages):
-            log.info(f"REDIS MESSAGE {index}: {message.to_string()}")
-        if not conversation_messages:
-            conversation_messages = self.supabase_handler.get_active_messages(
-                process_id
-            )
-            for message in conversation_messages:
-                self.redis_handler.add_message(
-                    process_id=process_id, chat_message=message
-                )
-        self.messages: List[ChatMessage] = conversation_messages
+        self.chat_database_handler = ChatDatabaseHandler()
+        self.messages = self.chat_database_handler.get_conversation(process_id)
 
     def delete_oldest_message(self) -> ChatMessage:
         removed_message = self.messages.pop(0)
         message_id = removed_message.message_id
 
-        self.supabase_handler.delete_message(message_id)
-        self.redis_handler.delete_message(self.process_id, message_id)
-
+        self.chat_database_handler.delete_message(self.process_id, message_id)
         return removed_message
 
     def get_current_tokens(self):

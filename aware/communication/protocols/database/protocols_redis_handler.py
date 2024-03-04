@@ -9,6 +9,7 @@ from aware.communication.protocols import (
     TopicPublisher,
     TopicSubscriber,
 )
+from aware.communication.primitives.event import Event
 from aware.communication.communication_protocols import CommunicationProtocols
 
 

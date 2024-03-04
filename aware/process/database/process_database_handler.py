@@ -14,7 +14,7 @@ from aware.process.state_machine.state import ProcessState
 from aware.process.database.process_supabase_handler import (
     ProcessSupabaseHandler,
 )
-from aware.data.database.new_client_handlers import ClientHandlers
+from aware.database.client_handlers import ClientHandlers
 from aware.utils.logger.file_logger import FileLogger  # TODO: use agent logger?
 
 

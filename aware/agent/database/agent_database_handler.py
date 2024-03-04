@@ -8,7 +8,7 @@ from aware.agent.database.agent_supabase_handler import (
     AgentSupabaseHandler,
 )
 from aware.agent.agent_profile import AgentProfile
-from aware.data.database.new_client_handlers import ClientHandlers
+from aware.database.client_handlers import ClientHandlers
 from aware.utils.logger.file_logger import FileLogger  # TODO: use agent logger?
 
 

@@ -585,36 +585,6 @@ class SupabaseHandler:
             topic=self.get_topic(user_id, topic_name),
         )
 
-    def create_capability(self, process_ids: ProcessIds, capability: Capability):
-        self.logger.info(f"Creating capability for process: {process_ids.process_id}")
-        response = (
-            self.client.table("capabilities")
-            .insert(
-                {
-                    "user_id": process_ids.user_id,
-                    "process_id": process_ids.process_id,
-                    "name": capability.name,
-                    "description": capability.description,
-                }
-            )
-            .execute()
-            .data
-        )
-        self.logger.info(
-            f"Capability created for process: {process_ids.process_id}. Response: {response}"
-        )
-        return Capability(
-            process_ids=process_ids,
-            id=response["_id"],
-            name=capability.name,
-            description=capability.description,
-        )
-
-    # TODO: FILL ME!
-    # def create_capability_var():
-
-    # def create_tool():
-
     def clear_conversation_buffer(self, process_id: str):
         response = self.client.rpc(
             "clear_conversation_buffer", {"p_process_id": process_id}
