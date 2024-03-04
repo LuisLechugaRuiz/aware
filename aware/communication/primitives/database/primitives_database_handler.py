@@ -6,9 +6,11 @@ from aware.communication.primitives.database.primitives_redis_handler import (
 from aware.communication.primitives.database.primitives_supabase_handler import (
     PrimitiveSupabaseHandler,
 )
-from aware.communication.primitives import Event, Request, Topic
-from aware.data.database.new_client_handlers import ClientHandlers
-from aware.data.database.helpers import DatabaseResult
+from aware.communication.primitives.event import Event, EventStatus
+from aware.communication.primitives.request import Request, RequestStatus
+from aware.communication.primitives.topic import Topic
+from aware.database.client_handlers import ClientHandlers
+from aware.database.helpers import DatabaseResult
 
 
 class PrimitivesDatabaseHandler:
@@ -121,3 +123,33 @@ class PrimitivesDatabaseHandler:
 
     def get_topic(self, topic_id: str) -> Optional[Topic]:
         return self.redis_handler.get_topic(topic_id)
+
+    def set_event_notified(self, event: Event):
+        event.status = EventStatus.NOTIFIED
+
+        self.redis_handler.delete_event(event)
+        self.supabase_handler.update_event(event)
+
+    def set_request_completed(
+        self, request: Request, success: bool, response: Dict[str, Any]
+    ):
+        request.data.response = response
+        if success:
+            request.data.status = RequestStatus.SUCCESS
+        else:
+            request.data.status = RequestStatus.FAILURE
+
+        self.redis_handler.delete_request(request.id)
+        self.supabase_handler.set_request_completed(request)
+
+    def update_request_feedback(self, request: Request, feedback: str):
+        request.data.feedback = feedback
+
+        self.redis_handler.update_request(request)
+        self.supabase_handler.update_request_feedback(request)
+
+    def update_request_status(self, request: Request, status: RequestStatus):
+        request.data.status = status
+
+        self.redis_handler.update_request(request)
+        self.supabase_handler.update_request_status(request)

@@ -9,7 +9,7 @@ import weaviate.classes as wvc
 
 from aware.agent.agent_data import AgentData
 from aware.config.config import Config
-from aware.data.database.weaviate.helpers import (
+from aware.database.weaviate.helpers import (
     WeaviateTool,
     WeaviateResult,
 )

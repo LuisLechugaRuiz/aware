@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from aware.communication.communication_protocols import CommunicationProtocols
 from aware.communication.protocols.database.protocols_redis_handler import (
@@ -7,6 +7,8 @@ from aware.communication.protocols.database.protocols_redis_handler import (
 from aware.communication.protocols.database.protocols_supabase_handler import (
     ProtocolSupabaseHandler,
 )
+from aware.communication.primitives.event import Event, EventStatus
+from aware.communication.primitives.request import Request, RequestStatus
 from aware.data.database.new_client_handlers import ClientHandlers
 from aware.utils.logger.file_logger import FileLogger
 

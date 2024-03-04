@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from aware.communication.primitives.request import Request
-from aware.communication.primitives.database.communication_primitives_handler import (
-    CommunicationPrimitivesHandler,
+from aware.communication.primitives.database.primitives_database_handler import (
+    PrimitivesDatabaseHandler,
 )
 
 
@@ -48,9 +48,7 @@ class RequestService:
     def get_highest_prio_request(self) -> Optional[Request]:
         # Iterate to find highest priority request.
         highest_prio_request: Optional[Request] = None
-        requests = CommunicationPrimitivesHandler().get_service_requests(
-            self.service_id
-        )
+        requests = PrimitivesDatabaseHandler().get_service_requests(self.service_id)
         for request in requests:
             if (
                 highest_prio_request is None

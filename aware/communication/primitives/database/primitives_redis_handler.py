@@ -61,6 +61,30 @@ class PrimitivesRedisHandler:
             topic.to_json(),
         )
 
+    # TODO: REFACTOR!
+    def delete_event(self, event: Event):
+        # Delete the event data
+        event_data_key = (
+            f"user_id:{event.user_id}:event_type:{event.event_name}:event:{event.id}"
+        )
+        self.client.delete(event_data_key)
+
+        # Delete the event reference from the sorted set
+        event_order_key = (
+            f"user_id:{event.user_id}:event_type:{event.event_name}:event:order"
+        )
+        self.client.zrem(event_order_key, event_data_key)
+
+    def delete_request(self, request: Request):
+        self.client.delete(f"request:{request.id}")
+
+        self.client.zrem(
+            f"request_service:{request.service_id}:requests:order",
+            request.id,
+        )
+        if request.is_async():
+            self.client.zrem(f"request_client:{request.client_id}:requests:order")
+
     def get_client_requests(self, client_id: str):
         return self.get_requests(f"request_client:{client_id}:requests:order")
 
@@ -87,3 +111,16 @@ class PrimitivesRedisHandler:
         if data:
             return Topic.from_json(data)
         return None
+
+    def set_topic_message(self, topic_id: str, message: Dict[str, Any]):
+        topic = self.get_topic(topic_id)
+        topic.message = message
+        topic.timestamp = get_current_date_iso8601()
+
+        self.client.set(
+            f"topic:{topic_id}",
+            topic.to_json(),
+        )
+
+    def update_request(self, request: Request):
+        self.client.set(f"request:{request.id}", request.to_json())

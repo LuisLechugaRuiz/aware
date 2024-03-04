@@ -1,8 +1,12 @@
 from aware.agent.agent_builder import AgentBuilder
 
-from aware.communications.events import get_events
-from aware.communications.topics import get_topics
+# TODO: address properly, get the events and topics for the specific use-case for each org!
+from aware.communication.primitives.event import get_events
+from aware.communication.primitives.topic import get_topics
 
+from aware.communication.primitives.database.primitives_database_handler import (
+    PrimitivesDatabaseHandler,
+)
 from aware.data.database.client_handlers import ClientHandlers
 from aware.memory.memory_manager import MemoryManager
 from aware.memory.user.user_data import UserData
@@ -12,6 +16,7 @@ from aware.utils.logger.file_logger import FileLogger
 class UserBuilder:
     def __init__(self, user_id: str):
         self.user_id = user_id
+        self.primitives_database_handler = PrimitivesDatabaseHandler()
         self.logger = FileLogger("user_builder")
 
     def initialize_user(self, user_name: str, api_key: str):
@@ -50,7 +55,7 @@ class UserBuilder:
             return
         self.logger.info(f"Got events data: {events_data}")
         for event_name, event_description in events_data.items():
-            ClientHandlers().create_event_type(
+            self.primitives_database_handler.create_event_type(
                 self.user_id, event_name, event_description
             )
 
@@ -62,4 +67,6 @@ class UserBuilder:
             return
         self.logger.info(f"Got topics data: {topics_data}")
         for topic_name, topic_description in topics_data.items():
-            ClientHandlers().create_topic(self.user_id, topic_name, topic_description)
+            self.primitives_database_handler.create_topic(
+                self.user_id, topic_name, topic_description
+            )

@@ -1,7 +1,7 @@
 from typing import Dict, List
 
 from aware.agent.agent_data import AgentData
-from aware.data.database.weaviate.weaviate import WeaviateDB, WeaviateResult
+from aware.database.weaviate.weaviate import WeaviateDB, WeaviateResult
 from aware.utils.logger.file_logger import FileLogger
 
 

@@ -6,39 +6,30 @@ from aware.process.process_ids import ProcessIds
 from aware.process.state_machine.state import ProcessState
 from aware.utils.logger.file_logger import FileLogger
 
-# TODO: Move to tools/database.
-from aware.tools.capability import Capability
-
 
 class ProcessSupabaseHandler:
     def __init__(self, client: Client):
         self.client = client
         self.logger = FileLogger("agent_supabase_handler")
 
-    # TODO: move to tools/database
-    def create_capability(self, process_ids: ProcessIds, capability: Capability):
-        self.logger.info(f"Creating capability for process: {process_ids.process_id}")
+    def create_current_process_state(
+        self, user_id: str, process_id: str, process_state_id: str
+    ) -> ProcessState:
+        self.logger.info(f"Creating current process state for process: {process_id}")
         response = (
-            self.client.table("capabilities")
+            self.client.table("current_process_states")
             .insert(
                 {
-                    "user_id": process_ids.user_id,
-                    "process_id": process_ids.process_id,
-                    "name": capability.name,
-                    "description": capability.description,
+                    "user_id": user_id,
+                    "process_id": process_id,
+                    "current_state_id": process_state_id,
                 }
             )
             .execute()
             .data
         )
         self.logger.info(
-            f"Capability created for process: {process_ids.process_id}. Response: {response}"
-        )
-        return Capability(
-            process_ids=process_ids,
-            id=response["_id"],
-            name=capability.name,
-            description=capability.description,
+            f"Current process state created for process: {process_id}. Response: {response}"
         )
 
     def create_process(

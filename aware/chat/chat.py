@@ -4,7 +4,7 @@ import uuid
 from aware.chat.call_info import CallInfo
 from aware.chat.conversation import Conversation
 from aware.chat.conversation_schemas import SystemMessage
-from aware.data.database.client_handlers import ClientHandlers
+from aware.chat.database.chat_database_handler import ChatDatabaseHandler
 from aware.prompts.load import load_prompt_from_args
 from aware.process.process_ids import ProcessIds
 from aware.utils.helpers import get_current_date
@@ -28,8 +28,7 @@ class Chat:
             prompt_kwargs=prompt_kwargs,
         )
         self.conversation = Conversation(process_id=self.process_ids.process_id)
-        # TODO: implement chat database handler!
-        self.redis_handler = ClientHandlers().get_redis_handler()
+        self.chat_database_handler = ChatDatabaseHandler()
 
         self.logger = logger
 
@@ -64,7 +63,7 @@ class Chat:
             system_message=self.system_message,
             functions=function_schemas,
         )
-        self.redis_handler.add_call_info(call_info)
+        self.chat_database_handler.add_call_info(call_info)
         self.log_conversation()
 
     # TODO: SHOULD BE USED TO STORE ALL TRACES!!

@@ -202,3 +202,39 @@ class PrimitiveSupabaseHandler:
             message_format=message_format,
             timestamp=existing_topic["updated_at"],
         )
+
+    def set_request_completed(self, request: Request):
+        self.client.table("requests").update(
+            {"status": request.data.status.value, "response": request.data.response}
+        ).eq("id", request.id).execute()
+
+    def set_topic_content(self, user_id: str, name: str, content: str):
+        data = (
+            self.client.table("topics")
+            .select("*")
+            .eq("user_id", user_id)
+            .eq("name", name)
+            .execute()
+            .data
+        )
+        if not data:
+            raise Exception("Topic not found")
+        else:
+            self.client.table("topics").update({"content": content}).eq(
+                "user_id", user_id
+            ).eq("name", name).execute()
+
+    def update_event(self, event: Event):
+        self.client.table("events").update({"status": event.status.value}).eq(
+            "id", event.id
+        ).execute()
+
+    def update_request_feedback(self, request: Request):
+        self.client.table("requests").update({"feedback": request.data.feedback}).eq(
+            "id", request.id
+        ).execute()
+
+    def update_request_status(self, request: Request):
+        self.client.table("requests").update({"status": request.data.status.value}).eq(
+            "id", request.id
+        ).execute()
