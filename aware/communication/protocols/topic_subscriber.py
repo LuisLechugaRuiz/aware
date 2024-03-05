@@ -1,10 +1,9 @@
 from dataclasses import dataclass
 import json
-from typing import Dict, Optional
+from typing import Dict
 
-from aware.communication.primitives.topic import Topic
-from aware.communication.primitives.database.communication_primitives_handler import (
-    CommunicationPrimitivesHandler,
+from aware.communication.primitives.database.primitives_database_handler import (
+    PrimitivesDatabaseHandler,
 )
 
 
@@ -30,5 +29,5 @@ class TopicSubscriber:
         return cls(**data)
 
     def get_topic_update(self) -> str:
-        topic = CommunicationPrimitivesHandler().get_topic(self.topic_id)
+        topic = PrimitivesDatabaseHandler().get_topic(self.topic_id)
         return topic.to_string()

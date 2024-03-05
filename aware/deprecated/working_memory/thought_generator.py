@@ -8,7 +8,7 @@ from typing import Callable, List, Optional
 import uuid
 
 from aware.deprecated.old_agent import Agent
-from aware.memory.memory_manager import MemoryManager
+from aware.database.weaviate.memory_manager import MemoryManager
 from aware.deprecated.chat import Chat
 from aware.utils.json_manager import JSONManager
 from aware.utils.logger.file_logger import FileLogger

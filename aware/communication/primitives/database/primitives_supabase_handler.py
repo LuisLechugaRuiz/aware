@@ -1,6 +1,7 @@
 from supabase import Client
 from typing import Any, Dict, Optional
 
+from aware.communication.primitives.action import Action, ActionData, ActionStatus
 from aware.communication.primitives.event import Event, EventStatus, EventType
 from aware.communication.primitives.request import (
     Request,
@@ -76,32 +77,84 @@ class PrimitiveSupabaseHandler:
             message_format=message_format,
         )
 
-    def create_request(
+    def create_action_type(
         self,
         user_id: str,
-        service_id: str,
+        action_name: str,
+        request_format: Dict[str, Any],
+        feedback_format: Dict[str, Any],
+        response_format: Dict[str, Any],
+    ):
+        self.logger.info(f"Creating action type {action_name}")
+        response = (
+            self.client.table("action_types")
+            .insert(
+                {
+                    "user_id": user_id,
+                    "name": action_name,
+                    "request_format": request_format,
+                    "feedback_format": feedback_format,
+                    "response_format": response_format,
+                }
+            )
+            .execute()
+            .data
+        )
+        response = response[0]
+        return response
+
+    def create_action(
+        self,
         client_id: str,
-        client_process_id: str,
-        client_process_name: str,
         request_message: Dict[str, Any],
         priority: int,
-        is_async: bool,
-    ) -> Request:
-        self.logger.info(
-            f"Creating request from client process: {client_process_name} to service: {service_id}"
+    ):
+        self.logger.info(f"Creating action for client_id: {client_id}")
+        response = (
+            self.client.rpc(
+                "create_action",
+                {
+                    "p_client_id": client_id,
+                    "p_request_message": request_message,
+                    "p_priority": priority,
+                },
+            )
+            .execute()
+            .data
         )
+        action_data = ActionData(
+            request=response["request"],
+            feedback=response["feedback"],
+            response=response["response"],
+            priority=response["priority"],
+            status=ActionStatus(response["status"]),
+        )
+        return Action(
+            request_id=response["id"],
+            service_id=response["service_id"],
+            service_process_id=response["service_process_id"],
+            service_name=response["service_name"],
+            client_id=client_id,
+            client_process_id=response["client_process_id"],
+            client_process_name=response["client_process_name"],
+            timestamp=response["created_at"],
+            data=action_data,
+        )
+
+    def create_request(
+        self,
+        client_id: str,
+        request_message: Dict[str, Any],
+        priority: int,
+    ) -> Request:
+        self.logger.info(f"Creating request using client: {client_id}")
         response = (
             self.client.rpc(
                 "create_request",
                 {
-                    "p_user_id": user_id,
-                    "p_service_id": service_id,
                     "p_client_id": client_id,
-                    "p_client_process_id": client_process_id,
-                    "p_client_process_name": client_process_name,
                     "p_request_message": request_message,
                     "p_priority": priority,
-                    "p_is_async": is_async,
                 },
             )
             .execute()
@@ -109,19 +162,18 @@ class PrimitiveSupabaseHandler:
         )
         request_data = RequestData(
             request=response["request"],
-            feedback=response["feedback"],
             response=response["response"],
             priority=response["priority"],
-            is_async=response["is_async"],
             status=RequestStatus(response["status"]),
         )
         return Request(
             request_id=response["id"],
-            service_id=service_id,
+            service_id=response["service_id"],
             service_process_id=response["service_process_id"],
+            service_name=response["service_name"],
             client_id=client_id,
-            client_process_id=client_process_id,
-            client_process_name=client_process_name,
+            client_process_id=response["client_process_id"],
+            client_process_name=response["client_process_name"],
             timestamp=response["created_at"],
             data=request_data,
         )
@@ -131,7 +183,6 @@ class PrimitiveSupabaseHandler:
         user_id: str,
         request_name: str,
         request_format: Dict[str, str],
-        feedback_format: Dict[str, str],
         response_format: Dict[str, str],
     ):
         self.logger.info(f"Creating request type {request_name}")
@@ -142,7 +193,6 @@ class PrimitiveSupabaseHandler:
                     "user_id": user_id,
                     "name": request_name,
                     "request_format": request_format,
-                    "feedback_format": feedback_format,
                     "response_format": response_format,
                 }
             )
@@ -208,30 +258,24 @@ class PrimitiveSupabaseHandler:
             {"status": request.data.status.value, "response": request.data.response}
         ).eq("id", request.id).execute()
 
-    def set_topic_content(self, user_id: str, name: str, content: str):
-        data = (
-            self.client.table("topics")
-            .select("*")
-            .eq("user_id", user_id)
-            .eq("name", name)
-            .execute()
-            .data
-        )
-        if not data:
-            raise Exception("Topic not found")
-        else:
-            self.client.table("topics").update({"content": content}).eq(
-                "user_id", user_id
-            ).eq("name", name).execute()
+    def update_topic(self, topic_id: str, message: Dict[str, Any]):
+        self.client.table("topics").update({"message": message}).eq(
+            "topic_id", topic_id
+        ).execute()
 
     def update_event(self, event: Event):
         self.client.table("events").update({"status": event.status.value}).eq(
             "id", event.id
         ).execute()
 
-    def update_request_feedback(self, request: Request):
-        self.client.table("requests").update({"feedback": request.data.feedback}).eq(
-            "id", request.id
+    def update_action_feedback(self, action: Action):
+        self.client.table("actions").update({"feedback": action.data.feedback}).eq(
+            "id", action.id
+        ).execute()
+
+    def update_action_status(self, action: Action):
+        self.client.table("action").update({"status": action.data.status.value}).eq(
+            "id", action.id
         ).execute()
 
     def update_request_status(self, request: Request):

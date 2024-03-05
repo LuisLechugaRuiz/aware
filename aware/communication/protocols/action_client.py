@@ -6,11 +6,11 @@ from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
 from aware.communication.primitives.database.primitives_database_handler import (
     PrimitivesDatabaseHandler,
 )
-from aware.communication.primitives.request import Request
+from aware.communication.primitives.action import Action
 from aware.database.helpers import DatabaseResult
 
 
-class RequestClient:
+class ActionClient:
     def __init__(
         self,
         user_id: str,
@@ -49,28 +49,29 @@ class RequestClient:
         return json.dumps(self.to_dict())
 
     @staticmethod
-    def from_json(json_str: str) -> "RequestClient":
+    def from_json(json_str: str) -> "ActionClient":
         data = json.loads(json_str)
-        return RequestClient(**data)
+        return ActionClient(**data)
 
-    def get_request_as_function(self) -> Dict[str, Any]:
-        self.request_format["is_async"] = "bool"
+    def get_action_as_function(self) -> Dict[str, Any]:
         self.request_format["priority"] = "int"
 
-        request_description = f"Call this function to send a request to the a service with the following description: {self.service_description}"
+        action_description = f"Call this function to send an action (will be managed asynchronously) to a service with the following description: {self.service_description}"
         return JsonPydanticParser.get_function_schema(
             name=self.service_name,
             args=self.request_format,
-            description=request_description,
+            description=action_description,
         )
 
-    def create_request(
-        self,
-        request_message: Dict[str, Any],
-        priority: int,
-    ) -> DatabaseResult[Request]:
+    def get_action_feedback(self) -> str:
+        actions = self.primitives_database_handler.get_client_actions(self.client_id)
+        return "\n".join([action.feedback_to_string() for action in actions])
+
+    def create_action(
+        self, request_message: Dict[str, Any], priority: int
+    ) -> DatabaseResult[Action]:
         # - Save request in database
-        return self.primitives_database_handler.create_request(
+        return self.primitives_database_handler.create_action(
             client_id=self.client_id,
             request_message=request_message,
             priority=priority,

@@ -1,5 +1,5 @@
 from aware.data.database.client_handlers import ClientHandlers
-from aware.memory.memory_manager import MemoryManager
+from aware.database.weaviate.memory_manager import MemoryManager
 from aware.system.data_storage_manager.data_storage_manager_tools import (
     DataStorageManagerTools,
 )

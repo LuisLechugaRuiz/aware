@@ -2,7 +2,7 @@ from typing import List
 
 from aware.data.database.client_handlers import ClientHandlers
 from aware.utils.logger.file_logger import FileLogger
-from aware.memory.memory_manager import MemoryManager
+from aware.database.weaviate.memory_manager import MemoryManager
 from aware.tools.decorators import default_function
 from aware.tools.tools import Tools
 

@@ -1,7 +1,7 @@
 from aware.deprecated.old_agent import Agent
 from typing import Callable, List
 
-from aware.memory.memory_manager import MemoryManager
+from aware.database.weaviate.memory_manager import MemoryManager
 from aware.deprecated.chat import Chat
 from aware.utils.logger.file_logger import FileLogger
 

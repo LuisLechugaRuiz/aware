@@ -4,8 +4,7 @@ from typing import Any, Dict, Optional
 import json
 
 
-# TODO: REMOVE, should not be not needed. Just completed with SUCCESS/FAILURE as it is sync.
-class RequestStatus(Enum):
+class ActionStatus(Enum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     SUCCESS = "success"
@@ -14,15 +13,17 @@ class RequestStatus(Enum):
 
 
 @dataclass
-class RequestData:
+class ActionData:
     request: Dict[str, Any]
+    feedback: Dict[str, Any]
     response: Dict[str, Any]
     priority: int
-    status: RequestStatus
+    status: ActionStatus
 
     def to_dict(self):
         return {
             "request": self.request,
+            "feedback": self.feedback,
             "response": self.response,
             "priority": self.priority,
             "status": self.status.value,
@@ -34,8 +35,11 @@ class RequestData:
     @classmethod
     def from_json(cls, json_str):
         data = json.loads(json_str)
-        data["status"] = RequestStatus(data["status"])
+        data["status"] = ActionStatus(data["status"])
         return cls(**data)
+
+    def feedback_to_string(self):
+        return f"Request: {self.dict_to_string(self.request)}\nFeedback: {self.dict_to_string(self.feedback)}"
 
     def query_to_string(self):
         return f"Request: {self.dict_to_string(self.request)}"
@@ -45,7 +49,7 @@ class RequestData:
 
 
 # TODO: Do we need all these variables?
-class Request:
+class Action:
     def __init__(
         self,
         request_id: str,
@@ -56,7 +60,7 @@ class Request:
         client_process_id: str,
         client_process_name: str,
         timestamp: str,
-        data: RequestData,
+        data: ActionData,
         tool: Optional[str] = None,
     ):
         self.id = request_id
@@ -90,9 +94,12 @@ class Request:
     @classmethod
     def from_json(cls, json_str):
         data = json.loads(json_str)
-        data["data"] = RequestData.from_json(data["data"])
+        data["data"] = ActionData.from_json(data["data"])
         data["tool"] = data["tool"] if data["tool"] else None
         return cls(**data)
+
+    def feedback_to_string(self) -> str:
+        return self.data.feedback_to_string()
 
     def query_to_string(self) -> str:
         return self.data.query_to_string()

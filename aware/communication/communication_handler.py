@@ -5,10 +5,14 @@ from openai.types.chat import ChatCompletionMessageToolCall
 
 from aware.chat.conversation_schemas import UserMessage, ToolResponseMessage
 from aware.communication.communication_protocols import CommunicationProtocols
-from aware.communication.primitives.database.primitives_database_handler import (
-    PrimitivesDatabaseHandler,
-)
+from aware.communication.protocols.request_client import RequestClient
+from aware.communication.protocols.request_service import RequestService
+from aware.communication.protocols.topic_publisher import TopicPublisher
+
+# TODO: Remove.
 from aware.data.database.client_handlers import ClientHandlers
+
+
 from aware.process.process_ids import ProcessIds
 from aware.process.process_handler import ProcessHandler
 from aware.utils.logger.process_loger import ProcessLogger
@@ -33,32 +37,23 @@ class CommunicationHandler:
     ):
         self.process_ids = process_ids
         self.communication_protocols = communication_protocols
-        self.current_request = self.communication_protocols.get_highest_prio_request()
 
         self.process_handler = ProcessHandler(process_logger)
         self.logger = process_logger.get_logger("communication_handler")
 
     def create_request(
         self,
+        client: RequestClient,
+        function_args: Dict[str, Any],
         function_call_id: str,
-        service_id: str,
-        client_id: str,
-        client_process_name: str,
-        request_message: Dict[str, Any],
-        priority: int,
-        is_async: bool,
     ) -> str:
+        priority = function_args.pop("priority")
         self.logger.info(
-            f"Creating request on service: {service_id} with message: {request_message} - priority: {priority} - is_async: {is_async}"
+            f"Creating request on service: {client.service_id} with message: {function_args} - priority: {priority} - is_async: {is_async}"
         )
         # - Save request in database
-        result = ClientHandlers().create_request(
-            user_id=self.process_ids.user_id,
-            service_id=service_id,
-            client_id=client_id,
-            client_process_id=self.process_ids.process_id,
-            client_process_name=client_process_name,
-            request_message=request_message,
+        result = client.create_request(
+            request_message=function_args,
             priority=priority,
             is_async=is_async,
         )
@@ -74,8 +69,8 @@ class CommunicationHandler:
             return error
 
         request = result.data
+        acknowledge = f"Request {request.id} created successfully"
         if is_async:
-            acknowledge = f"Request {request.id} created successfully"
             request_ack_response = ToolResponseMessage(
                 content=acknowledge, tool_call_id=function_call_id
             )
@@ -84,15 +79,9 @@ class CommunicationHandler:
             )
             self.logger.info(acknowledge)
 
+        # TODO: REFACTOR THIS! We should just send the request to be processed. We should split logic - Process that is being used and the process that could be active due to new request.
         self.process_handler.process_request(request)
-
-        # - Start the service process if not running
-        request = result.data
-        service_process_ids = ClientHandlers().get_process_ids(
-            process_id=request.service_process_id
-        )
-        self.process_handler.start(service_process_ids)
-        return f"Request {request.id} created successfully"
+        return acknowledge
 
     # Are events dependent on user_id?
     # Events should come from external sources which are agnostic of our internal structure.... How do we know which user_id to use...?
@@ -114,27 +103,38 @@ class CommunicationHandler:
         for process_ids in processes_ids:
             self.start(process_ids)
 
-    def publish_message(self, topic_name: str, message: Dict[str, Any]) -> str:
-        # TODO: implement me.
-        return ClientHandlers().publish_message(
-            topic_name=topic_name,
+    def update_topic(
+        self,
+        topic_publisher: TopicPublisher,
+        message: Dict[str, Any],
+        function_call_id: str,
+    ) -> str:
+        topic_publisher.update_topic(
             message=message,
         )
+        acknowledge = "Topic updated successfully"
+        request_ack_response = ToolResponseMessage(
+            content=acknowledge, tool_call_id=function_call_id
+        )
+        self.process_handler.add_message(
+            process_ids=self.process_ids, message=request_ack_response
+        )
+        self.logger.info(acknowledge)
 
-    def set_request_completed(self, response: Dict[str, Any], success: bool):
+    # TODO: REFACTOR!
+    # Use service to set_request_completed
+    # split into two parts: Logic for communication handlers and the trigger of clients which should be part of the module that we use to handle communications.
+    def set_request_completed(self, function_args: Dict[str, Any]):
         """Set request as completed and provide the response to the client."""
-        service_process_name = (
-            ClientHandlers()
-            .get_process_data(self.current_request.service_process_id)
-            .name
-        )
+        success = function_args.pop("success")
 
-        redis_handler = ClientHandlers().get_redis_handler()
-        client_process_ids = (
-            ClientHandlers()
-            .get_process_info(self.current_request.client_process_id)
-            .process_ids
-        )
+        # Current service request
+        request = self.communication_protocols.service_request
+
+        # Set request completed on database.
+        service_name = request.service_name
+        service = self.communication_protocols.get_service(service_name)
+        service.set_request_completed(response=function_args, success=success)
 
         # Add message to client process.
         if self.current_request.is_async():
@@ -158,10 +158,6 @@ class CommunicationHandler:
             # TODO: Refine this logic, we should have more control over agents that are waiting for a response, split between the current transition and the state.
             self.process_handler.step(process_ids=client_process_ids)
 
-        return ClientHandlers().set_request_completed(
-            request=self.current_request, success=success, response=response
-        )
-
     def send_feedback(self, feedback: Dict[str, Any]):
         """Send feedback to the client.
 
@@ -173,34 +169,24 @@ class CommunicationHandler:
         )
 
     def process_tool_call(
-        self, process_name: str, tool_call: ChatCompletionMessageToolCall
+        self, tool_call: ChatCompletionMessageToolCall
     ) -> ProcessToolCallResponse:
         tool_name = tool_call.function.name
-        client = self.communications.get_client(service_name=tool_name)
-        topic_id = self.communications.get_publisher_topic_id(topic_name=tool_name)
+        client = self.communication_protocols.get_client(service_name=tool_name)
+        publisher = self.communication_protocols.get_publisher(topic_name=tool_name)
 
         function_args = self.tool_call_to_args(tool_call)
         if client is not None:
-            is_async = function_args.pop("is_async")
-            priority = function_args.pop("priority")
-            self.create_request(
-                function_call_id=tool_call.id,
-                service_id=client.service_id,
-                client_id=client.client_id,
-                client_process_name=process_name,
-                request_message=function_args,
-                priority=priority,
-                is_async=is_async,
-            )
+            is_async = function_args["is_async"]
+            self.create_request(client, function_args, tool_call.id)
             if is_async:
                 return ProcessToolCallResponse.ASYNC_REQUEST_SCHEDULED
             return ProcessToolCallResponse.SYNC_REQUEST_SCHEDULED
-        elif topic_id is not None:
-            self.publish_message(topic_name=tool_name, message=function_args)
+        elif publisher is not None:
+            self.update_topic(publisher, function_args, tool_call.id)
             return ProcessToolCallResponse.TOPIC_UPDATE_SCHEDULED
         elif tool_name == self.set_request_completed.__name__:
-            success = function_args.pop("success")
-            self.set_request_completed(response=function_args, success=success)
+            self.set_request_completed(function_args)
             return ProcessToolCallResponse.REQUEST_RESPONSE_SCHEDULED
         elif tool_name == self.send_feedback.__name__:
             self.send_feedback(feedback=function_args)
@@ -213,9 +199,8 @@ class CommunicationHandler:
     ) -> Dict[str, Any]:
         return json.loads(tool_call.function.arguments)
 
-    # Functions used by process to fill the prompt and get communications as tools.
     def get_function_schemas(self):
-        return self.communications.get_function_schemas()
+        return self.communication_protocols.get_function_schemas()
 
     def to_prompt_kwargs(self):
-        return self.communications.to_prompt_kwargs()
+        return self.communication_protocols.to_prompt_kwargs()

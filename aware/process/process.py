@@ -139,9 +139,7 @@ class Process:
     ) -> bool:
         should_step = True
         for tool_call in tool_calls:
-            response = self.communication_handler.process_tool_call(
-                process_name=self.name, tool_call=tool_call
-            )
+            response = self.communication_handler.process_tool_call(tool_call=tool_call)
             if response.SYNC_REQUEST_SCHEDULED:
                 # Don't step anymore, wait for response.
                 # TODO: There is a corner case here, if the model executes function after scheduling a request we will execute them and then stop, maybe this is intended.
