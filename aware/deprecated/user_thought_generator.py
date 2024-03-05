@@ -1,7 +1,7 @@
 from queue import Queue
 from typing import Optional
 
-from aware.memory.memory_manager import MemoryManager
+from aware.database.weaviate.memory_manager import MemoryManager
 from aware.memory.working_memory import ThoughtGenerator
 from aware.architecture.user.user_message import UserMessage
 from aware.deprecated.chat import Chat

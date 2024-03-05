@@ -1,4 +1,4 @@
-from aware.memory.memory_manager import MemoryManager
+from aware.database.weaviate.memory_manager import MemoryManager
 from aware.utils.logger.file_logger import FileLogger
 from aware.tools.tools import Tools
 

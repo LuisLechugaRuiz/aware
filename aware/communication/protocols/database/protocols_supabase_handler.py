@@ -5,11 +5,14 @@ from aware.communication.communication_protocols import CommunicationProtocols
 from aware.communication.protocols import (
     EventSubscriber,
     EventPublisher,
-    RequestClient,
-    RequestService,
     TopicPublisher,
     TopicSubscriber,
+    ActionClient,
+    ActionService,
+    RequestClient,
+    RequestService,
 )
+from aware.communication.protocols.action_service import ActionServiceData
 from aware.communication.protocols.request_service import RequestServiceData
 from aware.utils.logger.file_logger import FileLogger
 
@@ -73,6 +76,67 @@ class ProtocolSupabaseHandler:
             event_name=event_name,
             event_description=response["_event_description"],
             event_format=response["_event_format"],
+        )
+
+    def create_action_client(self, user_id: str, process_id: str, action_name: str):
+        self.logger.info(f"Creating client for process: {process_id}")
+        response = (
+            self.client.rpc(
+                "create_action_client",
+                {
+                    "p_user_id": user_id,
+                    "p_process_id": process_id,
+                    "p_action_name": action_name,
+                },
+            )
+            .execute()
+            .data[0]
+        )
+        self.logger.info(
+            f"Client created for process: {process_id}. Response: {response}"
+        )
+        return ActionClient(
+            user_id=user_id,
+            process_id=process_id,
+            process_name=["_process_name"],
+            client_id=response["_id"],
+            service_id=response["_service_id"],
+            service_name=action_name,
+            service_description=response["_service_description"],
+            request_format=response["_request_format"],
+        )
+
+    def create_action_service(self, user_id: str, process_id: str, action_name: str):
+        self.logger.info(f"Creating action service {action_name}")
+        response = (
+            self.client.rpc(
+                "create_action_service",
+                {
+                    "p_user_id": user_id,
+                    "p_process_id": process_id,
+                    "p_name": action_name,
+                },
+            )
+            .execute()
+            .data
+        )
+        service_data = RequestServiceData(
+            service_name=action_name,
+            service_description=action_name,
+            request_format=response["_request_format"],
+            feedback_format=response["_feedback_format"],
+            response_format=response["_response_format"],
+            tool_name=action_name,
+        )
+        service_id = response["_id"]
+        self.logger.info(
+            f"New service created at supabase. Name: {action_name}, id: {service_id}"
+        )
+        return ActionService(
+            user_id=user_id,
+            process_id=process_id,
+            service_id=service_id,
+            data=service_data,
         )
 
     def create_request_client(self, user_id: str, process_id: str, service_name: str):
@@ -210,14 +274,16 @@ class ProtocolSupabaseHandler:
 
     def get_communication_protocols(self, process_id: str) -> CommunicationProtocols:
         return CommunicationProtocols(
+            event_subscribers=self.get_event_subscribers(process_id),
             topic_publishers=self.get_topic_publishers(process_id),
             topic_subscribers=self.get_topic_subscribers(process_id),
+            action_clients=self.get_action_clients(process_id),
+            action_services=self.get_action_services(process_id),
             request_clients=self.get_request_clients(process_id),
             request_services=self.get_request_services(process_id),
-            event_subscribers=self.get_event_subscribers(process_id),
         )
 
-    def get_event_subscribers(self, process_id: str) -> List[EventSubscriber]:
+    def get_event_subscribers(self, process_id: str) -> Dict[str, EventSubscriber]:
         data = (
             self.client.table("event_subscribers")
             .select("*")
@@ -229,21 +295,70 @@ class ProtocolSupabaseHandler:
         if not data:
             return event_subscribers
         for row in data:
-            event_type_id = row["event_type_id"]
-            # TODO: implement me!
-            events = self.get_events(event_type_id)
-            event_subscribers.append(
-                EventSubscriber(
-                    id=row["id"],
-                    user_id=row["user_id"],
-                    process_id=process_id,
-                    event_type_id=row["event_type_id"],
-                    event_name=row["event_name"],
-                    event_description=row["event_description"],
-                    event_format=row["event_format"],
-                ).add_events(events)
+            event_name = row["event_name"]
+            event_subscribers[event_name] = EventSubscriber(
+                id=row["id"],
+                user_id=row["user_id"],
+                process_id=process_id,
+                event_type_id=row["event_type_id"],
+                event_name=event_name,
+                event_description=row["event_description"],
+                event_format=row["event_format"],
             )
         return event_subscribers
+
+    def get_action_clients(self, process_id: str) -> Dict[str, ActionClient]:
+        data = (
+            self.client.table("action_clients")
+            .select("*")
+            .eq("process_id", process_id)
+            .execute()
+            .data
+        )
+        action_clients = {}
+        if not data:
+            return action_clients
+        for row in data:
+            service_name = row["service_name"]
+            action_clients[service_name] = ActionClient(
+                user_id=row["user_id"],
+                process_id=process_id,
+                process_name=row["name"],
+                client_id=row["id"],
+                service_id=row["service_id"],
+                service_name=service_name,
+                service_description=row["service_description"],
+                request_format=row["request_format"],
+            )
+        return action_clients
+
+    def get_action_services(self, process_id: str) -> Dict[str, ActionService]:
+        data = (
+            self.client.table("action_services")
+            .select("*")
+            .eq("process_id", process_id)
+            .execute()
+            .data
+        )
+        action_services = {}
+        if not data:
+            return action_services
+        for row in data:
+            service_name = row["name"]
+            action_services[service_name] = ActionService(
+                user_id=row["user_id"],
+                process_id=process_id,
+                service_id=row["id"],
+                data=RequestServiceData(
+                    service_name=service_name,
+                    service_description=row["description"],
+                    request_format=row["request_format"],
+                    feedback_format=row["feedback_format"],
+                    response_format=row["response_format"],
+                    tool_name=row["tool_name"],
+                ),
+            )
+        return action_services
 
     def get_request_clients(self, process_id: str) -> Dict[str, RequestClient]:
         data = (
@@ -258,9 +373,6 @@ class ProtocolSupabaseHandler:
             return request_clients
         for row in data:
             service_name = row["service_name"]
-            requests = self.get_requests(
-                key_process_id="client_process_id", process_id=process_id
-            )
             request_clients[service_name] = RequestClient(
                 user_id=row["user_id"],
                 process_id=process_id,
@@ -270,7 +382,7 @@ class ProtocolSupabaseHandler:
                 service_name=service_name,
                 service_description=row["service_description"],
                 request_format=row["request_format"],
-            ).add_requests(requests)
+            )
         return request_clients
 
     def get_request_services(self, process_id: str) -> Dict[str, RequestService]:
@@ -286,9 +398,6 @@ class ProtocolSupabaseHandler:
             return request_services
         for row in data:
             service_name = row["name"]
-            requests = self.get_requests(
-                key_process_id="service_process_id", process_id=process_id
-            )
             request_services[service_name] = RequestService(
                 user_id=row["user_id"],
                 process_id=process_id,
@@ -301,7 +410,7 @@ class ProtocolSupabaseHandler:
                     response_format=row["response_format"],
                     tool_name=row["tool_name"],
                 ),
-            ).add_requests(requests)
+            )
         return request_services
 
     def get_topic_publishers(self, process_id: str) -> Dict[str, TopicPublisher]:
@@ -349,6 +458,5 @@ class ProtocolSupabaseHandler:
                 topic_name=topic_name,
                 topic_description=row["topic_description"],
                 message_format=row["message_format"],
-                topic=self.get_topic(row["user_id"], topic_name),
             )
         return topic_subscribers

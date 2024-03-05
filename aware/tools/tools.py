@@ -9,11 +9,12 @@ import re
 import uuid
 import inspect
 
-from aware.data.database.client_handlers import ClientHandlers
-from aware.memory.memory_manager import MemoryManager
+from aware.agent.database.agent_database_handler import AgentDatabaseHandler
+from aware.database.weaviate.memory_manager import MemoryManager
 from aware.process.process_info import ProcessInfo
 from aware.process.process_handler import ProcessHandler
 from aware.utils.logger.process_loger import ProcessLogger
+from aware.tools.database.tool_database_handler import ToolDatabaseHandler
 
 
 class Tools(ABC):
@@ -41,9 +42,10 @@ class Tools(ABC):
         self.run_remote = False  # TODO: Make this a decorator for each function!
         self.finished = False  # TODO: Implement this better!
 
+        self.tool_database_handler = ToolDatabaseHandler()
+
         # TODO: Check where to register capability!! Mode this to registry.
-        # TODO: Remove dependencies to ClientHandlers
-        ClientHandlers().create_capability(
+        self.tool_database_handler.create_capability(
             process_ids=self.process_ids, capability_name=self.get_tool_name()
         )
         # TODO: we need a way to update the variable when using a tool. Maybe a wrapper that initializes tool then calls the function and then updates the variable.
@@ -106,8 +108,7 @@ class Tools(ABC):
         return self.finished
 
     def update_agent_data(self):
-        # TODO: Remove dependencies to ClientHandlers
-        return ClientHandlers().update_agent_data(
+        return AgentDatabaseHandler().update_agent_data(
             agent_data=self.agent_data,
         )
 

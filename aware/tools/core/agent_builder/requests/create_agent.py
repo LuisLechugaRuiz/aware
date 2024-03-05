@@ -1,5 +1,5 @@
 from aware.agent.agent_builder import AgentBuilder as InternalAgentBuilder
-from aware.communications.requests.request import Request
+from aware.communication.requests.request import Request
 
 
 # TODO: IMPLEMENT THE WAY TO CALL REQUEST PROPERLY. WE NEED TO PASS BOTH: STANDARD ARGUMENTS (FOR INTERNAL PROCESSING, such as user_id or process_ids) + the request_message (JSON TO args).

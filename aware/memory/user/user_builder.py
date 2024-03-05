@@ -8,7 +8,7 @@ from aware.communication.primitives.database.primitives_database_handler import 
     PrimitivesDatabaseHandler,
 )
 from aware.data.database.client_handlers import ClientHandlers
-from aware.memory.memory_manager import MemoryManager
+from aware.database.weaviate.memory_manager import MemoryManager
 from aware.memory.user.user_data import UserData
 from aware.utils.logger.file_logger import FileLogger
 

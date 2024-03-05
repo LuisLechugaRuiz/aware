@@ -44,8 +44,9 @@ class RequestService:
         self.process_id = process_id
         self.service_id = service_id
         self.data = data
+        self.current_request = self._get_highest_prio_request()
 
-    def get_highest_prio_request(self) -> Optional[Request]:
+    def _get_highest_prio_request(self) -> Optional[Request]:
         # Iterate to find highest priority request.
         highest_prio_request: Optional[Request] = None
         requests = PrimitivesDatabaseHandler().get_service_requests(self.service_id)
@@ -75,13 +76,11 @@ class RequestService:
         return RequestService(**data)
 
     def get_request_query(self) -> Optional[str]:
-        request = self.get_highest_prio_request()
-        if request:
-            return request.query_to_string()
+        if self.current_request:
+            return self.current_request.query_to_string()
         return None
 
     def get_set_request_completed_function(self) -> Dict[str, Any]:
-        # Add success flag and details to the response format
         self.data.response_format["success"] = "bool"
         self.data.response_format["details"] = "str"
         return {
@@ -91,9 +90,15 @@ class RequestService:
         }
 
     def get_send_feedback_function(self) -> Dict[str, Any]:
-        # TODO: Should we always add the possibility to send_feedback? This should be enable only if the request is async.
         return {
             "name": "send_feedback",
             "args": self.data.feedback_format,
             "description": "Call this function to send feedback to the client with the specific feedback.",
         }
+
+    def set_request_completed(self, response: Dict[str, Any], success: bool):
+        if self.current_request:
+            return PrimitivesDatabaseHandler().set_request_completed(
+                self.current_request, success, response
+            )
+        return None

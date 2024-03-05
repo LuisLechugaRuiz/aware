@@ -6,6 +6,7 @@ from aware.communication.primitives.database.primitives_redis_handler import (
 from aware.communication.primitives.database.primitives_supabase_handler import (
     PrimitiveSupabaseHandler,
 )
+from aware.communication.primitives.action import Action
 from aware.communication.primitives.event import Event, EventStatus
 from aware.communication.primitives.request import Request, RequestStatus
 from aware.communication.primitives.topic import Topic
@@ -20,6 +21,38 @@ class PrimitivesDatabaseHandler:
         )
         self.supabase_handler = PrimitiveSupabaseHandler(
             client=ClientHandlers().get_supabase_client()
+        )
+
+    def create_action(
+        self, client_id: str, request_message: Dict[str, Any], priority: int
+    ) -> DatabaseResult[Action]:
+        try:
+            action = self.supabase_handler.create_action(
+                client_id=client_id,
+                request_message=request_message,
+                priority=priority,
+            )
+            self.redis_handler.create_action(
+                action=action,
+            )
+            return DatabaseResult(data=action)
+        except Exception as e:
+            return DatabaseResult(error=f"Error creating action: {e}")
+
+    def create_action_type(
+        self,
+        user_id: str,
+        action_name: str,
+        request_format: Dict[str, Any],
+        feedback_format: Dict[str, Any],
+        response_format: Dict[str, Any],
+    ):
+        self.supabase_handler.create_action_type(
+            user_id=user_id,
+            action_name=action_name,
+            request_format=request_format,
+            feedback_format=feedback_format,
+            response_format=response_format,
         )
 
     def create_event(
@@ -52,28 +85,17 @@ class PrimitivesDatabaseHandler:
             event_type=event_type,
         )
 
-    # TODO: Adapt as create_event, we should only need client_id, request_message, priority, and is_async
     def create_request(
         self,
-        user_id: str,
-        service_id: str,
         client_id: str,
-        client_process_id: str,
-        client_process_name: str,
         request_message: Dict[str, Any],
         priority: int,
-        is_async: bool,
     ) -> DatabaseResult[Request]:
         try:
             request = self.supabase_handler.create_request(
-                user_id=user_id,
-                service_id=service_id,
                 client_id=client_id,
-                client_process_id=client_process_id,
-                client_process_name=client_process_name,
                 request_message=request_message,
                 priority=priority,
-                is_async=is_async,
             )
             self.redis_handler.create_request(
                 request=request,
@@ -87,14 +109,12 @@ class PrimitivesDatabaseHandler:
         user_id: str,
         request_name: str,
         request_format: Dict[str, str],
-        feedback_format: Dict[str, str],
         response_format: Dict[str, str],
     ):
         self.supabase_handler.create_request_type(
             user_id=user_id,
             request_name=request_name,
             request_format=request_format,
-            feedback_format=feedback_format,
             response_format=response_format,
         )
 
@@ -115,6 +135,12 @@ class PrimitivesDatabaseHandler:
         except Exception as e:
             return DatabaseResult(error=f"Error creating request: {e}")
 
+    def get_client_actions(self, client_id: str) -> List[Action]:
+        return self.redis_handler.get_client_actions(client_id)
+
+    def get_service_actions(self, service_id: str) -> List[Action]:
+        return self.redis_handler.get_service_actions(service_id)
+
     def get_client_requests(self, client_id: str) -> List[Request]:
         return self.redis_handler.get_client_requests(client_id)
 
@@ -131,7 +157,7 @@ class PrimitivesDatabaseHandler:
         self.supabase_handler.update_event(event)
 
     def set_request_completed(
-        self, request: Request, success: bool, response: Dict[str, Any]
+        self, request: Request, response: Dict[str, Any], success: bool
     ):
         request.data.response = response
         if success:
@@ -142,14 +168,18 @@ class PrimitivesDatabaseHandler:
         self.redis_handler.delete_request(request.id)
         self.supabase_handler.set_request_completed(request)
 
-    def update_request_feedback(self, request: Request, feedback: str):
-        request.data.feedback = feedback
+    def update_action_feedback(self, action: Action, feedback: str):
+        action.data.feedback = feedback
 
-        self.redis_handler.update_request(request)
-        self.supabase_handler.update_request_feedback(request)
+        self.redis_handler.update_action(action)
+        self.supabase_handler.update_action_feedback(action)
 
     def update_request_status(self, request: Request, status: RequestStatus):
         request.data.status = status
 
         self.redis_handler.update_request(request)
         self.supabase_handler.update_request_status(request)
+
+    def update_topic(self, topic_id: str, message: Dict[str, Any]):
+        self.redis_handler.update_topic(topic_id, message)
+        self.supabase_handler.update_topic(topic_id, message)

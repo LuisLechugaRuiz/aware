@@ -1,7 +1,7 @@
 import os
 import threading
 
-from aware.memory.memory_manager import MemoryManager
+from aware.database.weaviate.memory_manager import MemoryManager
 from aware.memory.user import (
     UserContextManager,
     UserThoughtGenerator,

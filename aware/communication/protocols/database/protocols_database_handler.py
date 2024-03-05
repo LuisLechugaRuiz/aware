@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from aware.communication.communication_protocols import CommunicationProtocols
 from aware.communication.protocols.database.protocols_redis_handler import (
@@ -7,9 +7,7 @@ from aware.communication.protocols.database.protocols_redis_handler import (
 from aware.communication.protocols.database.protocols_supabase_handler import (
     ProtocolSupabaseHandler,
 )
-from aware.communication.primitives.event import Event, EventStatus
-from aware.communication.primitives.request import Request, RequestStatus
-from aware.data.database.new_client_handlers import ClientHandlers
+from aware.database.client_handlers import ClientHandlers
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -39,6 +37,19 @@ class ProtocolsDatabaseHandler:
                 process_id=process_id, communications=communications
             )
         return communications
+
+    # TODO: Create event subscriber.
+    def create_action_client(self, user_id: str, process_id: str, action_name: str):
+        action_client = self.supabase_handler.create_action_client(
+            user_id=user_id, process_id=process_id, action_name=action_name
+        )
+        self.redis_handler.create_action_client(action_client=action_client)
+
+    def create_action_service(self, user_id: str, process_id: str, action_name: str):
+        action_service = self.supabase_handler.create_action_service(
+            user_id=user_id, process_id=process_id, action_name=action_name
+        )
+        self.redis_handler.create_action_service(action_service=action_service)
 
     def create_request_client(self, user_id: str, process_id: str, service_name: str):
         request_client = self.supabase_handler.create_request_client(
