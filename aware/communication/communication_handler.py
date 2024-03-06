@@ -168,6 +168,10 @@ class CommunicationHandler:
             request=self.current_request, feedback=feedback
         )
 
+    # TODO: Instead of calling raw functions what we need is:
+    # Split between client / services (more general names to include publisher vs subscribers).
+    # Check all "clients" and call get_functions over them.
+    # Check only the current protocol that is being used to manage the current input and check the functions.
     def process_tool_call(
         self, tool_call: ChatCompletionMessageToolCall
     ) -> ProcessToolCallResponse:
@@ -177,7 +181,7 @@ class CommunicationHandler:
 
         function_args = self.tool_call_to_args(tool_call)
         if client is not None:
-            is_async = function_args["is_async"]
+            is_async = function_args["is_async"]  # TODO: remove, refactor!
             self.create_request(client, function_args, tool_call.id)
             if is_async:
                 return ProcessToolCallResponse.ASYNC_REQUEST_SCHEDULED

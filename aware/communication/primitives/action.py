@@ -44,6 +44,9 @@ class ActionData:
     def query_to_string(self):
         return f"Request: {self.dict_to_string(self.request)}"
 
+    def response_to_string(self):
+        return f"Response: {self.dict_to_string(self.response)}"
+
     def dict_to_string(self, dict: Dict[str, Any]):
         return "\n".join([f"{key}: {value}" for key, value in dict.items()])
 
@@ -103,3 +106,6 @@ class Action:
 
     def query_to_string(self) -> str:
         return self.data.query_to_string()
+
+    def response_to_string(self) -> str:
+        return self.data.response_to_string()

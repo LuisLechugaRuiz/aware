@@ -14,7 +14,7 @@ class AgentStateMachine:
         self.process_has_input = self._has_input(communication_protocols)
         self.is_process_finished = is_process_finished
 
-    # TODO: REFACTOR!
+    # TODO: REFACTOR! This should happen outside of STATE MACHINE...
     def _has_input(self, communications: CommunicationProtocols) -> bool:
         return (
             communications.incoming_request is not None
@@ -63,6 +63,7 @@ class AgentStateMachine:
         else:
             return self.on_finish()
 
+    # TODO: I think this should happen outside of state machine as we are doing this check also at ProcessHandler.
     def on_finish(self) -> AgentState:
         # Check if has requests and schedule the newest one or just stop it!
         if self.process_has_input:

@@ -10,9 +10,10 @@ from aware.communication.protocols import (
     TopicSubscriber,
     ActionClient,
     ActionService,
-    RequestClient,
+    # RequestClient,
     RequestService,
 )
+from aware.communication.protocols.new_request_client import RequestClient
 
 
 class CommunicationProtocols:
@@ -106,15 +107,22 @@ class CommunicationProtocols:
 
     # TODO: Refactor -> For actions add set_action_completed and send_feedback, for request only set_request_completed.
     # The system should be processing only 1 at a time or an action or a request OR a event!!
+    # TODO: With new refactor we have moved the logic to register functions to a common interface.
+    # WE just need to add functions of all publishers/clients and the ones of the subscriber/service which handles the current input!
     def get_function_schemas(self) -> List[Dict[str, Any]]:
         function_schemas: List[Dict[str, Any]] = []
+        # Add request_client functions
+        for client in self.request_clients.values():
+            function_schemas.extend(client.get_functions())
+        # Add topic_publisher functions
+        for publisher in self.topic_publishers.values():
+            function_schemas.extend(publisher.get_functions())
+
+        # OLD ONE!!
 
         # Add topic_publisher functions
         for publisher in self.topic_publishers.values():
             function_schemas.append(publisher.get_topic_as_function())
-        # Add request_client functions
-        for client in self.request_clients.values():
-            function_schemas.append(client.get_request_as_function())
 
         if self.service_request:
             # Add request_service functions TODO: Get service using request_name, but request doesn't have name.. refactor it.
