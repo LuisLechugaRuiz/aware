@@ -1,6 +1,11 @@
 from dataclasses import dataclass
 import json
-from typing import Dict
+from typing import Any, Dict
+
+from aware.communication.primitives.event import Event
+from aware.communication.primitives.database.primitives_database_handler import (
+    PrimitivesDatabaseHandler,
+)
 
 
 @dataclass
@@ -23,3 +28,8 @@ class EventPublisher:
     def from_json(cls, json_str):
         data = json.loads(json_str)
         return cls(**data)
+
+    def create_event(self, event_message: Dict[str, Any]) -> Event:
+        PrimitivesDatabaseHandler().create_event(
+            publisher_id=self.id, event_message=event_message
+        )

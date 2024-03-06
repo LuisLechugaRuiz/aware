@@ -3,6 +3,8 @@ from enum import Enum
 from typing import Any, Dict, Optional
 import json
 
+from aware.communication.primitives.interface.input import Input
+
 
 # TODO: REMOVE, should not be not needed. Just completed with SUCCESS/FAILURE as it is sync.
 class RequestStatus(Enum):
@@ -48,7 +50,7 @@ class RequestData:
 
 
 # TODO: Do we need all these variables?
-class Request:
+class Request(Input):
     def __init__(
         self,
         request_id: str,
@@ -72,6 +74,7 @@ class Request:
         self.timestamp = timestamp
         self.data = data
         self.tool = tool
+        super().__init__(self.data.priority)
 
     def to_dict(self):
         return {
@@ -97,8 +100,15 @@ class Request:
         data["tool"] = data["tool"] if data["tool"] else None
         return cls(**data)
 
+    # TODO: Do we need it? now we are using input_to_prompt_string.
     def query_to_string(self) -> str:
         return self.data.query_to_string()
+
+    def input_to_prompt_string(self) -> str:
+        return self.data.query_to_string()
+
+    def is_completed(self) -> bool:
+        return self.data.status in [RequestStatus.SUCCESS, RequestStatus.FAILURE]
 
     def response_to_string(self) -> str:
         return self.data.response_to_string()

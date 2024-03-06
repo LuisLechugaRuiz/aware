@@ -2,6 +2,8 @@ from enum import Enum
 import json
 from typing import Any, Dict
 
+from aware.communication.primitives.interface.input import Input
+
 
 class EventStatus(Enum):
     PENDING = "pending"
@@ -40,7 +42,7 @@ class EventType:
         return cls(**data)
 
 
-class Event:
+class Event(Input):
     def __init__(
         self,
         id: str,
@@ -62,6 +64,7 @@ class Event:
         self.event_message_format = event_message_format
         self.status = status
         self.timestamp = timestamp
+        super().__init__(self.priority)
 
     def to_dict(self):
         return {
@@ -84,3 +87,9 @@ class Event:
         data = json.loads(json_str)
         data["status"] = EventStatus(data["status"])
         return cls(**data)
+
+    def dict_to_string(self, dict: Dict[str, Any]):
+        return "\n".join([f"{key}: {value}" for key, value in dict.items()])
+
+    def input_to_prompt_string(self) -> str:
+        return f"Event: {self.dict_to_string(self.event_message)}"

@@ -2,6 +2,9 @@ from dataclasses import dataclass
 import json
 from typing import Dict, List
 
+from aware.communication.primitives.database.primitives_database_handler import (
+    PrimitivesDatabaseHandler,
+)
 from aware.communication.primitives.event import Event
 from aware.communication.primitives.interface.function_detail import FunctionDetail
 from aware.communication.protocols.interface.protocol import Protocol
@@ -28,10 +31,8 @@ class EventSubscriber(Protocol):
         data = json.loads(json_str)
         return cls(**data)
 
-    # TODO: Do we need this?
-    # def get_event(self) -> str:
-    #     events = CommunicationPrimitivesHandler().get_event(self.event_type_id)
-    #     return topic.to_string()
+    def get_events(self) -> List[Event]:
+        return PrimitivesDatabaseHandler().get_events(self.event_type_id)
 
     def set_event_comleted(self, success: bool, details: str):
         # TODO: implement this

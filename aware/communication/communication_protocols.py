@@ -1,19 +1,15 @@
 import json
 from typing import Any, Dict, List, Optional
 
-# from aware.communications.events.event import Event
-# from aware.communications.topics.topic import Topic
-from aware.communication.primitives import Request
 from aware.communication.protocols import (
     EventSubscriber,
     TopicPublisher,
     TopicSubscriber,
     ActionClient,
     ActionService,
-    # RequestClient,
+    RequestClient,
     RequestService,
 )
-from aware.communication.protocols.request_client import RequestClient
 
 
 class CommunicationProtocols:
@@ -35,7 +31,7 @@ class CommunicationProtocols:
         self.request_clients = request_clients
         self.request_services = request_services
 
-        self.service_request = self._get_highest_prio_request()
+        self._get_highest_prio_input()
 
     def to_dict(self):
         return {
@@ -105,10 +101,6 @@ class CommunicationProtocols:
         }
         return CommunicationProtocols(**data)
 
-    # TODO: Refactor -> For actions add set_action_completed and send_feedback, for request only set_request_completed.
-    # The system should be processing only 1 at a time or an action or a request OR a event!!
-    # TODO: With new refactor we have moved the logic to register functions to a common interface.
-    # WE just need to add functions of all publishers/clients and the ones of the subscriber/service which handles the current input!
     def get_function_schemas(self) -> List[Dict[str, Any]]:
         function_schemas: List[Dict[str, Any]] = []
         # Add topic_publisher functions
@@ -121,28 +113,17 @@ class CommunicationProtocols:
         for client in self.request_clients.values():
             function_schemas.extend(client.get_functions())
 
-        # TODO: based on the input add the functions of the subscriber/service that is handling the input.
-
-        # TODO: REMOVE. OLD ONE!!
-        # Add topic_publisher functions
-        for publisher in self.topic_publishers.values():
-            function_schemas.append(publisher.get_topic_as_function())
-
-        if self.service_request:
-            # Add request_service functions TODO: Get service using request_name, but request doesn't have name.. refactor it.
-            for service in self.request_services.values():
-                if self.service_request.service_id == service.service_id:
-                    function_schemas.append(
-                        service.get_set_request_completed_function()
-                    )
-                    if self.service_request.is_async():
-                        function_schemas.append(service.get_send_feedback_function())
+        # Add input protocol functions - Can be request_service, action_service or event_subscriber
+        if self.input_protocol:
+            function_schemas.extend(self.input_protocol.get_functions())
         return function_schemas
 
+    # TODO: make this more elegant.
     def call_function(
         self, function_name: str, function_args: Dict[str, Any]
     ) -> Optional[str]:
-        # TODO: make this more elegant.
+
+        # Output protocols
         for publisher in self.topic_publishers.values():
             if function_name == publisher.function_exists(function_name):
                 return publisher.call_function(function_name, function_args)
@@ -152,7 +133,11 @@ class CommunicationProtocols:
         for client in self.action_clients.values():
             if function_name == client.function_exists(function_name):
                 return client.call_function(function_name, function_args)
-        # TODO: Get the protocol that is providing the request and repeat the pattern to call the function in case it exists.
+
+        # Input protocol
+        if self.input_protocol:
+            if function_name == self.input_protocol.function_exists(function_name):
+                return self.input_protocol.call_function(function_name, function_args)
         return None
 
     def get_publisher(self, topic_name: str) -> Optional[TopicPublisher]:
@@ -164,36 +149,57 @@ class CommunicationProtocols:
     def get_service(self, service_name: str) -> Optional[RequestService]:
         return self.request_services.get(service_name, None)
 
-    # TODO: refactor this, we should determine if highest prio is request/action or event and use it at prompt.
-    def _get_highest_prio_request(self) -> Optional[Request]:
-        highest_prio_request = None
+    # TODO: refactor this, make it cleaner.
+    def _get_highest_prio_input(self):
+        self.highest_prio_input = None
+        self.input_protocol = None
         for request_service in self.request_services.values():
-            request = request_service.current_request
-            if request:
-                if (
-                    highest_prio_request is None
-                    or request.data.priority > highest_prio_request.data.priority
-                ):
-                    highest_prio_request = request
-        return highest_prio_request
+            requests = request_service.get_requests()
+            for request in requests:
+                if request:
+                    if (
+                        self.highest_prio_input is None
+                        or request.priority > self.highest_prio_input.priority
+                    ):
+                        self.highest_prio_input = request
+                        self.input_protocol = request_service
+        for action_service in self.action_services.values():
+            actions = action_service.get_actions()
+            for action in actions:
+                if action:
+                    if (
+                        self.highest_prio_input is None
+                        or action.priority > self.highest_prio_input.priority
+                    ):
+                        self.highest_prio_input = action
+                        self.input_protocol = action_service
+        for event_subscriber in self.event_subscribers.values():
+            events = event_subscriber.get_events()
+            for event in events:
+                if event:
+                    if (
+                        self.highest_prio_input is None
+                        or event.priority > self.highest_prio_input.priority
+                    ):
+                        self.highest_prio_input = event
+                        self.input_protocol = event_subscriber
 
     def to_prompt_kwargs(self):
         """Show permanent info on the prompt. Don't show event as it will be part of conversation."""
         prompt_kwargs = {}
+
+        # Add the input
+        if self.highest_prio_input:
+            prompt_kwargs.update(
+                {"input": self.highest_prio_input.input_to_prompt_string()}
+            )
+
         # Add the feedback of all the client actions
         actions_feedback = "\n".join(
             [clients.get_action_feedback() for clients in self.action_clients.values()]
         )
-        # TODO: Rename at meta-prompt.
         prompt_kwargs.update({"actions_feedback": actions_feedback})
 
-        # TODO: Determine if it should be a request/action or event.
-        if self.service_request:
-            prompt_kwargs.update(
-                {"incoming_request": self.service_request.query_to_string()}
-            )
-
-        # TODO: Get topics from topic_subscriber!
         topic_updates = "\n".join(
             [
                 topic_subscriber.get_topic_update()
