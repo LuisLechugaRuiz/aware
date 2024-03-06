@@ -1,16 +1,16 @@
 import json
-from typing import Any, Dict
-
-from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
+from typing import Any, Dict, List
 
 from aware.communication.primitives.database.primitives_database_handler import (
     PrimitivesDatabaseHandler,
 )
+from aware.communication.primitives.interface.function_detail import FunctionDetail
 from aware.communication.primitives.action import Action
+from aware.communication.protocols.interface.protocol import Protocol
 from aware.database.helpers import DatabaseResult
 
 
-class ActionClient:
+class ActionClient(Protocol):
     def __init__(
         self,
         user_id: str,
@@ -53,16 +53,6 @@ class ActionClient:
         data = json.loads(json_str)
         return ActionClient(**data)
 
-    def get_action_as_function(self) -> Dict[str, Any]:
-        self.request_format["priority"] = "int"
-
-        action_description = f"Call this function to send an action (will be managed asynchronously) to a service with the following description: {self.service_description}"
-        return JsonPydanticParser.get_function_schema(
-            name=self.service_name,
-            args=self.request_format,
-            description=action_description,
-        )
-
     def get_action_feedback(self) -> str:
         actions = self.primitives_database_handler.get_client_actions(self.client_id)
         return "\n".join([action.feedback_to_string() for action in actions])
@@ -76,3 +66,14 @@ class ActionClient:
             request_message=request_message,
             priority=priority,
         )
+
+    def setup_functions(self) -> List[FunctionDetail]:
+        self.request_format["priority"] = "int"
+        return [
+            FunctionDetail(
+                name=self.create_action.__name__,
+                args=self.request_format,
+                description=f"Call this function to send an action (will be managed asynchronously) to a service with the following description: {self.service_description}",
+                callback=self.create_action,
+            )
+        ]

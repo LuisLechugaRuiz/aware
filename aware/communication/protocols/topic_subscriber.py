@@ -1,14 +1,16 @@
 from dataclasses import dataclass
 import json
-from typing import Dict
+from typing import Dict, List
 
 from aware.communication.primitives.database.primitives_database_handler import (
     PrimitivesDatabaseHandler,
 )
+from aware.communication.primitives.interface.function_detail import FunctionDetail
+from aware.communication.protocols.interface.protocol import Protocol
 
 
 @dataclass
-class TopicSubscriber:
+class TopicSubscriber(Protocol):
     id: str
     user_id: str
     process_id: str
@@ -31,3 +33,6 @@ class TopicSubscriber:
     def get_topic_update(self) -> str:
         topic = PrimitivesDatabaseHandler().get_topic(self.topic_id)
         return topic.to_string()
+
+    def setup_functions(self) -> List[FunctionDetail]:
+        return []

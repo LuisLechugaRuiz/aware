@@ -121,9 +121,7 @@ class CommunicationHandler:
         )
         self.logger.info(acknowledge)
 
-    # TODO: REFACTOR!
-    # Use service to set_request_completed
-    # split into two parts: Logic for communication handlers and the trigger of clients which should be part of the module that we use to handle communications.
+    # TODO: REMOVE! It has been implemented at RequestService and now we get it using Protocol abstraction.
     def set_request_completed(self, function_args: Dict[str, Any]):
         """Set request as completed and provide the response to the client."""
         success = function_args.pop("success")
@@ -158,16 +156,6 @@ class CommunicationHandler:
             # TODO: Refine this logic, we should have more control over agents that are waiting for a response, split between the current transition and the state.
             self.process_handler.step(process_ids=client_process_ids)
 
-    def send_feedback(self, feedback: Dict[str, Any]):
-        """Send feedback to the client.
-
-        Args:
-            feedback (str): The feedback to send to the client.
-        """
-        return ClientHandlers().update_request_feedback(
-            request=self.current_request, feedback=feedback
-        )
-
     # TODO: Instead of calling raw functions what we need is:
     # Split between client / services (more general names to include publisher vs subscribers).
     # Check all "clients" and call get_functions over them.
@@ -180,6 +168,14 @@ class CommunicationHandler:
         publisher = self.communication_protocols.get_publisher(topic_name=tool_name)
 
         function_args = self.tool_call_to_args(tool_call)
+        function_response = self.communication_protocols.call_function(
+            tool_name, function_args
+        )
+        # TODO: how to return the proper ProcessToolCallResponse?
+        if function_response is None:
+            return ProcessToolCallResponse.NOT_COMMUNICATION_SCHEDULED
+
+        # TODO: Old one!! REMOVE.
         if client is not None:
             is_async = function_args["is_async"]  # TODO: remove, refactor!
             self.create_request(client, function_args, tool_call.id)

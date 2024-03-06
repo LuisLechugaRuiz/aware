@@ -1,6 +1,11 @@
 # TODO: This class will receive certain "events" from communication handler and manage the reaction at system level. i.e: Activating other processes or adding info to their conversations.
+from aware.communication.primitives.event import Event
 from aware.communication.primitives.action import Action
 from aware.communication.primitives.request import Request
+from aware.communication.primitives.topic import Topic
+from aware.communication.protocols.database.protocols_database_handler import (
+    ProtocolsDatabaseHandler,
+)
 from aware.chat.conversation_schemas import ToolResponseMessage, UserMessage
 from aware.chat.database.chat_database_handler import ChatDatabaseHandler
 from aware.process.database.process_database_handler import ProcessDatabaseHandler
@@ -16,31 +21,53 @@ class CommunicationDispatcher:
         self.logger = process_logger.get_logger("communication_dispatcher")
 
     def create_request(self, request: Request) -> Request:
-        pass
+        service_process_ids = self.process_database_handler.get_process_ids(
+            process_id=request.service_process_id
+        )
+        self.process_handler.start(service_process_ids)
 
     def create_event(self, event: Event) -> Event:
-        pass
+        event_subscribers = ProtocolsDatabaseHandler().get_event_subscribers_from_type(
+            event.event_type_id
+        )
+        for event_subscriber in event_subscribers:
+            process_ids = self.process_database_handler.get_process_ids(
+                event_subscriber.process_id
+            )
+            self.logger.info(
+                f"Triggering process: {event_subscriber.process_id} with event: {event.to_json()}"
+            )
+            self.process_handler.start(process_ids)
 
     def update_topic(
         self,
-        topic_publisher: TopicPublisher,
-        message: Dict[str, Any],
-        function_call_id: str,
+        topic_str: str,
     ) -> str:
-        pass
+        topic = Topic.from_json(topic_str)
+        topic_subscribers = ProtocolsDatabaseHandler().get_topic_subscribers_from_topic(
+            topic.id
+        )
+        for topic_subscriber in topic_subscribers:
+            process_ids = self.process_database_handler.get_process_ids(
+                topic_subscriber.process_id
+            )
+            self.logger.info(
+                f"Triggering process: {topic_subscriber.process_id} with topic: {topic.to_json()}"
+            )
+            self.process_handler.start(process_ids)
 
     # @app.task...
     def set_action_completed(self, action_str: str):
         action = Action.from_json(action_str)
+        client_process_ids = self.process_database_handler.get_process_ids(
+            action.client_process_id
+        )
         # - Add new message with the response and start the client process.
         self.process_handler.add_message(
             process_ids=client_process_ids,
             json_message=UserMessage(
                 name=action.service_name, content=action.response_to_string()
             ),  # TODO: is name = action.service_name correct or should it be the service_process_name?
-        )
-        client_process_ids = self.process_database_handler.get_process_ids(
-            action.client_process_id
         )
         # TODO: Step or start? remember actions run async.
         self.process_handler.start(process_ids=client_process_ids)
@@ -71,5 +98,5 @@ class CommunicationDispatcher:
     # def set_event_completed(self, event: Event):
     #     pass
 
-    def update_request_feedback(self, request: Request, feedback: str):
-        pass
+    def update_action_feedback(self, action_str: str):
+        action = Action.from_json(action_str)

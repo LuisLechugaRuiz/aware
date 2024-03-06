@@ -1,15 +1,16 @@
 from dataclasses import dataclass
 import json
-from typing import Any, Dict
+from typing import Any, Dict, List
 
-from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
 from aware.communication.primitives.database.primitives_database_handler import (
     PrimitivesDatabaseHandler,
 )
+from aware.communication.primitives.interface.function_detail import FunctionDetail
+from aware.communication.protocols.interface.protocol import Protocol
 
 
 @dataclass
-class TopicPublisher:
+class TopicPublisher(Protocol):
     id: str
     user_id: str
     process_id: str
@@ -29,13 +30,15 @@ class TopicPublisher:
         data = json.loads(json_str)
         return cls(**data)
 
-    def get_topic_as_function(self) -> Dict[str, Any]:
-        topic_description = f"Call this function to publish on topic: {self.topic_name} with description: {self.topic_description}"
-        return JsonPydanticParser.get_function_schema(
-            name=self.topic_name,
-            args=self.message_format,
-            description=topic_description,
-        )
-
     def update_topic(self, message: Dict[str, Any]):
         PrimitivesDatabaseHandler().update_topic(self.topic_id, message)
+
+    def setup_functions(self) -> List[FunctionDetail]:
+        return [
+            FunctionDetail(
+                name=self.topic_name,
+                args=self.message_format,
+                description=f"Call this function to publish on topic: {self.topic_name} with description: {self.topic_description}",
+                callback=self.update_topic,
+            )
+        ]

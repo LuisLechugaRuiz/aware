@@ -1,16 +1,16 @@
 import json
-from typing import Any, Dict
-
-from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
+from typing import Any, Dict, List
 
 from aware.communication.primitives.database.primitives_database_handler import (
     PrimitivesDatabaseHandler,
 )
 from aware.communication.primitives.request import Request
+from aware.communication.protocols.interface.protocol import Protocol
 from aware.database.helpers import DatabaseResult
+from aware.communication.primitives.interface.function_detail import FunctionDetail
 
 
-class RequestClient:
+class RequestClient(Protocol):
     def __init__(
         self,
         user_id: str,
@@ -33,6 +33,10 @@ class RequestClient:
         self.request_format = request_format
         self.primitives_database_handler = PrimitivesDatabaseHandler()
 
+        # TODO: improve this.
+        super().__init__()
+        self.setup_functions()
+
     def to_dict(self):
         return {
             "user_id": self.user_id,
@@ -53,17 +57,6 @@ class RequestClient:
         data = json.loads(json_str)
         return RequestClient(**data)
 
-    def get_request_as_function(self) -> Dict[str, Any]:
-        self.request_format["is_async"] = "bool"
-        self.request_format["priority"] = "int"
-
-        request_description = f"Call this function to send a request to the a service with the following description: {self.service_description}"
-        return JsonPydanticParser.get_function_schema(
-            name=self.service_name,
-            args=self.request_format,
-            description=request_description,
-        )
-
     def create_request(
         self,
         request_message: Dict[str, Any],
@@ -75,3 +68,14 @@ class RequestClient:
             request_message=request_message,
             priority=priority,
         )
+
+    def setup_functions(self) -> List[FunctionDetail]:
+        self.request_format["priority"] = "int"
+        return [
+            FunctionDetail(
+                name=self.service_name,
+                args=self.request_format,
+                description=f"Call this function to send a request to a service with the following description: {self.service_description}",
+                callback=self.create_request,
+            )
+        ]
