@@ -44,19 +44,15 @@ class RequestService(Protocol):
         self.process_id = process_id
         self.service_id = service_id
         self.data = data
-        self.current_request = self._get_highest_prio_request()
 
-    def _get_highest_prio_request(self) -> Optional[Request]:
-        # Iterate to find highest priority request.
-        highest_prio_request: Optional[Request] = None
-        requests = PrimitivesDatabaseHandler().get_service_requests(self.service_id)
-        for request in requests:
-            if (
-                highest_prio_request is None
-                or request.data.priority > highest_prio_request.data.priority
-            ):
-                highest_prio_request = request
-        return highest_prio_request
+    def get_requests(self) -> List[Request]:
+        return PrimitivesDatabaseHandler().get_service_requests(self.service_id)
+
+    def _get_highest_priority_request(self) -> Optional[Request]:
+        requests = self.get_requests()
+        if requests:
+            return max(requests, key=lambda x: x.priority)
+        return None
 
     def to_dict(self):
         return {

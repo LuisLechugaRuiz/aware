@@ -46,20 +46,9 @@ class ActionService(Protocol):
         self.process_id = process_id
         self.service_id = service_id
         self.data = data
-        # TODO: address me properly.
-        self.current_action = self._get_highest_prio_action()
 
-    def _get_highest_prio_action(self) -> Optional[Action]:
-        # Iterate to find highest action request.
-        highest_prio_action: Optional[Action] = None
-        requests = PrimitivesDatabaseHandler().get_service_actions(self.service_id)
-        for request in requests:
-            if (
-                highest_prio_action is None
-                or request.data.priority > highest_prio_action.data.priority
-            ):
-                highest_prio_action = request
-        return highest_prio_action
+    def get_actions(self) -> List[Action]:
+        return PrimitivesDatabaseHandler().get_service_actions(self.service_id)
 
     def to_dict(self):
         return {
@@ -78,6 +67,7 @@ class ActionService(Protocol):
         data["data"] = ActionServiceData.from_json(data["data"])
         return ActionServiceData(**data)
 
+    # TODO: Do we need this? Now are using generic input_to_prompt_string to get the query of any of possible inputs.
     def get_action_query(self) -> Optional[str]:
         if self.current_action:
             return self.current_action.query_to_string()

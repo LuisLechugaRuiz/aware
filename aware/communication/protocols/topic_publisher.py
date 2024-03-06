@@ -30,8 +30,9 @@ class TopicPublisher(Protocol):
         data = json.loads(json_str)
         return cls(**data)
 
-    def update_topic(self, message: Dict[str, Any]):
+    def update_topic(self, message: Dict[str, Any]) -> str:
         PrimitivesDatabaseHandler().update_topic(self.topic_id, message)
+        return "Topic updated successfully"
 
     def setup_functions(self) -> List[FunctionDetail]:
         return [

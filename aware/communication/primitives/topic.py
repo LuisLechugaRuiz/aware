@@ -3,7 +3,6 @@ import json
 from typing import Any, Dict
 
 
-# TODO: Make this public/private. Add agent_id as optional str and is_private flag.
 @dataclass
 class Topic:
     id: str
