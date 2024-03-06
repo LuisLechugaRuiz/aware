@@ -1,12 +1,14 @@
 from dataclasses import dataclass
 import json
-from typing import Dict
+from typing import Dict, List
 
 from aware.communication.primitives.event import Event
+from aware.communication.primitives.interface.function_detail import FunctionDetail
+from aware.communication.protocols.interface.protocol import Protocol
 
 
 @dataclass
-class EventSubscriber:
+class EventSubscriber(Protocol):
     id: str
     user_id: str
     process_id: str
@@ -30,3 +32,18 @@ class EventSubscriber:
     # def get_event(self) -> str:
     #     events = CommunicationPrimitivesHandler().get_event(self.event_type_id)
     #     return topic.to_string()
+
+    def set_event_comleted(self, success: bool, details: str):
+        # TODO: implement this
+        pass
+
+    def setup_functions(self) -> List[FunctionDetail]:
+        response_format = {"success": "bool", "details": "str"}
+        return [
+            FunctionDetail(
+                name=self.set_event_comleted.__name__,
+                args=response_format,
+                description="Call this function to set the request completed, filling the args and the success flag.",
+                callback=self.set_event_comleted,
+            )
+        ]

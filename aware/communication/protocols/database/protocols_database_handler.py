@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 
 from aware.communication.communication_protocols import CommunicationProtocols
 from aware.communication.protocols.database.protocols_redis_handler import (
@@ -7,6 +7,8 @@ from aware.communication.protocols.database.protocols_redis_handler import (
 from aware.communication.protocols.database.protocols_supabase_handler import (
     ProtocolSupabaseHandler,
 )
+from aware.communication.protocols.event_subscriber import EventSubscriber
+from aware.communication.protocols.topic_subscriber import TopicSubscriber
 from aware.database.client_handlers import ClientHandlers
 from aware.utils.logger.file_logger import FileLogger
 
@@ -98,3 +100,11 @@ class ProtocolsDatabaseHandler:
         self.logger.info(
             f"Created publisher for process_id: {process_id} to topic: {topic_name}"
         )
+
+    def get_event_subscribers_from_type(
+        self, event_type_id: str
+    ) -> List[EventSubscriber]:
+        return self.redis_handler.get_event_subscribers_from_type(event_type_id)
+
+    def get_topic_subscribers_from_topic(self, topic_id: str) -> List[TopicSubscriber]:
+        return self.redis_handler.get_topic_subscribers_from_topic(topic_id)

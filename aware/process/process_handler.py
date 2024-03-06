@@ -102,6 +102,7 @@ class ProcessHandler:
         )
         self._manage_conversation_buffer(process_ids)
 
+    # TODO: REMOVE! Is managed at communication dispatcher.
     def process_request(self, request: Request) -> Request:
         service_process_ids = self.process_database_handler.get_process_ids(
             process_id=request.service_process_id

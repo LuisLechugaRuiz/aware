@@ -101,6 +101,9 @@ class Action:
         data["tool"] = data["tool"] if data["tool"] else None
         return cls(**data)
 
+    def update_feedback(self, feedback: Dict[str, Any]):
+        self.data.feedback = feedback
+
     def feedback_to_string(self) -> str:
         return self.data.feedback_to_string()
 

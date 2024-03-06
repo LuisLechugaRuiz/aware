@@ -6,7 +6,7 @@ from aware.communication.primitives.database.primitives_redis_handler import (
 from aware.communication.primitives.database.primitives_supabase_handler import (
     PrimitiveSupabaseHandler,
 )
-from aware.communication.primitives.action import Action
+from aware.communication.primitives.action import Action, ActionStatus
 from aware.communication.primitives.event import Event, EventStatus
 from aware.communication.primitives.request import Request, RequestStatus
 from aware.communication.primitives.topic import Topic
@@ -135,6 +135,9 @@ class PrimitivesDatabaseHandler:
         except Exception as e:
             return DatabaseResult(error=f"Error creating request: {e}")
 
+    def get_events(self, event_type_id: str) -> List[Event]:
+        return self.redis_handler.get_events(event_type_id)
+
     def get_client_actions(self, client_id: str) -> List[Action]:
         return self.redis_handler.get_client_actions(client_id)
 
@@ -150,11 +153,28 @@ class PrimitivesDatabaseHandler:
     def get_topic(self, topic_id: str) -> Optional[Topic]:
         return self.redis_handler.get_topic(topic_id)
 
+    def send_action_feedback(self, action: Action, feedback: Dict[str, Any]):
+        action.update_feedback(feedback)
+        self.redis_handler.update_action(action, feedback)
+        self.supabase_handler.update_action_feedback(action)
+
     def set_event_notified(self, event: Event):
         event.status = EventStatus.NOTIFIED
 
         self.redis_handler.delete_event(event)
         self.supabase_handler.update_event(event)
+
+    def set_action_completed(
+        self, action: Action, response: Dict[str, Any], success: bool
+    ):
+        action.data.response = response
+        if success:
+            action.data.status = ActionStatus.SUCCESS
+        else:
+            action.data.status = ActionStatus.FAILURE
+
+        self.redis_handler.delete_action(action)
+        self.supabase_handler.set_action_completed(action)
 
     def set_request_completed(
         self, request: Request, response: Dict[str, Any], success: bool
@@ -168,11 +188,11 @@ class PrimitivesDatabaseHandler:
         self.redis_handler.delete_request(request.id)
         self.supabase_handler.set_request_completed(request)
 
-    def update_action_feedback(self, action: Action, feedback: str):
-        action.data.feedback = feedback
+    def update_action_status(self, action: Action, status: ActionStatus):
+        action.data.status = status
 
         self.redis_handler.update_action(action)
-        self.supabase_handler.update_action_feedback(action)
+        self.supabase_handler.update_action_status(action)
 
     def update_request_status(self, request: Request, status: RequestStatus):
         request.data.status = status

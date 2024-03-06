@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List
+from typing import Any, Dict, List
 
 from aware.communication.primitives.interface.function_detail import FunctionDetail
 from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
@@ -9,16 +9,12 @@ class Protocol(ABC):
     def __init__(self):
         self.registered_functions: List[FunctionDetail] = []
 
-    def register_function(
-        self, name: str, args: Dict[str, Any], description: str, callback: Callable
-    ):
-        function_detail = FunctionDetail(name, args, description, callback)
-        self.registered_functions.append(function_detail)
-
     # TODO: we need a specific class for function schema!
     def get_functions(self) -> List[Dict[str, Any]]:
         function_schemas = []
-        for fn in self.registered_functions:
+        functions = self.setup_functions()
+        for fn in functions:
+            self.registered_functions.append(fn)
             function_schemas.append(
                 JsonPydanticParser.get_function_schema(
                     name=fn.name,
@@ -40,11 +36,11 @@ class Protocol(ABC):
                 try:
                     return fn.callback(**kwargs)
                 except Exception as e:
-                    raise ValueError(f"Error calling function {name}: {e}")
-        raise ValueError(f"Function {name} not registered")
+                    return f"Error calling function {name}: {e}"
+        return f"Function {name} not registered"
 
     @abstractmethod
-    def setup_functions(self):
+    def setup_functions(self) -> List[FunctionDetail]:
         """
         Derived classes must implement this method to set up their specific functions.
         """

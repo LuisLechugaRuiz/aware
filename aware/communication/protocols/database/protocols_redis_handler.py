@@ -26,6 +26,10 @@ class ProtocolsRedisHandler:
             f"process:{event_subscriber.process_id}:event_subscribers",
             event_subscriber.to_json(),
         )
+        self.client.sadd(
+            f"event_type:{event_subscriber.event_type_id}:event_subscribers",
+            event_subscriber.to_json(),
+        )
 
     def create_event_publisher(
         self,
@@ -80,6 +84,10 @@ class ProtocolsRedisHandler:
             f"process:{topic_subscriber.process_id}:topic_subscribers",
             topic_subscriber.to_json(),
         )
+        self.client.sadd(
+            f"topic:{topic_subscriber.topic_id}:subscribers",
+            topic_subscriber.to_json(),
+        )
 
     def get_communication_protocols(self, process_id: str) -> CommunicationProtocols:
         return CommunicationProtocols(
@@ -91,6 +99,17 @@ class ProtocolsRedisHandler:
             request_clients=self.get_request_clients(process_id=process_id),
             request_service=self.get_request_services(service_id=process_id),
         )
+
+    def get_event_subscribers_from_type(
+        self, event_type_id: str
+    ) -> Dict[str, EventSubscriber]:
+        event_subscribers = {}
+        for event_subscriber in self.client.smembers(
+            f"event_type:{event_type_id}:event_subscribers"
+        ):
+            event_subscriber = EventSubscriber.from_json(event_subscriber)
+            event_subscribers[event_subscriber.process_id] = event_subscriber
+        return event_subscribers
 
     def get_event_subscribers(self, process_id: str) -> Dict[str, EventSubscriber]:
         event_subscribers = {}
@@ -166,6 +185,15 @@ class ProtocolsRedisHandler:
         ):
             topic_subscriber = TopicSubscriber.from_json(topic_subscriber)
             topic_subscribers[topic_subscriber.topic_name] = topic_subscriber
+        return topic_subscribers
+
+    def get_topic_subscribers_from_topic(
+        self, topic_id: str
+    ) -> Dict[str, TopicSubscriber]:
+        topic_subscribers = {}
+        for topic_subscriber in self.client.smembers(f"topic:{topic_id}:subscribers"):
+            topic_subscriber = TopicSubscriber.from_json(topic_subscriber)
+            topic_subscribers[topic_subscriber.process_id] = topic_subscriber
         return topic_subscribers
 
     def set_communications(

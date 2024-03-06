@@ -1,5 +1,5 @@
 from redis import Redis
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from aware.communication.primitives.action import Action
 from aware.communication.primitives.event import Event, EventType
@@ -65,19 +65,24 @@ class PrimitivesRedisHandler:
             topic.to_json(),
         )
 
-    # TODO: REFACTOR!
-    def delete_event(self, event: Event):
-        # Delete the event data
-        event_data_key = (
-            f"user_id:{event.user_id}:event_type:{event.event_name}:event:{event.id}"
-        )
-        self.client.delete(event_data_key)
+    def delete_action(self, action: Action):
+        self.client.delete(f"action:{action.id}")
 
-        # Delete the event reference from the sorted set
-        event_order_key = (
-            f"user_id:{event.user_id}:event_type:{event.event_name}:event:order"
+        self.client.zrem(
+            f"action_service:{action.service_id}:actions:order",
+            action.id,
         )
-        self.client.zrem(event_order_key, event_data_key)
+        self.client.zrem(
+            f"action_client:{action.client_id}:actions:order",
+            action.id,
+        )
+
+    def delete_event(self, event: Event):
+        self.client.delete(f"event:{event.id}")
+        self.client.zrem(
+            f"event_types:{event.event_type_id}:events:order",
+            event.id,
+        )
 
     def delete_request(self, request: Request):
         self.client.delete(f"request:{request.id}")
@@ -112,6 +117,23 @@ class PrimitivesRedisHandler:
                 actions.append(Action.from_json(action_data_json.decode("utf-8")))
 
         return actions
+
+    # TODO: Fix me?
+    def get_events(self, event_type_id: str) -> List[Event]:
+        # Retrieve all event IDs from the sorted set, ordered by timestamp
+        events_order_key = f"event_types:{event_type_id}:events:order"
+        events_ids = self.client.zrange(events_order_key, 0, -1)
+
+        events = []
+        for event_id_bytes in events_ids:
+            event_id = event_id_bytes.decode("utf-8")
+
+            # Fetch the event data for each event ID and deserialize it
+            event_data_json = self.client.get(f"event:{event_id}")
+            if event_data_json:
+                events.append(Event.from_json(event_data_json.decode("utf-8")))
+
+        return events
 
     def get_requests(self, request_order_key: str):
         # Retrieve all request IDs from the sorted set, ordered by timestamp

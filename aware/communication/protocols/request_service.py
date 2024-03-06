@@ -1,11 +1,13 @@
 import json
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from aware.communication.primitives.request import Request
 from aware.communication.primitives.database.primitives_database_handler import (
     PrimitivesDatabaseHandler,
 )
+from aware.communication.primitives.interface.function_detail import FunctionDetail
+from aware.communication.protocols.interface.protocol import Protocol
 
 
 @dataclass
@@ -13,7 +15,6 @@ class RequestServiceData:
     service_name: str
     service_description: str
     request_format: Dict[str, Any]
-    feedback_format: Dict[str, Any]
     response_format: Dict[str, Any]
     tool_name: str
 
@@ -22,7 +23,6 @@ class RequestServiceData:
             "service_name": self.service_name,
             "service_description": self.service_description,
             "request_format": self.request_format,
-            "feedback_format": self.feedback_format,
             "response_format": self.response_format,
             "tool_name": self.tool_name,
         }
@@ -36,7 +36,7 @@ class RequestServiceData:
         return cls(**data)
 
 
-class RequestService:
+class RequestService(Protocol):
     def __init__(
         self, user_id: str, process_id: str, service_id: str, data: RequestServiceData
     ):
@@ -80,18 +80,22 @@ class RequestService:
             return self.current_request.query_to_string()
         return None
 
-    def get_set_request_completed_function(self) -> Dict[str, Any]:
-        self.data.response_format["success"] = "bool"
-        self.data.response_format["details"] = "str"
-        return {
-            "name": "set_request_completed",
-            "args": self.data.response_format,
-            "description": "Call this function to set the request completed, filling the args and the success flag.",
-        }
-
     def set_request_completed(self, response: Dict[str, Any], success: bool):
         if self.current_request:
-            return PrimitivesDatabaseHandler().set_request_completed(
+            PrimitivesDatabaseHandler().set_request_completed(
                 self.current_request, response, success
             )
-        return None
+            # TODO: send here to CommunicationDispatcher to process set_request_completed! Use celery to send the task.
+        return f"Request {self.current_request.id} completed."
+
+    def setup_functions(self) -> List[FunctionDetail]:
+        self.data.response_format["success"] = "bool"
+        self.data.response_format["details"] = "str"
+        return [
+            FunctionDetail(
+                name=self.set_request_completed.__name__,
+                args=self.data.response_format,
+                description="Call this function to set the request completed, filling the args and the success flag.",
+                callback=self.set_request_completed,
+            )
+        ]

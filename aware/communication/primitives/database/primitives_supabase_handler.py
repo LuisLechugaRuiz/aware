@@ -253,6 +253,16 @@ class PrimitiveSupabaseHandler:
             timestamp=existing_topic["updated_at"],
         )
 
+    def set_action_completed(self, action: Action):
+        self.client.table("actions").update(
+            {"status": action.data.status.value, "response": action.data.response}
+        ).eq("id", action.id).execute()
+
+    def set_event_completed(self, event: Event):
+        self.client.table("events").update({"status": event.status.value}).eq(
+            "id", event.id
+        ).execute()
+
     def set_request_completed(self, request: Request):
         self.client.table("requests").update(
             {"status": request.data.status.value, "response": request.data.response}
