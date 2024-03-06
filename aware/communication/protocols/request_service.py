@@ -89,16 +89,9 @@ class RequestService:
             "description": "Call this function to set the request completed, filling the args and the success flag.",
         }
 
-    def get_send_feedback_function(self) -> Dict[str, Any]:
-        return {
-            "name": "send_feedback",
-            "args": self.data.feedback_format,
-            "description": "Call this function to send feedback to the client with the specific feedback.",
-        }
-
     def set_request_completed(self, response: Dict[str, Any], success: bool):
         if self.current_request:
             return PrimitivesDatabaseHandler().set_request_completed(
-                self.current_request, success, response
+                self.current_request, response, success
             )
         return None

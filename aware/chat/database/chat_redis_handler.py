@@ -146,7 +146,10 @@ class ChatRedisHandler:
             raise ValueError(f"Unknown message type: {message_type}")
 
     def set_user_data(self, user_data: UserData):
-        self.redis_handler.set_user_data(user_data)
+        self.client.set(
+            f"user_id:{user_data.user_id}:data",
+            user_data.to_json(),
+        )
 
     def update_message(self, message_key: str, message: JSONMessage):
         message_data = json.dumps(

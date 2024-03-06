@@ -19,7 +19,6 @@ from aware.utils.logger.process_loger import ProcessLogger
 from aware.server.celery_app import app
 
 
-# TODO: REMOVE ALL DEPENDENCIES OF CLIENTHANDLERS.
 class ProcessHandler:
     def __init__(self, process_logger: ProcessLogger):
         self.logger = process_logger.get_logger("process_handler")
@@ -30,6 +29,7 @@ class ProcessHandler:
 
     # TODO: Refactor!
     def add_communications(self, process_ids: ProcessIds):
+        # TOOD:
         # Get communications
         communication_protocols = (
             self.comm_protocols_database_handler.get_communication_protocols(
@@ -85,6 +85,7 @@ class ProcessHandler:
             self._manage_conversation_buffer(process_ids)
 
     # TODO: Thought should be an internal topic? - TODO: determine this as this will modify if we add it on conversation or as part of System message.
+    # TODO: I think it should be part of AgentData. Topics should be used for channels between agents which depends on use-cases, not for internal state.
     def add_thought(
         self,
         process_ids: ProcessIds,
@@ -172,17 +173,20 @@ class ProcessHandler:
 
     def step_state_machine(self, process_info: ProcessInfo, is_process_finished: bool):
         agent_data = process_info.agent_data
+        # TODO: This logic needs to be improved:
+        # Everytime a new cycle of state machine finishes (which is just a cycle for the agent), then we check if the input is completed, in that case we check if there is another input waiting to be processed or we just set to IDLE.
         if agent_data.state == AgentState.IDLE:
             # Initialize process
             self.agent_database_handler.add_active_agent(
                 agent_id=process_info.process_ids.agent_id
             )
-            # Add communications
+            # Add communication_protocols
+            # TODO: Here we need to act to manage the new input. Where to do it? Should it happen at CommunicationProtocols level?
             self.add_communications(process_info.process_ids)
 
         agent_state_machine = AgentStateMachine(
             agent_data=agent_data,
-            communications=process_info.communications,
+            communication_protocols=process_info.communication_protocols,
             is_process_finished=is_process_finished,
         )
         next_state = agent_state_machine.step()

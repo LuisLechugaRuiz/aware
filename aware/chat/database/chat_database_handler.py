@@ -84,6 +84,9 @@ class ChatDatabaseHandler:
                 )
         return conversation_messages
 
+    def get_conversation_with_keys(self, process_id: str) -> List[str, JSONMessage]:
+        return self.redis_handler.get_conversation_with_keys(process_id)
+
     def send_message_to_user(
         self,
         user_id: str,
@@ -101,3 +104,7 @@ class ChatDatabaseHandler:
             name=name,
             content=content,
         )
+
+    def update_message(self, message_key: str, message: JSONMessage):
+        # self.supabase_handler.update_message(process_id, message_id, message) # TODO: Implement me! refactor this function properly..
+        self.redis_handler.update_message(message_key, message)
