@@ -135,6 +135,15 @@ class PrimitivesDatabaseHandler:
         except Exception as e:
             return DatabaseResult(error=f"Error creating request: {e}")
 
+    def get_action(self, action_id: str) -> Optional[Action]:
+        return self.redis_handler.get_action(action_id)
+
+    def get_request(self, request_id: str) -> Optional[Request]:
+        return self.redis_handler.get_request(request_id)
+
+    def get_event(self, event_id: str) -> Optional[Event]:
+        return self.redis_handler.get_event(event_id)
+
     def get_events(self, event_type_id: str) -> List[Event]:
         return self.redis_handler.get_events(event_type_id)
 

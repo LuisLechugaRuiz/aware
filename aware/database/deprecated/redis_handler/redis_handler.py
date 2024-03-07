@@ -319,14 +319,15 @@ class RedisHandler:
             return event_subscriber
         return None
 
-    def get_communications(self, process_id: str) -> Communications:
-        return Communications(
-            topic_publisher=self.get_topic_publisher(process_id=process_id),
-            topic_subscriber=self.get_topic_subscriber(process_id=process_id),
-            request_client=self.get_request_client(process_id=process_id),
-            request_service=self.get_request_service(service_id=process_id),
-            event_subscriber=self.get_event_subscriber(process_id=process_id),
-        )
+    # TODO: Remove, now we are getting this at database level.
+    # def get_communications(self, process_id: str) -> Communications:
+    #     return Communications(
+    #         topic_publisher=self.get_topic_publisher(process_id=process_id),
+    #         topic_subscriber=self.get_topic_subscriber(process_id=process_id),
+    #         request_client=self.get_request_client(process_id=process_id),
+    #         request_service=self.get_request_service(service_id=process_id),
+    #         event_subscriber=self.get_event_subscriber(process_id=process_id),
+    #     )
 
     def get_process_data(self, process_id: str) -> Optional[ProcessData]:
         data = self.client.get(f"process_data:{process_id}")

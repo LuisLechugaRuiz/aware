@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import json
 from typing import Dict, List
 
@@ -9,15 +8,24 @@ from aware.communication.primitives.interface.function_detail import FunctionDet
 from aware.communication.protocols.interface.protocol import Protocol
 
 
-@dataclass
 class TopicSubscriber(Protocol):
-    id: str
-    user_id: str
-    process_id: str
-    topic_id: str
-    topic_name: str
-    topic_description: str
-    message_format: Dict[str, str]
+    def __init__(
+        self,
+        id: str,
+        user_id: str,
+        process_id: str,
+        topic_id: str,
+        topic_name: str,
+        topic_description: str,
+        message_format: Dict[str, str],
+    ):
+        self.user_id = user_id
+        self.process_id = process_id
+        self.topic_id = topic_id
+        self.topic_name = topic_name
+        self.topic_description = topic_description
+        self.message_format = message_format
+        super().__init__(id=id)
 
     def to_dict(self):
         return self.__dict__

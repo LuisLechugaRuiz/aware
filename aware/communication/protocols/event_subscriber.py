@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import json
 from typing import Dict, List
 
@@ -7,18 +6,27 @@ from aware.communication.primitives.database.primitives_database_handler import 
 )
 from aware.communication.primitives.event import Event
 from aware.communication.primitives.interface.function_detail import FunctionDetail
-from aware.communication.protocols.interface.protocol import Protocol
+from aware.communication.protocols.interface.input_protocol import InputProtocol
 
 
-@dataclass
-class EventSubscriber(Protocol):
-    id: str
-    user_id: str
-    process_id: str
-    event_type_id: str
-    event_name: str
-    event_description: str
-    event_format: Dict[str, str]
+class EventSubscriber(InputProtocol):
+    def __init__(
+        self,
+        id: str,
+        user_id: str,
+        process_id: str,
+        event_type_id: str,
+        event_name: str,
+        event_description: str,
+        event_format: Dict[str, str],
+    ):
+        self.user_id = user_id
+        self.process_id = process_id
+        self.event_type_id = event_type_id
+        self.event_name = event_name
+        self.event_description = event_description
+        self.event_format = event_format
+        super().__init__(id=id)
 
     def to_dict(self):
         return self.__dict__
@@ -31,7 +39,7 @@ class EventSubscriber(Protocol):
         data = json.loads(json_str)
         return cls(**data)
 
-    def get_events(self) -> List[Event]:
+    def get_inputs(self) -> List[Event]:
         return PrimitivesDatabaseHandler().get_events(self.event_type_id)
 
     def set_event_comleted(self, success: bool, details: str):

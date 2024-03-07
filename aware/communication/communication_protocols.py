@@ -1,44 +1,38 @@
 import json
 from typing import Any, Dict, List, Optional
+from openai.types.chat import ChatCompletionMessageToolCall
 
+from aware.communication.primitives.interface.input import Input
 from aware.communication.protocols import (
-    EventSubscriber,
     TopicPublisher,
     TopicSubscriber,
     ActionClient,
-    ActionService,
     RequestClient,
-    RequestService,
 )
+from aware.communication.protocols.interface.input_protocol import InputProtocol
 
 
 class CommunicationProtocols:
     def __init__(
         self,
-        event_subscribers: Dict[str, EventSubscriber],
         topic_publishers: Dict[str, TopicPublisher],
         topic_subscribers: Dict[str, TopicSubscriber],
         action_clients: Dict[str, ActionClient],
-        action_services: Dict[str, ActionService],
         request_clients: Dict[str, RequestClient],
-        request_services: Dict[str, RequestService],
     ):
-        self.event_subscribers = event_subscribers
         self.topic_publishers = topic_publishers
         self.topic_subscribers = topic_subscribers
         self.action_clients = action_clients
-        self.action_services = action_services
         self.request_clients = request_clients
-        self.request_services = request_services
+        self.input_protocol = None
+        self.input = None
 
-        self._get_highest_prio_input()
+    def add_input(self, input: Input, input_protocol: InputProtocol):
+        self.input = input
+        self.input_protocol = input_protocol
 
     def to_dict(self):
         return {
-            "event_subscribers": {
-                event_name: event_subscriber.to_dict()
-                for event_name, event_subscriber in self.event_subscribers.items()
-            },
             "topic_publishers": {
                 topic_name: topic_publisher.to_dict()
                 for topic_name, topic_publisher in self.topic_publishers.items()
@@ -51,17 +45,9 @@ class CommunicationProtocols:
                 action_name: action_client.to_dict()
                 for action_name, action_client in self.action_clients.items()
             },
-            "action_services": {
-                action_name: action_service.to_dict()
-                for action_name, action_service in self.action_services.items()
-            },
             "request_clients": {
                 service_name: request_client.to_dict()
                 for service_name, request_client in self.request_clients.items()
-            },
-            "request_services": {
-                service_name: request_service.to_dict()
-                for service_name, request_service in self.request_services.items()
             },
         }
 
@@ -71,10 +57,6 @@ class CommunicationProtocols:
     @staticmethod
     def from_json(json_str: str):
         data = json.loads(json_str)
-        data["event_subscribers"] = {
-            event_name: EventSubscriber(**event_subscriber)
-            for event_name, event_subscriber in data["event_subscribers"].items()
-        }
         data["topic_publishers"] = {
             topic_name: TopicPublisher(**topic_publisher)
             for topic_name, topic_publisher in data["topic_publishers"].items()
@@ -87,17 +69,9 @@ class CommunicationProtocols:
             action_name: ActionClient(**action_client)
             for action_name, action_client in data["action_clients"].items()
         }
-        data["action_services"] = {
-            action_name: ActionService(**action_service)
-            for action_name, action_service in data["action_services"].items()
-        }
         data["request_clients"] = {
             request_name: RequestClient(**request_client)
             for request_name, request_client in data["request_clients"].items()
-        }
-        data["request_services"] = {
-            request_name: RequestService(**request_service)
-            for request_name, request_service in data["request_services"].items()
         }
         return CommunicationProtocols(**data)
 
@@ -118,6 +92,8 @@ class CommunicationProtocols:
             function_schemas.extend(self.input_protocol.get_functions())
         return function_schemas
 
+    # TODO: we want to extract here if we need to continue processing or not,
+    #   i.e: call_function might means scheduling request, in that case we want to stop. Check ProcessToolCallResponse from communication_handler.py and remove it once we achieve this.
     # TODO: make this more elegant.
     def call_function(
         self, function_name: str, function_args: Dict[str, Any]
@@ -146,53 +122,13 @@ class CommunicationProtocols:
     def get_client(self, service_name: str) -> Optional[RequestClient]:
         return self.request_clients.get(service_name, None)
 
-    def get_service(self, service_name: str) -> Optional[RequestService]:
-        return self.request_services.get(service_name, None)
-
-    # TODO: refactor this, make it cleaner.
-    def _get_highest_prio_input(self):
-        self.highest_prio_input = None
-        self.input_protocol = None
-        for request_service in self.request_services.values():
-            requests = request_service.get_requests()
-            for request in requests:
-                if request:
-                    if (
-                        self.highest_prio_input is None
-                        or request.priority > self.highest_prio_input.priority
-                    ):
-                        self.highest_prio_input = request
-                        self.input_protocol = request_service
-        for action_service in self.action_services.values():
-            actions = action_service.get_actions()
-            for action in actions:
-                if action:
-                    if (
-                        self.highest_prio_input is None
-                        or action.priority > self.highest_prio_input.priority
-                    ):
-                        self.highest_prio_input = action
-                        self.input_protocol = action_service
-        for event_subscriber in self.event_subscribers.values():
-            events = event_subscriber.get_events()
-            for event in events:
-                if event:
-                    if (
-                        self.highest_prio_input is None
-                        or event.priority > self.highest_prio_input.priority
-                    ):
-                        self.highest_prio_input = event
-                        self.input_protocol = event_subscriber
-
     def to_prompt_kwargs(self):
         """Show permanent info on the prompt. Don't show event as it will be part of conversation."""
         prompt_kwargs = {}
 
         # Add the input
-        if self.highest_prio_input:
-            prompt_kwargs.update(
-                {"input": self.highest_prio_input.input_to_prompt_string()}
-            )
+        if self.input:
+            prompt_kwargs.update({"input": self.input.input_to_prompt_string()})
 
         # Add the feedback of all the client actions
         actions_feedback = "\n".join(
@@ -208,3 +144,8 @@ class CommunicationProtocols:
         )
         prompt_kwargs.update({"topics": "\n".join(topic_updates)})
         return prompt_kwargs
+
+    def tool_call_to_args(
+        self, tool_call: ChatCompletionMessageToolCall
+    ) -> Dict[str, Any]:
+        return json.loads(tool_call.function.arguments)

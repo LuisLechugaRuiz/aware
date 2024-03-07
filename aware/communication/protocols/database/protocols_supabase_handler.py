@@ -96,10 +96,10 @@ class ProtocolSupabaseHandler:
             f"Client created for process: {process_id}. Response: {response}"
         )
         return ActionClient(
+            id=response["_id"],
             user_id=user_id,
             process_id=process_id,
             process_name=["_process_name"],
-            client_id=response["_id"],
             service_id=response["_service_id"],
             service_name=action_name,
             service_description=response["_service_description"],
@@ -120,7 +120,7 @@ class ProtocolSupabaseHandler:
             .execute()
             .data
         )
-        service_data = RequestServiceData(
+        service_data = ActionServiceData(
             service_name=action_name,
             service_description=action_name,
             request_format=response["_request_format"],
@@ -128,14 +128,14 @@ class ProtocolSupabaseHandler:
             response_format=response["_response_format"],
             tool_name=action_name,
         )
-        service_id = response["_id"]
+        id = response["_id"]
         self.logger.info(
-            f"New service created at supabase. Name: {action_name}, id: {service_id}"
+            f"New service created at supabase. Name: {action_name}, id: {id}"
         )
         return ActionService(
+            id=id,
             user_id=user_id,
             process_id=process_id,
-            service_id=service_id,
             data=service_data,
         )
 
@@ -157,10 +157,10 @@ class ProtocolSupabaseHandler:
             f"Client created for process: {process_id}. Response: {response}"
         )
         return RequestClient(
+            id=response["_id"],
             user_id=user_id,
             process_id=process_id,
             process_name=["_process_name"],
-            client_id=response["_id"],
             service_id=response["_service_id"],
             service_name=service_name,
             service_description=response["_service_description"],
@@ -200,14 +200,14 @@ class ProtocolSupabaseHandler:
             response_format=response["_response_format"],
             tool_name=tool_name,
         )
-        service_id = response["_id"]
+        id = response["_id"]
         self.logger.info(
-            f"New service created at supabase. Name: {service_name}, id: {service_id}"
+            f"New service created at supabase. Name: {service_name}, id: {id}"
         )
         return RequestService(
+            id=id,
             user_id=user_id,
             process_id=process_id,
-            service_id=service_id,
             data=service_data,
             requests=[],
         )
@@ -321,10 +321,10 @@ class ProtocolSupabaseHandler:
         for row in data:
             service_name = row["service_name"]
             action_clients[service_name] = ActionClient(
+                id=row["id"],
                 user_id=row["user_id"],
                 process_id=process_id,
                 process_name=row["name"],
-                client_id=row["id"],
                 service_id=row["service_id"],
                 service_name=service_name,
                 service_description=row["service_description"],
@@ -346,10 +346,10 @@ class ProtocolSupabaseHandler:
         for row in data:
             service_name = row["name"]
             action_services[service_name] = ActionService(
+                id=row["id"],
                 user_id=row["user_id"],
                 process_id=process_id,
-                service_id=row["id"],
-                data=RequestServiceData(
+                data=ActionServiceData(
                     service_name=service_name,
                     service_description=row["description"],
                     request_format=row["request_format"],
@@ -374,10 +374,10 @@ class ProtocolSupabaseHandler:
         for row in data:
             service_name = row["service_name"]
             request_clients[service_name] = RequestClient(
+                id=row["id"],
                 user_id=row["user_id"],
                 process_id=process_id,
                 process_name=row["name"],
-                client_id=row["id"],
                 service_id=row["service_id"],
                 service_name=service_name,
                 service_description=row["service_description"],
@@ -399,9 +399,9 @@ class ProtocolSupabaseHandler:
         for row in data:
             service_name = row["name"]
             request_services[service_name] = RequestService(
+                id=row["id"],
                 user_id=row["user_id"],
                 process_id=process_id,
-                service_id=row["id"],
                 data=RequestServiceData(
                     service_name=service_name,
                     service_description=row["description"],

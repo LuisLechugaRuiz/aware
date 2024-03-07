@@ -57,7 +57,7 @@ class ActionData:
 class Action(Input):
     def __init__(
         self,
-        request_id: str,
+        action_id: str,
         service_id: str,
         service_process_id: str,
         service_name: str,
@@ -68,7 +68,6 @@ class Action(Input):
         data: ActionData,
         tool: Optional[str] = None,
     ):
-        self.id = request_id
         self.service_id = service_id
         self.service_process_id = service_process_id
         self.service_name = service_name
@@ -78,7 +77,7 @@ class Action(Input):
         self.timestamp = timestamp
         self.data = data
         self.tool = tool
-        super().__init__(self.priority)
+        super().__init__(id=action_id, priority=self.priority)
 
     def to_dict(self):
         return {
@@ -127,3 +126,7 @@ class Action(Input):
 
     def is_completed(self) -> bool:
         return self.data.status in [ActionStatus.SUCCESS, ActionStatus.FAILURE]
+
+    @staticmethod
+    def get_type() -> str:
+        return "action"

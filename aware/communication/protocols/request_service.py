@@ -7,7 +7,7 @@ from aware.communication.primitives.database.primitives_database_handler import 
     PrimitivesDatabaseHandler,
 )
 from aware.communication.primitives.interface.function_detail import FunctionDetail
-from aware.communication.protocols.interface.protocol import Protocol
+from aware.communication.protocols.interface.input_protocol import InputProtocol
 
 
 @dataclass
@@ -36,17 +36,21 @@ class RequestServiceData:
         return cls(**data)
 
 
-class RequestService(Protocol):
+class RequestService(InputProtocol):
     def __init__(
-        self, user_id: str, process_id: str, service_id: str, data: RequestServiceData
+        self,
+        id: str,
+        user_id: str,
+        process_id: str,
+        data: RequestServiceData,
     ):
         self.user_id = user_id
         self.process_id = process_id
-        self.service_id = service_id
         self.data = data
+        super().__init__(id=id)
 
-    def get_requests(self) -> List[Request]:
-        return PrimitivesDatabaseHandler().get_service_requests(self.service_id)
+    def get_inputs(self) -> List[Request]:
+        return PrimitivesDatabaseHandler().get_service_requests(self.id)
 
     def _get_highest_priority_request(self) -> Optional[Request]:
         requests = self.get_requests()
@@ -56,9 +60,9 @@ class RequestService(Protocol):
 
     def to_dict(self):
         return {
+            "id": self.id,
             "user_id": self.user_id,
             "process_id": self.process_id,
-            "service_id": self.service_id,
             "data": self.data.to_dict(),
         }
 
