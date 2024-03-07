@@ -55,7 +55,6 @@ class Event(Input):
         status: EventStatus,
         timestamp: str,
     ):
-        self.id = id
         self.user_id = user_id
         self.event_type_id = event_type_id
         self.event_name = event_name
@@ -64,7 +63,7 @@ class Event(Input):
         self.event_message_format = event_message_format
         self.status = status
         self.timestamp = timestamp
-        super().__init__(self.priority)
+        super().__init__(id=id, priority=self.priority)
 
     def to_dict(self):
         return {
@@ -93,3 +92,6 @@ class Event(Input):
 
     def input_to_prompt_string(self) -> str:
         return f"Event: {self.dict_to_string(self.event_message)}"
+
+    def get_type(self) -> str:
+        return "event"

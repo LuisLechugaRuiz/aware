@@ -13,10 +13,10 @@ from aware.communication.primitives.interface.function_detail import FunctionDet
 class RequestClient(Protocol):
     def __init__(
         self,
+        id: str,
         user_id: str,
         process_id: str,
         process_name: str,
-        client_id: str,
         service_id: str,
         service_name: str,
         service_description: str,
@@ -25,24 +25,19 @@ class RequestClient(Protocol):
         self.user_id = user_id
         self.process_id = process_id
         self.process_name = process_name
-
-        self.client_id = client_id
         self.service_id = service_id
         self.service_name = service_name
         self.service_description = service_description
         self.request_format = request_format
         self.primitives_database_handler = PrimitivesDatabaseHandler()
-
-        # TODO: improve this.
-        super().__init__()
-        self.setup_functions()
+        super().__init__(id=id)
 
     def to_dict(self):
         return {
+            "id": self.id,
             "user_id": self.user_id,
             "process_id": self.process_id,
             "process_name": self.process_name,
-            "client_id": self.client_id,
             "service_id": self.service_id,
             "service_name": self.service_name,
             "service_description": self.service_description,

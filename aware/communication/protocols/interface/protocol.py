@@ -6,7 +6,8 @@ from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
 
 
 class Protocol(ABC):
-    def __init__(self):
+    def __init__(self, id: str):
+        self.id = id
         self.registered_functions: List[FunctionDetail] = []
 
     # TODO: we need a specific class for function schema!

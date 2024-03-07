@@ -112,9 +112,9 @@ class PrimitivesRedisHandler:
         for action_id_bytes in action_ids:
             action_id = action_id_bytes.decode("utf-8")
 
-            action_data_json = self.client.get(f"action:{action_id}")
-            if action_data_json:
-                actions.append(Action.from_json(action_data_json.decode("utf-8")))
+            action = self.get_action(action_id)
+            if action is not None:
+                actions.append(action)
 
         return actions
 
@@ -129,9 +129,9 @@ class PrimitivesRedisHandler:
             event_id = event_id_bytes.decode("utf-8")
 
             # Fetch the event data for each event ID and deserialize it
-            event_data_json = self.client.get(f"event:{event_id}")
-            if event_data_json:
-                events.append(Event.from_json(event_data_json.decode("utf-8")))
+            event = self.get_event(event_id)
+            if event is not None:
+                events.append(event)
 
         return events
 
@@ -144,11 +144,29 @@ class PrimitivesRedisHandler:
             request_id = request_id_bytes.decode("utf-8")
 
             # Fetch the request data for each request ID and deserialize it
-            request_data_json = self.client.get(f"request:{request_id}")
-            if request_data_json:
-                requests.append(Request.from_json(request_data_json.decode("utf-8")))
+            request = self.get_request(request_id)
+            if request is not None:
+                requests.append(request)
 
         return requests
+
+    def get_action(self, action_id: str) -> Optional[Action]:
+        data = self.client.get(f"action:{action_id}")
+        if data:
+            return Action.from_json(data)
+        return None
+
+    def get_event(self, event_id: str) -> Optional[Event]:
+        data = self.client.get(f"event:{event_id}")
+        if data:
+            return Event.from_json(data)
+        return None
+
+    def get_request(self, request_id: str) -> Optional[Request]:
+        data = self.client.get(f"request:{request_id}")
+        if data:
+            return Request.from_json(data)
+        return None
 
     def get_topic(self, topic_id: str) -> Optional[Topic]:
         data = self.client.get(f"topic:{topic_id}")

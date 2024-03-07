@@ -29,13 +29,13 @@ class ProcessHandler:
 
     # TODO: Refactor!
     def add_communications(self, process_ids: ProcessIds):
-        # TOOD:
-        # Get communications
         communication_protocols = (
             self.comm_protocols_database_handler.get_communication_protocols(
                 process_id=process_ids.process_id
             )
         )
+
+        # TODO: Do we want to add the input into conversation or only in system???
         event = communications.event
         if event is not None:
             self.add_message(

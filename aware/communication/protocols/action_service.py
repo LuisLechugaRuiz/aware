@@ -7,7 +7,7 @@ from aware.communication.primitives.database.primitives_database_handler import 
     PrimitivesDatabaseHandler,
 )
 from aware.communication.primitives.interface.function_detail import FunctionDetail
-from aware.communication.protocols.interface.protocol import Protocol
+from aware.communication.protocols.interface.input_protocol import InputProtocol
 
 
 @dataclass
@@ -38,23 +38,18 @@ class ActionServiceData:
         return cls(**data)
 
 
-class ActionService(Protocol):
-    def __init__(
-        self, user_id: str, process_id: str, service_id: str, data: ActionServiceData
-    ):
+class ActionService(InputProtocol):
+    def __init__(self, id: str, user_id: str, process_id: str, data: ActionServiceData):
         self.user_id = user_id
         self.process_id = process_id
-        self.service_id = service_id
         self.data = data
-
-    def get_actions(self) -> List[Action]:
-        return PrimitivesDatabaseHandler().get_service_actions(self.service_id)
+        super().__init__(id=id)
 
     def to_dict(self):
         return {
+            "id": self.id,
             "user_id": self.user_id,
             "process_id": self.process_id,
-            "service_id": self.service_id,
             "data": self.data.to_dict(),
         }
 
@@ -73,20 +68,26 @@ class ActionService(Protocol):
             return self.current_action.query_to_string()
         return None
 
-    def send_feedback(self, feedback: Dict[str, Any]):
+    # TODO: refactor to receive the input (action) as arg.
+    def send_feedback(self, action: Action, feedback: Dict[str, Any]):
         if self.current_action:
             return PrimitivesDatabaseHandler().send_action_feedback(
                 self.current_action, feedback
             )
         return None
 
-    def set_action_completed(self, response: Dict[str, Any], success: bool):
+    def set_action_completed(
+        self, action: Action, response: Dict[str, Any], success: bool
+    ):
         if self.current_action:
             # TODO: address me properly.
             return PrimitivesDatabaseHandler().set_action_completed(
                 self.current_action, response, success
             )
         return None
+
+    def get_inputs(self) -> List[Action]:
+        return PrimitivesDatabaseHandler().get_service_actions(self.id)
 
     def setup_functions(self) -> List[FunctionDetail]:
         self.data.response_format["success"] = "bool"

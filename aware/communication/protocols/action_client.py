@@ -13,10 +13,10 @@ from aware.database.helpers import DatabaseResult
 class ActionClient(Protocol):
     def __init__(
         self,
+        id: str,
         user_id: str,
         process_id: str,
         process_name: str,
-        client_id: str,
         service_id: str,
         service_name: str,
         service_description: str,
@@ -26,19 +26,19 @@ class ActionClient(Protocol):
         self.process_id = process_id
         self.process_name = process_name
 
-        self.client_id = client_id
         self.service_id = service_id
         self.service_name = service_name
         self.service_description = service_description
         self.request_format = request_format
         self.primitives_database_handler = PrimitivesDatabaseHandler()
+        super().__init__(id=id)
 
     def to_dict(self):
         return {
+            "id": self.id,
             "user_id": self.user_id,
             "process_id": self.process_id,
             "process_name": self.process_name,
-            "client_id": self.client_id,
             "service_id": self.service_id,
             "service_name": self.service_name,
             "service_description": self.service_description,
@@ -54,7 +54,7 @@ class ActionClient(Protocol):
         return ActionClient(**data)
 
     def get_action_feedback(self) -> str:
-        actions = self.primitives_database_handler.get_client_actions(self.client_id)
+        actions = self.primitives_database_handler.get_client_actions(self.id)
         return "\n".join([action.feedback_to_string() for action in actions])
 
     def create_action(
@@ -62,7 +62,7 @@ class ActionClient(Protocol):
     ) -> DatabaseResult[Action]:
         # - Save request in database
         return self.primitives_database_handler.create_action(
-            client_id=self.client_id,
+            client_id=self.id,
             request_message=request_message,
             priority=priority,
         )
@@ -71,7 +71,7 @@ class ActionClient(Protocol):
         self.request_format["priority"] = "int"
         return [
             FunctionDetail(
-                name=self.create_action.__name__,
+                name=self.service_name,
                 args=self.request_format,
                 description=f"Call this function to send an action (will be managed asynchronously) to a service with the following description: {self.service_description}",
                 callback=self.create_action,

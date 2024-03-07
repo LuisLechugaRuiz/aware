@@ -130,7 +130,7 @@ class PrimitiveSupabaseHandler:
             status=ActionStatus(response["status"]),
         )
         return Action(
-            request_id=response["id"],
+            action_id=response["id"],
             service_id=response["service_id"],
             service_process_id=response["service_process_id"],
             service_name=response["service_name"],

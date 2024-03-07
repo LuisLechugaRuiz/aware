@@ -53,7 +53,6 @@ class RequestData:
 class Request(Input):
     def __init__(
         self,
-        request_id: str,
         service_id: str,
         service_process_id: str,
         service_name: str,
@@ -64,7 +63,6 @@ class Request(Input):
         data: RequestData,
         tool: Optional[str] = None,
     ):
-        self.id = request_id
         self.service_id = service_id
         self.service_process_id = service_process_id
         self.service_name = service_name
@@ -74,7 +72,7 @@ class Request(Input):
         self.timestamp = timestamp
         self.data = data
         self.tool = tool
-        super().__init__(self.data.priority)
+        super().__init__(id=request_id, priority=self.data.priority)
 
     def to_dict(self):
         return {
@@ -112,3 +110,6 @@ class Request(Input):
 
     def response_to_string(self) -> str:
         return self.data.response_to_string()
+
+    def get_type(self) -> str:
+        return "request"

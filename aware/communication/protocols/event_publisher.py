@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import json
 from typing import Any, Dict
 
@@ -6,17 +5,27 @@ from aware.communication.primitives.event import Event
 from aware.communication.primitives.database.primitives_database_handler import (
     PrimitivesDatabaseHandler,
 )
+from aware.communication.protocols.interface.protocol import Protocol
 
 
-@dataclass
-class EventPublisher:
-    id: str
-    user_id: str
-    process_id: str
-    event_type_id: str
-    event_name: str
-    event_description: str
-    event_format: Dict[str, str]
+class EventPublisher(Protocol):
+    def __init__(
+        self,
+        id: str,
+        user_id: str,
+        process_id: str,
+        event_type_id: str,
+        event_name: str,
+        event_description: str,
+        event_format: Dict[str, str],
+    ):
+        self.user_id = user_id
+        self.process_id = process_id
+        self.event_type_id = event_type_id
+        self.event_name = event_name
+        self.event_description = event_description
+        self.event_format = event_format
+        super().__init__(id=id)
 
     def to_dict(self):
         return self.__dict__
