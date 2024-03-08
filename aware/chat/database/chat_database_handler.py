@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 from aware.chat.call_info import CallInfo
 from aware.chat.conversation_schemas import ChatMessage, JSONMessage
@@ -84,7 +84,9 @@ class ChatDatabaseHandler:
                 )
         return conversation_messages
 
-    def get_conversation_with_keys(self, process_id: str) -> List[str, JSONMessage]:
+    def get_conversation_with_keys(
+        self, process_id: str
+    ) -> List[Tuple[str, JSONMessage]]:
         return self.redis_handler.get_conversation_with_keys(process_id)
 
     def send_message_to_user(

@@ -54,5 +54,6 @@ class EventSubscriber(InputProtocol):
                 args=response_format,
                 description="Call this function to set the request completed, filling the args and the success flag.",
                 callback=self.set_event_comleted,
+                should_continue=True,
             )
         ]

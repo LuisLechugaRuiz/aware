@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 
+from aware.chat.conversation_schemas import UserMessage
 
-# TODO: Fill me properly.
-# TODO: How to get kwarg prompts from input? Maybe abstract function to fill it.
+
 class Input(ABC):
     def __init__(self, id: str, priority: int):
         self.id = id
@@ -18,4 +18,8 @@ class Input(ABC):
 
     @abstractmethod
     def get_type(self) -> str:
+        pass
+
+    @abstractmethod
+    def to_user_message(self) -> UserMessage:
         pass

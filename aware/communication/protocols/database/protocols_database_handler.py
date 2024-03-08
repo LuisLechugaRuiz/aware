@@ -28,8 +28,6 @@ from aware.database.client_handlers import ClientHandlers
 from aware.utils.logger.file_logger import FileLogger
 
 
-# TODO: Implement the current input that is being processed along with the input protocol.
-# This will be useful to save it for future iterations and only remove it when is completed.
 class ProtocolsDatabaseHandler:
     def __init__(self):
         self.redis_handler = ProtocolsRedisHandler(
@@ -41,18 +39,14 @@ class ProtocolsDatabaseHandler:
         self.primitives_database_handler = PrimitivesDatabaseHandler()
         self.logger = FileLogger("protocols_database_handler")
 
+    def delete_current_input(self, process_id: str):
+        self.primitives_database_handler.delete_current_input_metadata(process_id)
+
     def get_communication_protocols(self, process_id: str) -> CommunicationProtocols:
         current_input, input_protocol = self.get_current_input()
         if current_input is None:
-            current_input, input_protocol = self.get_highest_prio_input(process_id)
-            current_input_metadata = CurrentInputMetadata(
-                input_type=current_input.get_type(),
-                input_id=current_input.id,
-                protocol_id=input_protocol.id,
-            )
-            # Setting here current input metadata. We should probably update input status to processing. (TBD)
-            self.redis_handler.set_current_input_metadata(
-                process_id, current_input_metadata
+            raise Exception(
+                "Trying to get communication protocols without current input"
             )
 
         communication_protocols = CommunicationProtocols(
@@ -60,30 +54,16 @@ class ProtocolsDatabaseHandler:
             topic_subscribers=self.get_topic_subscribers(process_id),
             action_clients=self.get_action_clients(process_id),
             request_clients=self.get_request_clients(process_id),
-        ).add_input(current_input, input_protocol)
-
-        # TODO: removed to fetch each protocol from database. This means there is no fallback to Supabase...
-        # communications = self.redis_handler.get_communication_protocols(
-        #     process_id=process_id,
-        # )
-
-        # if communications is None:
-        #     communications = self.supabase_handler.get_communication_protocols(
-        #         process_id=process_id
-        #     )
-        #     if communications is None:
-        #         raise Exception("Process Communications not found on Supabase")
-
-        #     self.redis_handler.set_communications(
-        #         process_id=process_id, communications=communications
-        #     )
+            input_protocol=input_protocol,
+            input=current_input,
+        )
         return communication_protocols
 
     def get_current_input(
         self, process_id: str
     ) -> Tuple[Optional[Input], Optional[InputProtocol]]:
-        current_input_metadata = self.redis_handler.get_current_input_metadata(
-            process_id
+        current_input_metadata = (
+            self.primitives_database_handler.get_current_input_metadata(process_id)
         )
         if current_input_metadata is None:
             return None, None
@@ -113,37 +93,46 @@ class ProtocolsDatabaseHandler:
             raise Exception(f"Unknown input type: {current_input_metadata.input_type}")
         return current_input, input_protocol
 
-    def get_highest_prio_input(
-        self, process_id: str
-    ) -> Tuple[Optional[Input], Optional[InputProtocol]]:
+    def has_current_input(self, process_id: str) -> bool:
+        current_input_metadata = (
+            self.primitives_database_handler.get_current_input_metadata(process_id)
+        )
+        return current_input_metadata is not None
+
+    def update_highest_prio_input(self, process_id: str) -> bool:
         highest_prio_input: Optional[Input] = None
         input_protocol: Optional[InputProtocol] = None
 
         # Consolidate all services and subscribers into a single iterable
-        all_inputs: List[InputProtocol] = [
+        all_input_sources: List[InputProtocol] = [
             *self.get_request_services(process_id).values(),
             *self.get_action_services(process_id).values(),
             *self.get_event_subscribers(process_id).values(),
         ]
 
-        # Function to update the highest priority input and its corresponding protocol
-        def update_highest_prio_input(
-            new_input: Optional[Input], new_protocol: InputProtocol
-        ):
-            nonlocal highest_prio_input, input_protocol
+        # Iterate over all input sources to find the one with the highest priority
+        for input_source in all_input_sources:
+            new_input = input_source.get_highest_priority_input()
             if new_input and (
                 highest_prio_input is None
                 or new_input.priority > highest_prio_input.priority
             ):
                 highest_prio_input = new_input
-                input_protocol = new_protocol
+                input_protocol = input_source
 
-        # Iterate over all inputs to find the one with the highest priority
-        for input_source in all_inputs:
-            new_input = input_source.get_highest_priority_input()
-            update_highest_prio_input(new_input, input_source)
+        if highest_prio_input is None:
+            return False
 
-        return highest_prio_input, input_protocol
+        # Update the current input metadata
+        current_input_metadata = CurrentInputMetadata(
+            input_type=highest_prio_input.get_type(),
+            input_id=highest_prio_input.id,
+            protocol_id=input_protocol.id,
+        )
+        self.primitives_database_handler.set_current_input_metadata(
+            process_id, current_input_metadata
+        )
+        return True
 
     # TODO: Create event subscriber.
     def create_action_client(self, user_id: str, process_id: str, action_name: str):

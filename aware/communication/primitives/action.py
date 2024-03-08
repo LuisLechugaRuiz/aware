@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional
 import json
 
 from aware.communication.primitives.interface.input import Input
+from aware.chat.conversation_schemas import UserMessage
 
 
 class ActionStatus(Enum):
@@ -44,10 +45,14 @@ class ActionData:
         return f"Action request: {self.dict_to_string(self.request)}"
 
     def feedback_to_string(self):
-        return f"Action request: {self.dict_to_string(self.request)}\nFeedback: {self.dict_to_string(self.feedback)}"
+        return (
+            f"{self.query_to_string()}\nFeedback: {self.dict_to_string(self.feedback)}"
+        )
 
     def response_to_string(self):
-        return f"Action response: {self.dict_to_string(self.response)}"
+        return (
+            f"{self.query_to_string()}\nResponse: {self.dict_to_string(self.response)}"
+        )
 
     def dict_to_string(self, dict: Dict[str, Any]):
         return "\n".join([f"{key}: {value}" for key, value in dict.items()])
@@ -109,20 +114,11 @@ class Action(Input):
     def feedback_to_string(self) -> str:
         return self.data.feedback_to_string()
 
-    # TODO: do we need this? now we are using input_to_prompt_string.
-    def query_to_string(self) -> str:
-        return self.data.query_to_string()
-
     def response_to_string(self) -> str:
-        return self.data.response_to_string()
+        return f"Action completed. Info: {self.data.response_to_string()}"
 
     def input_to_prompt_string(self) -> str:
-        return self.query_to_string()
-
-    def output_to_prompt_string(self) -> str:
-        # TODO: feedback is a dict, how to check if it has been set or is format?
-        if self.data.feedback:
-            return self.feedback_to_string()
+        return f"This is the action you should perform: {self.data.query_to_string()}"
 
     def is_completed(self) -> bool:
         return self.data.status in [ActionStatus.SUCCESS, ActionStatus.FAILURE]
@@ -130,3 +126,9 @@ class Action(Input):
     @staticmethod
     def get_type() -> str:
         return "action"
+
+    def to_user_message(self) -> UserMessage:
+        return UserMessage(
+            name=self.client_process_name,
+            content=f"Received a request to perform the following action: {self.data.query_to_string()}",
+        )

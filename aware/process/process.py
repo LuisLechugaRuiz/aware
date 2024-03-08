@@ -8,7 +8,6 @@ from aware.chat.conversation_schemas import (
     ToolResponseMessage,
 )
 from aware.chat.parser.pydantic_parser import PydanticParser
-from aware.communication.communication_handler import CommunicationHandler
 from aware.process.database.process_database_handler import ProcessDatabaseHandler
 from aware.process.process_ids import ProcessIds
 from aware.process.process_info import ProcessInfo
@@ -18,12 +17,14 @@ from aware.tools.tools import Tools
 from aware.utils.logger.process_loger import ProcessLogger
 
 
+# TODO: Split - ProcessInterface, MainProcess and InternalProcess
+# The main difference is that MainProcess is dependent on CommunicationProtocols. Verify also process_states and current_state.
 class Process:
     def __init__(
         self,
         ids: ProcessIds,
     ):
-        self.ids = ids
+        self.process_ids = ids
         process_info = ProcessDatabaseHandler().get_process_info(process_ids=ids)
         self.name = process_info.get_name()
 
@@ -36,6 +37,7 @@ class Process:
 
         # Get process info
         self.agent_data = process_info.agent_data
+        self.communication_protocols = process_info.communication_protocols
         self.process_data = process_info.process_data
         self.process_states = process_info.process_states
         self.current_state = process_info.current_state
@@ -47,16 +49,11 @@ class Process:
         self.tools = self._get_tools(process_info=process_info)
 
         self.process_handler = ProcessHandler()
-        self.communication_handler = CommunicationHandler(
-            process_ids=self.ids,
-            communications=process_info.communications,
-            process_logger=self.process_logger,
-        )
 
     def _get_prompt_kwargs(self) -> Dict[str, Any]:
         prompt_kwargs = {"name": self.name}
         prompt_kwargs.update(self.current_state.to_prompt_kwargs())
-        prompt_kwargs.update(self.communication_handler.to_prompt_kwargs())
+        prompt_kwargs.update(self.communication_protocols.to_prompt_kwargs())
         prompt_kwargs.update(self.agent_data.to_prompt_kwargs())
         return prompt_kwargs
 
@@ -77,13 +74,13 @@ class Process:
         # TODO: Get from out current_state.tools filter instead of get_tools.
         for function in self.tools.get_tools():
             function_schemas.append(PydanticParser.get_function_schema(function))
-        function_schemas.extend(self.communication_handler.get_function_schemas())
+        function_schemas.extend(self.communication_protocols.get_function_schemas())
         return function_schemas
 
     def preprocess(self):
         chat = Chat(
             name=self.name,
-            process_ids=self.ids,
+            process_ids=self.process_ids,
             prompt_kwargs=self._get_prompt_kwargs(),
             logger=self.logger,
         )
@@ -115,7 +112,9 @@ class Process:
             # 2. Upload message to Supabase and Redis.
             self.logger.info("Adding message to redis and supabase")
             process_handler = ProcessHandler()
-            process_handler.add_message(process_ids=self.ids, message=new_message)
+            process_handler.add_message(
+                process_ids=self.process_ids, message=new_message
+            )
 
             # 3. Process tool calls: Send Communications or Call Functions.
             if tool_calls:
@@ -123,12 +122,13 @@ class Process:
                 should_step = self.process_tool_calls(tool_calls=tool_calls)
             else:
                 self.logger.info("No tool call available.")
+                should_step = True
 
             # 4. Step process if needed.
             if should_step:
                 self.logger.info("Stepping process.")
                 process_handler.step(
-                    process_ids=self.ids,
+                    process_ids=self.process_ids,
                     is_process_finished=self.is_process_finished(),
                 )
         except Exception as e:
@@ -139,12 +139,26 @@ class Process:
     ) -> bool:
         should_step = True
         for tool_call in tool_calls:
-            response = self.communication_handler.process_tool_call(tool_call=tool_call)
-            if response.SYNC_REQUEST_SCHEDULED:
-                # Don't step anymore, wait for response.
-                # TODO: There is a corner case here, if the model executes function after scheduling a request we will execute them and then stop, maybe this is intended.
-                should_step = False
-            elif response.NOT_COMMUNICATION_SCHEDULED:
+            tool_name = tool_call.function.name
+            # Check if it's a communication tool call
+            communication_response = self.communication_protocols.process_tool_call(
+                tool_call=tool_call
+            )
+            # TODO: Corner case: In case request is scheduled and there are other tool calls after that it will schedule request, call tools and then wait (don't step). Is this the expected behavior?
+            if communication_response is not None:
+                tool_response = ToolResponseMessage(
+                    content=communication_response.result, tool_call_id=tool_call.id
+                )
+                self.process_handler.add_message(
+                    process_ids=self.process_ids, message=tool_response
+                )
+                self.logger.info(
+                    f"Triggered a communication tool call: {tool_name} with response: {communication_response.result}"
+                )
+                should_step = communication_response.should_continue
+            else:
+                # Call tool
+                self.logger.info(f"Executing tool: {tool_name}")
                 function_call = self.tools_manager.get_function_call(
                     tool_call, self.tools.get_tools()
                 )
@@ -153,12 +167,11 @@ class Process:
                     # TODO: Call supabase real-time client.
                     pass
                 else:
-                    self.logger.info("Executing function call: {tool}")
                     tool_response = self.tools_manager.execute_tool(
                         function_call, self.tools.get_tools()
                     )
                     self.process_handler.add_message(
-                        process_ids=self.ids, message=tool_response
+                        process_ids=self.process_ids, message=tool_response
                     )
         return should_step
 

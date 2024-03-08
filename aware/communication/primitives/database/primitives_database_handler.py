@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional
 
+from aware.communication.helpers.current_input_metadata import CurrentInputMetadata
 from aware.communication.primitives.database.primitives_redis_handler import (
     PrimitivesRedisHandler,
 )
@@ -135,6 +136,14 @@ class PrimitivesDatabaseHandler:
         except Exception as e:
             return DatabaseResult(error=f"Error creating request: {e}")
 
+    def delete_current_input(self, process_id: str):
+        self.redis_handler.delete_current_input_metadata(process_id)
+
+    def get_current_input_metadata(
+        self, process_id: str
+    ) -> Optional[CurrentInputMetadata]:
+        return self.redis_handler.get_current_input_metadata(process_id)
+
     def get_action(self, action_id: str) -> Optional[Action]:
         return self.redis_handler.get_action(action_id)
 
@@ -166,6 +175,13 @@ class PrimitivesDatabaseHandler:
         action.update_feedback(feedback)
         self.redis_handler.update_action(action, feedback)
         self.supabase_handler.update_action_feedback(action)
+
+    def set_current_input_metadata(
+        self, process_id: str, current_input_metadata: CurrentInputMetadata
+    ):
+        self.redis_handler.set_current_input_metadata(
+            process_id, current_input_metadata
+        )
 
     def set_event_notified(self, event: Event):
         event.status = EventStatus.NOTIFIED

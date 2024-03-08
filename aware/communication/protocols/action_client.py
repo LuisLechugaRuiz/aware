@@ -5,9 +5,7 @@ from aware.communication.primitives.database.primitives_database_handler import 
     PrimitivesDatabaseHandler,
 )
 from aware.communication.primitives.interface.function_detail import FunctionDetail
-from aware.communication.primitives.action import Action
 from aware.communication.protocols.interface.protocol import Protocol
-from aware.database.helpers import DatabaseResult
 
 
 class ActionClient(Protocol):
@@ -57,15 +55,16 @@ class ActionClient(Protocol):
         actions = self.primitives_database_handler.get_client_actions(self.id)
         return "\n".join([action.feedback_to_string() for action in actions])
 
-    def create_action(
-        self, request_message: Dict[str, Any], priority: int
-    ) -> DatabaseResult[Action]:
+    def create_action(self, request_message: Dict[str, Any], priority: int):
         # - Save request in database
-        return self.primitives_database_handler.create_action(
+        result = self.primitives_database_handler.create_action(
             client_id=self.id,
             request_message=request_message,
             priority=priority,
         )
+        if result.error:
+            return f"Error creating action: {result.error}"
+        return "Action created successfully."
 
     def setup_functions(self) -> List[FunctionDetail]:
         self.request_format["priority"] = "int"
@@ -75,5 +74,6 @@ class ActionClient(Protocol):
                 args=self.request_format,
                 description=f"Call this function to send an action (will be managed asynchronously) to a service with the following description: {self.service_description}",
                 callback=self.create_action,
+                should_continue=True,
             )
         ]

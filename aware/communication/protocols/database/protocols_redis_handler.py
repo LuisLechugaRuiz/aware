@@ -1,7 +1,6 @@
 from redis import Redis
 from typing import Dict, Optional
 
-from aware.communication.helpers.current_input_metadata import CurrentInputMetadata
 from aware.communication.protocols import (
     EventSubscriber,
     EventPublisher,
@@ -12,7 +11,6 @@ from aware.communication.protocols import (
     ActionClient,
     ActionService,
 )
-from aware.communication.communication_protocols import CommunicationProtocols
 
 
 class ProtocolsRedisHandler:
@@ -121,26 +119,6 @@ class ProtocolsRedisHandler:
             f"topic:{topic_subscriber.topic_id}:subscribers",
             topic_subscriber.to_json(),
         )
-
-    def get_current_input_metadata(
-        self, process_id: str
-    ) -> Optional[CurrentInputMetadata]:
-        metadata = self.client.get(f"current_input:{process_id}")
-        if metadata:
-            return CurrentInputMetadata.from_json(metadata)
-        return None
-
-    # TODO: Remove, we are doing this at database_handler
-    # def get_communication_protocols(self, process_id: str) -> CommunicationProtocols:
-    #     return CommunicationProtocols(
-    #         event_subscribers=self.get_event_subscribers(process_id=process_id),
-    #         topic_publishers=self.get_topic_publishers(process_id=process_id),
-    #         topic_subscribers=self.get_topic_subscribers(process_id=process_id),
-    #         action_clients=self.get_action_clients(process_id=process_id),
-    #         action_services=self.get_action_services(process_id=process_id),
-    #         request_clients=self.get_request_clients(process_id=process_id),
-    #         request_service=self.get_request_services(service_id=process_id),
-    #     )
 
     def get_event_subscribers_from_type(
         self, event_type_id: str
@@ -283,29 +261,3 @@ class ProtocolsRedisHandler:
             topic_subscriber = TopicSubscriber.from_json(topic_subscriber)
             topic_subscribers[topic_subscriber.process_id] = topic_subscriber
         return topic_subscribers
-
-    # def set_communications(
-    #     self, process_id: str, communication_protocols: CommunicationProtocols
-    # ):
-    #     for event_subscriber in communication_protocols.event_subscribers:
-    #         self.create_event_subscriber(process_id, event_subscriber)
-    #     for topic_publisher in communication_protocols.topic_publishers:
-    #         self.create_topic_publisher(topic_publisher)
-    #     for topic_subscriber in communication_protocols.topic_subscribers:
-    #         self.create_topic_subscriber(process_id, topic_subscriber)
-    #     for action_client in communication_protocols.action_clients:
-    #         self.create_action_client(process_id, action_client)
-    #     for action_service in communication_protocols.action_services:
-    #         self.create_action_service(process_id, action_service)
-    #     for request_client in communication_protocols.request_clients:
-    #         self.create_request_client(process_id, request_client)
-    #     for request_service in communication_protocols.request_services:
-    #         self.create_request_service(process_id, request_service)
-
-    def set_current_input_metadata(
-        self, process_id: str, current_input_metadata: CurrentInputMetadata
-    ):
-        self.client.set(
-            f"current_input:{process_id}",
-            current_input_metadata.to_json(),
-        )

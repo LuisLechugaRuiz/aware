@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional
 import json
 
 from aware.communication.primitives.interface.input import Input
+from aware.chat.conversation_schemas import UserMessage
 
 
 # TODO: REMOVE, should not be not needed. Just completed with SUCCESS/FAILURE as it is sync.
@@ -113,3 +114,9 @@ class Request(Input):
 
     def get_type(self) -> str:
         return "request"
+
+    def to_user_message(self) -> UserMessage:
+        return UserMessage(
+            name=self.client_process_name,
+            content=f"Received the following request: {self.input_to_prompt_string()}",
+        )

@@ -66,6 +66,7 @@ class ProcessDatabaseHandler:
         )
         self.redis_handler.set_process_ids(process_ids)
 
+        # TODO: do we need to create a service for each process? I think team leader should ensure that all agents are connected creating services (action or request).
         if service_name is None:
             service_name = name  # Use the name of the process, otherwise the name of the Agent. TODO: Solve this by internal and external requests.
         # TODO: Refactor based on new services - request system.
@@ -166,30 +167,19 @@ class ProcessDatabaseHandler:
         return process_states
 
     def get_process_info(self, process_ids: ProcessIds) -> ProcessInfo:
-        # Get agent data
-        agent_data = self.agent_database_handler.get_agent_data(
-            agent_id=process_ids.agent_id
-        )
-        # Get communications
-        communication_protocols = (
-            self.comm_protocols_database_handler.get_communication_protocols(
-                process_id=process_ids.process_id
-            )
-        )
-        # Get process data
-        process_data = self.get_process_data(process_id=process_ids.process_id)
-        process_states = self.get_process_states(process_id=process_ids.process_id)
-        current_state = self.get_current_process_state(
-            process_id=process_ids.process_id
-        )
-
         return ProcessInfo(
-            agent_data=agent_data,
-            communication_protocols=communication_protocols,
+            agent_data=self.agent_database_handler.get_agent_data(
+                agent_id=process_ids.agent_id
+            ),
+            communication_protocols=self.comm_protocols_database_handler.get_communication_protocols(
+                process_id=process_ids.process_id
+            ),
             process_ids=process_ids,
-            process_data=process_data,
-            process_states=process_states,
-            current_state=current_state,
+            process_data=self.get_process_data(process_id=process_ids.process_id),
+            process_states=self.get_process_states(process_id=process_ids.process_id),
+            current_state=self.get_current_process_state(
+                process_id=process_ids.process_id
+            ),
         )
 
     def update_current_process_state(

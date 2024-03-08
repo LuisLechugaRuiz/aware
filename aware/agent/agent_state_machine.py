@@ -1,25 +1,15 @@
 from aware.agent.agent_data import AgentData, AgentState, ThoughtGeneratorMode
-from aware.communication.communication_protocols import CommunicationProtocols
 
 
 class AgentStateMachine:
     def __init__(
         self,
         agent_data: AgentData,
-        communication_protocols: CommunicationProtocols,
         is_process_finished: bool,
     ):
         self.state = agent_data.state
         self.thought_generator_mode = agent_data.thought_generator_mode
-        self.process_has_input = self._has_input(communication_protocols)
         self.is_process_finished = is_process_finished
-
-    # TODO: REFACTOR! This should happen outside of STATE MACHINE...
-    def _has_input(self, communications: CommunicationProtocols) -> bool:
-        return (
-            communications.incoming_request is not None
-            or communications.event is not None
-        )
 
     def step(
         self,
@@ -46,7 +36,7 @@ class AgentStateMachine:
         if self.thought_generator_mode == ThoughtGeneratorMode.POST:
             return AgentState.THOUGHT_GENERATOR
         else:
-            return self.on_finish()
+            return AgentState.FINISHED
 
     def on_thought_generator(self) -> AgentState:
         """Runs until thought generator has finished.
@@ -61,11 +51,4 @@ class AgentStateMachine:
         if self.thought_generator_mode == ThoughtGeneratorMode.PRE:
             return AgentState.MAIN_PROCESS
         else:
-            return self.on_finish()
-
-    # TODO: I think this should happen outside of state machine as we are doing this check also at ProcessHandler.
-    def on_finish(self) -> AgentState:
-        # Check if has requests and schedule the newest one or just stop it!
-        if self.process_has_input:
-            return self.on_start(self.thought_generator_mode)
-        return AgentState.IDLE
+            return AgentState.FINISHED
