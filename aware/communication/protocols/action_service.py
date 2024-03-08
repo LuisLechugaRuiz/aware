@@ -98,11 +98,13 @@ class ActionService(InputProtocol):
                 args=self.data.response_format,
                 description="Call this function to set the action completed, filling the args and the success flag.",
                 callback=self.set_action_completed,
+                should_continue=True,
             ),
             FunctionDetail(
                 name=self.send_feedback.__name__,
                 args=self.data.feedback_format,
                 description="Call this function to send feedback to the action client.",
                 callback=self.send_feedback,
+                should_continue=True,
             ),
         ]

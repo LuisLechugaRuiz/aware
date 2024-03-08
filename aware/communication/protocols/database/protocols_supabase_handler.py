@@ -1,7 +1,6 @@
 from supabase import Client
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
-from aware.communication.communication_protocols import CommunicationProtocols
 from aware.communication.protocols import (
     EventSubscriber,
     EventPublisher,
@@ -270,17 +269,6 @@ class ProtocolSupabaseHandler:
             topic_name=topic_name,
             topic_description=response["_topic_description"],
             message_format=response["_message_format"],
-        )
-
-    def get_communication_protocols(self, process_id: str) -> CommunicationProtocols:
-        return CommunicationProtocols(
-            event_subscribers=self.get_event_subscribers(process_id),
-            topic_publishers=self.get_topic_publishers(process_id),
-            topic_subscribers=self.get_topic_subscribers(process_id),
-            action_clients=self.get_action_clients(process_id),
-            action_services=self.get_action_services(process_id),
-            request_clients=self.get_request_clients(process_id),
-            request_services=self.get_request_services(process_id),
         )
 
     def get_event_subscribers(self, process_id: str) -> Dict[str, EventSubscriber]:

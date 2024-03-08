@@ -1,6 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List
 
+from aware.communication.helpers.communication_result import CommunicationResult
+from aware.communication.primitives.database.primitives_database_handler import (
+    PrimitivesDatabaseHandler,
+)
 from aware.communication.primitives.interface.function_detail import FunctionDetail
 from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
 
@@ -9,6 +13,7 @@ class Protocol(ABC):
     def __init__(self, id: str):
         self.id = id
         self.registered_functions: List[FunctionDetail] = []
+        self.primitive_database_handler = PrimitivesDatabaseHandler()
 
     # TODO: we need a specific class for function schema!
     def get_functions(self) -> List[Dict[str, Any]]:
@@ -31,14 +36,21 @@ class Protocol(ABC):
                 return True
         return False
 
-    def call_function(self, name: str, **kwargs) -> str:
+    def call_function(self, name: str, **kwargs) -> CommunicationResult:
         for fn in self.registered_functions:
             if fn.name == name:
                 try:
-                    return fn.callback(**kwargs)
+                    return CommunicationResult(
+                        fn.callback(**kwargs), should_continue=fn.should_continue
+                    )
                 except Exception as e:
-                    return f"Error calling function {name}: {e}"
-        return f"Function {name} not registered"
+                    return CommunicationResult(
+                        result=f"Error calling function {name}: {e}",
+                        should_continue=True,
+                    )
+        return CommunicationResult(
+            result=f"Function {name} not registered", should_continue=True
+        )
 
     @abstractmethod
     def setup_functions(self) -> List[FunctionDetail]:

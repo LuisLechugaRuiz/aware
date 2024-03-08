@@ -10,6 +10,7 @@ class AgentState(Enum):
     IDLE = "idle"
     MAIN_PROCESS = "main_process"
     THOUGHT_GENERATOR = "thought_generator"
+    FINISHED = "finished"
 
 
 class AgentMemoryMode(Enum):

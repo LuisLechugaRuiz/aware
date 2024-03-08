@@ -1,6 +1,7 @@
 from redis import Redis
 from typing import Any, Dict, List, Optional
 
+from aware.communication.helpers.current_input_metadata import CurrentInputMetadata
 from aware.communication.primitives.action import Action
 from aware.communication.primitives.event import Event, EventType
 from aware.communication.primitives.request import Request
@@ -8,7 +9,6 @@ from aware.communication.primitives.topic import Topic
 from aware.utils.helpers import convert_timestamp_to_epoch, get_current_date_iso8601
 
 
-# TODO: Refactor, add actions and remove async requests.
 class PrimitivesRedisHandler:
     def __init__(self, client: Redis):
         self.client = client
@@ -65,6 +65,9 @@ class PrimitivesRedisHandler:
             topic.to_json(),
         )
 
+    def delete_current_input_metadata(self, process_id: str):
+        self.client.delete(f"current_input:{process_id}")
+
     def delete_action(self, action: Action):
         self.client.delete(f"action:{action.id}")
 
@@ -92,6 +95,14 @@ class PrimitivesRedisHandler:
             request.id,
         )
         self.client.zrem(f"request_client:{request.client_id}:requests:order")
+
+    def get_current_input_metadata(
+        self, process_id: str
+    ) -> Optional[CurrentInputMetadata]:
+        metadata = self.client.get(f"current_input:{process_id}")
+        if metadata:
+            return CurrentInputMetadata.from_json(metadata)
+        return None
 
     def get_client_actions(self, action_id: str):
         return self.get_actions(f"action_client:{action_id}:actions:order")
@@ -173,6 +184,14 @@ class PrimitivesRedisHandler:
         if data:
             return Topic.from_json(data)
         return None
+
+    def set_current_input_metadata(
+        self, process_id: str, current_input_metadata: CurrentInputMetadata
+    ):
+        self.client.set(
+            f"current_input:{process_id}",
+            current_input_metadata.to_json(),
+        )
 
     def update_action(self, action: Action):
         self.client.set(f"action:{action.id}", action.to_json())

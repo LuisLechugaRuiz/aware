@@ -49,5 +49,6 @@ class TopicPublisher(Protocol):
                 args=self.message_format,
                 description=f"Call this function to publish on topic: {self.topic_name} with description: {self.topic_description}",
                 callback=self.update_topic,
+                should_continue=True,
             )
         ]

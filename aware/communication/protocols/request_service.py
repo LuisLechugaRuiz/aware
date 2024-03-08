@@ -3,9 +3,6 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from aware.communication.primitives.request import Request
-from aware.communication.primitives.database.primitives_database_handler import (
-    PrimitivesDatabaseHandler,
-)
 from aware.communication.primitives.interface.function_detail import FunctionDetail
 from aware.communication.protocols.interface.input_protocol import InputProtocol
 
@@ -50,13 +47,7 @@ class RequestService(InputProtocol):
         super().__init__(id=id)
 
     def get_inputs(self) -> List[Request]:
-        return PrimitivesDatabaseHandler().get_service_requests(self.id)
-
-    def _get_highest_priority_request(self) -> Optional[Request]:
-        requests = self.get_requests()
-        if requests:
-            return max(requests, key=lambda x: x.priority)
-        return None
+        return self.primitive_database_handler.get_service_requests(self.id)
 
     def to_dict(self):
         return {
@@ -80,12 +71,16 @@ class RequestService(InputProtocol):
             return self.current_request.query_to_string()
         return None
 
+    # TODO: How to get current request?
     def set_request_completed(self, response: Dict[str, Any], success: bool):
         if self.current_request:
-            PrimitivesDatabaseHandler().set_request_completed(
+            self.primitive_database_handler.set_request_completed(
                 self.current_request, response, success
             )
-            # TODO: send here to CommunicationDispatcher to process set_request_completed! Use celery to send the task.
+            self.primitive_database_handler.delete_current_input(
+                process_id=request.client_process_id
+            )
+        # TODO: send here to CommunicationDispatcher to process set_request_completed! Use celery to send the task.
         return f"Request {self.current_request.id} completed."
 
     def setup_functions(self) -> List[FunctionDetail]:
@@ -97,5 +92,6 @@ class RequestService(InputProtocol):
                 args=self.data.response_format,
                 description="Call this function to set the request completed, filling the args and the success flag.",
                 callback=self.set_request_completed,
+                should_continue=True,
             )
         ]

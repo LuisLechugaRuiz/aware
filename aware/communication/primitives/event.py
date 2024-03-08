@@ -3,6 +3,7 @@ import json
 from typing import Any, Dict
 
 from aware.communication.primitives.interface.input import Input
+from aware.chat.conversation_schemas import UserMessage
 
 
 class EventStatus(Enum):
@@ -95,3 +96,9 @@ class Event(Input):
 
     def get_type(self) -> str:
         return "event"
+
+    def to_user_message(self) -> UserMessage:
+        return UserMessage(
+            name=self.event_name,
+            content=f"Received new event: {self.input_to_prompt_string()}",
+        )

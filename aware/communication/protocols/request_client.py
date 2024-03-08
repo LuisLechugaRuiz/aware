@@ -72,5 +72,6 @@ class RequestClient(Protocol):
                 args=self.request_format,
                 description=f"Call this function to send a request to a service with the following description: {self.service_description}",
                 callback=self.create_request,
+                should_continue=False,
             )
         ]

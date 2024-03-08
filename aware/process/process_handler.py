@@ -2,7 +2,6 @@ from aware.agent.agent_state_machine import AgentState, AgentStateMachine
 from aware.agent.database.agent_database_handler import AgentDatabaseHandler
 from aware.chat.conversation_schemas import (
     AssistantMessage,
-    UserMessage,
     JSONMessage,
 )
 from aware.chat.conversation_buffer import ConversationBuffer
@@ -10,7 +9,6 @@ from aware.chat.database.chat_database_handler import ChatDatabaseHandler
 from aware.communication.protocols.database.protocols_database_handler import (
     ProtocolsDatabaseHandler,
 )
-from aware.communication.primitives.request import Request, RequestStatus
 from aware.process.database.process_database_handler import ProcessDatabaseHandler
 from aware.process.process_ids import ProcessIds
 from aware.process.process_data import ProcessFlowType
@@ -26,39 +24,6 @@ class ProcessHandler:
         self.agent_database_handler = AgentDatabaseHandler()
         self.chat_database_handler = ChatDatabaseHandler()
         self.process_database_handler = ProcessDatabaseHandler()
-
-    # TODO: Refactor!
-    def add_communications(self, process_ids: ProcessIds):
-        communication_protocols = (
-            self.comm_protocols_database_handler.get_communication_protocols(
-                process_id=process_ids.process_id
-            )
-        )
-
-        # TODO: Do we want to add the input into conversation or only in system???
-        event = communications.event
-        if event is not None:
-            self.add_message(
-                process_ids=process_ids,
-                message=UserMessage(name=event.message_name, content=event.content),
-            )
-            # Set event to notified and remove it from redis.
-            # TODO: Add me!
-            self.comm_protocols_database_handler.set_event_notified(event)
-
-        request = communications.incoming_request
-        if request is not None and request.data.status == RequestStatus.NOT_STARTED:
-            self.add_message(
-                process_ids=process_ids,
-                message=UserMessage(
-                    name=request.client_process_name,
-                    content=request.query_to_string(),
-                ),
-            )
-            # TODO: Add me!
-            self.comm_protocols_database_handler.update_request_status(
-                request, RequestStatus.IN_PROGRESS
-            )
 
     # TODO: refactor, lets rethink the logic.
     def add_message(
@@ -91,6 +56,7 @@ class ProcessHandler:
         process_ids: ProcessIds,
         thought: str,
     ):
+        # TODO: Refactor! Just save it at agent_data and show it at main prompt.
         main_process_ids = self.get_process_ids(
             user_id=process_ids.user_id,
             agent_id=process_ids.agent_id,
@@ -101,14 +67,6 @@ class ProcessHandler:
             process_ids=main_process_ids, json_message=message
         )
         self._manage_conversation_buffer(process_ids)
-
-    # TODO: REMOVE! Is managed at communication dispatcher.
-    def process_request(self, request: Request) -> Request:
-        service_process_ids = self.process_database_handler.get_process_ids(
-            process_id=request.service_process_id
-        )
-        self.start(service_process_ids)
-        return f"Request {request.id} created successfully"
 
     def get_process_ids(self, user_id: str, agent_id: str, process_name: str):
         process_id = self.agent_database_handler.get_agent_process_id(
@@ -174,16 +132,22 @@ class ProcessHandler:
 
     def step_state_machine(self, process_info: ProcessInfo, is_process_finished: bool):
         agent_data = process_info.agent_data
-        # TODO: This logic needs to be improved:
-        # Everytime a new cycle of state machine finishes (which is just a cycle for the agent), then we check if the input is completed, in that case we check if there is another input waiting to be processed or we just set to IDLE.
+        process_id = process_info.process_ids.process_id
         if agent_data.state == AgentState.IDLE:
             # Initialize process
             self.agent_database_handler.add_active_agent(
                 agent_id=process_info.process_ids.agent_id
             )
-            # Add communication_protocols
-            # TODO: Here we need to act to manage the new input. Where to do it? Should it happen at CommunicationProtocols level?
-            self.add_communications(process_info.process_ids)
+            # Update input
+            if self.comm_protocols_database_handler.has_current_input(process_id):
+                raise Exception(
+                    "Trying to start process when input is already set, check the logic!!"
+                )
+            input_updated = self.update_input(process_info.process_ids)
+            if not input_updated:
+                raise Exception(
+                    "Trying to start process with no new input, check the logic!!"
+                )
 
         agent_state_machine = AgentStateMachine(
             agent_data=agent_data,
@@ -191,13 +155,26 @@ class ProcessHandler:
             is_process_finished=is_process_finished,
         )
         next_state = agent_state_machine.step()
+        if next_state == AgentState.FINISHED:
+            agent_id = process_info.process_ids.agent_id
+            self.logger.info(f"Agent: {agent_id} finished.")
+            if not self.comm_protocols_database_handler.has_current_input(process_id):
+                input_updated = self.update_input(process_info.process_ids)
+                if not input_updated:
+                    self.logger.info(
+                        f"No new input for agent: {agent_id}, setting state to IDLE."
+                    )
+                    agent_data.state = AgentState.IDLE
+                else:
+                    next_state = agent_state_machine.on_start()
+        self.logger.info(f"Next state: {next_state.value}")
         agent_data.state = next_state
         self.agent_database_handler.update_agent_data(agent_data)
-        self.logger.info(f"Next state: {next_state.value}")
         self.trigger_transition(process_info.process_ids, next_state)
 
     def trigger_transition(self, process_ids: ProcessIds, next_state: AgentState):
         if next_state == AgentState.MAIN_PROCESS:
+            # TODO: preprocess should include if is main or internal process! split into two functions: main and internal process.
             main_process_ids = self.get_process_ids(
                 user_id=process_ids.user_id,
                 agent_id=process_ids.agent_id,
@@ -222,3 +199,24 @@ class ProcessHandler:
             self.logger.info(f"Process {process_ids.process_id} finished.")
         else:
             self.preprocess(process_ids)
+
+    def update_input(self, process_ids: ProcessIds) -> bool:
+        process_id = process_ids.process_id
+        input_updated = self.comm_protocols_database_handler.update_highest_prio_input(
+            process_id=process_id
+        )
+        if input_updated:
+            current_input, input_protocol = (
+                self.comm_protocols_database_handler.get_current_input(
+                    process_id=process_id
+                )
+            )
+            new_input_message = current_input.to_user_message()
+            self.add_message(process_ids, new_input_message)
+            self.logger.info(
+                f"Input updated for process: {process_id}, new input: {new_input_message.to_string()}"
+            )
+            # TODO: Should we update the current input status? prompt pending to processing...
+            return True
+        else:
+            return False
