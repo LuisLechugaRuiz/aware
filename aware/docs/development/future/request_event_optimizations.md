@@ -24,7 +24,7 @@ We need:
 - TRACKING
 - PRIORITIES
 
-For tracking we need to implement the logic at [Communications protocols](/aware/communications/communication_protocols.py)
+For tracking we need to implement the logic at [Agent communications](/aware/agent/agent_communication.py)
 
 ## Update
 

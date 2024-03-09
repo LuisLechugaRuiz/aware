@@ -10,12 +10,10 @@ class Tool(ABC):
         params: Dict[str, Tuple[Any, bool]],
         description: str,
         callback: Callable,
-        should_continue: bool = True,
         run_remote: bool = False,
     ):
         self.name = name
         self.params = params
         self.description = description
         self.callback = callback
-        self.should_continue = should_continue
         self.run_remote = run_remote

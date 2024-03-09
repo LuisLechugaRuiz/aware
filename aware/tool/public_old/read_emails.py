@@ -7,7 +7,7 @@ import os
 import pickle
 from typing import Optional
 
-from aware.tools.helpers import get_private_data
+from aware.tool.helpers import get_private_data
 
 
 def get_header(headers, name):

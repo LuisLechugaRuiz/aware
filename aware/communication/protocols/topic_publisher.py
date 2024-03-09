@@ -42,7 +42,8 @@ class TopicPublisher(Protocol):
         PrimitivesDatabaseHandler().update_topic(self.topic_id, message)
         return "Topic updated successfully"
 
-    def setup_functions(self) -> List[FunctionDetail]:
+    @property
+    def tools(self) -> List[FunctionDetail]:
         return [
             FunctionDetail(
                 name=self.topic_name,

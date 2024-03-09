@@ -83,7 +83,8 @@ class RequestService(InputProtocol):
         # TODO: send here to CommunicationDispatcher to process set_request_completed! Use celery to send the task.
         return f"Request {self.current_request.id} completed."
 
-    def setup_functions(self) -> List[FunctionDetail]:
+    @property
+    def tools(self) -> List[FunctionDetail]:
         self.data.response_format["success"] = "bool"
         self.data.response_format["details"] = "str"
         return [
@@ -92,6 +93,5 @@ class RequestService(InputProtocol):
                 args=self.data.response_format,
                 description="Call this function to set the request completed, filling the args and the success flag.",
                 callback=self.set_request_completed,
-                should_continue=True,
             )
         ]

@@ -1,9 +1,8 @@
-from typing import List
-
-from aware.tools.database.tool_redis_handler import (
+from aware.tool.capability.capability import Capability
+from aware.tool.database.tool_redis_handler import (
     ToolRedisHandler,
 )
-from aware.tools.database.tool_supabase_handler import (
+from aware.tool.database.tool_supabase_handler import (
     ToolSupabaseHandler,
 )
 from aware.process.process_ids import ProcessIds
@@ -22,14 +21,10 @@ class ToolDatabaseHandler:
         )
         self.logger = FileLogger("client_agent_handler")
 
-    def create_capability(self, process_ids: ProcessIds, capability_name: str):
-        # TODO: Check if capability exists first on redis and supabase
-        capability = self.supabase_handler.create_capability(
-            process_ids, capability_name
-        )
-        self.redis_handler.create_capability(process_ids, capability)
+    def create_capability(self, process_ids: ProcessIds, capability: Capability):
+        self.supabase_handler.create_capability(process_ids, capability)
         self.logger.info(
-            f"Created capability for process_id: {process_ids.process_id} with name: {capability_name}"
+            f"Created capability for process_id: {process_ids.process_id} with name: {capability.get_name()}"
         )
 
     def create_capability_variable(

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from aware.tools.default_data.data import Data
+from aware.tool.default_data.data import Data
 
 DEF_TASK = """Store relevant data to be retrieved in the future to optimize {agent_name}'s performance.
 {agent_name}'s Task:

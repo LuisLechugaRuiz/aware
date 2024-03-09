@@ -8,7 +8,7 @@ from aware.agent.agent_data import AgentData
 from aware.chat.conversation_schemas import (
     JSONMessage,
 )
-from aware.communication.communication_protocols import Communications
+from aware.agent.agent_communication import Communications
 from aware.communication.events.event import Event, EventStatus
 from aware.communication.events.event_type import EventType
 from aware.communication.requests.request import Request, RequestStatus

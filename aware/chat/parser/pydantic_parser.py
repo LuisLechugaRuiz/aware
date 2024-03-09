@@ -12,6 +12,8 @@ from aware.chat.parser.fix_format_prompt import (
     DEF_FIX_FORMAT_PROMPT,
 )
 from aware.models.model import Model
+from aware.tool.decorators import RUN_REMOTE
+from aware.tool.tool import Tool
 
 
 T = TypeVar("T", bound=LoggableBaseModel)
@@ -235,3 +237,21 @@ class PydanticParser(Generic[T]):
             type="function", function=function_definition
         )
         return chat_completion_param
+
+    @classmethod
+    def get_tool(cls, callable: Callable) -> Tool:
+        params = {
+            name: (param.annotation, param.default is not inspect.Parameter.empty)
+            for name, param in inspect.signature(callable).parameters.items()
+            if name != "self"  # Skip the 'self' parameter
+        }
+        docstring = inspect.getdoc(callable) or "No docstring provided"
+
+        # Create and add the Tool object to the tools list
+        return Tool(
+            name=callable.__name__,
+            params=params,
+            description=docstring,
+            callback=callable,
+            run_remote=getattr(callable, RUN_REMOTE, False),
+        )

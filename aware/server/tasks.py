@@ -8,11 +8,8 @@ from aware.server.celery_app import app
 from aware.utils.logger.file_logger import FileLogger
 
 
-# ENTRY POINT!
-
-
-# Small factory to build the process depending on type.
 def get_process(process_ids: ProcessIds) -> InternalProcess:
+    """Small factory to build the process depending on type."""
     process_data = ProcessDatabaseHandler().get_process_data(
         process_id=process_ids.process_id
     )

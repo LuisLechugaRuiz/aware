@@ -14,6 +14,8 @@ from aware.process.process_info import ProcessInfo
 from aware.process.process_handler import ProcessHandler
 from aware.tool.capability.capability import Capability
 from aware.tool.capability.capability_registry import CapabilityRegistry
+from aware.tool.tool import Tool
+from aware.tool.tool_manager import ToolManager
 from aware.utils.logger.process_loger import ProcessLogger
 
 
@@ -32,7 +34,7 @@ class ProcessInterface:
         )
         self.logger = self.process_logger.get_logger("process")
 
-        # Get process info
+        # Get info
         self.agent_data = process_info.agent_data
 
         # TODO: Implement the state machine format at all processes.
@@ -41,7 +43,9 @@ class ProcessInterface:
         self.current_state = process_info.current_state
 
         # Initialize tool
+        self.tool_manager = ToolManager(process_logger=self.process_logger)
         self.capability = self._get_capability(process_info=process_info)
+        self._initialize_tools()
 
         self.process_handler = ProcessHandler()
 
@@ -52,31 +56,25 @@ class ProcessInterface:
         pass
 
     @property
-    @abstractmethod
     def prompt_kwargs(self) -> Dict[str, Any]:
         """The prompt_kwargs property that must be implemented by derived classes."""
-        pass
+        return {}
 
     @property
-    def tools_openai(self) -> List[ChatCompletionMessageToolCall]:
-        """The tools_openai property that must be implemented by derived classes."""
+    def tools(self) -> List[Tool]:
+        """The tools property that can be implemented by derived classes."""
         return []
 
-    def execute_tool(self, tool_call: ChatCompletionMessageToolCall):
-        function_call = self.capability.get_function_call(tool_call=tool_call)
+    def execute_tool(
+        self, tool_call: ChatCompletionMessageToolCall
+    ) -> ToolResponseMessage:
+        function_call = self.tool_manager.get_function_call(tool_call=tool_call)
         if function_call.run_remote:
             # TODO: Call supabase real-time client.
             pass
 
-        result = self.capability.execute_tool(function_call=function_call)
-        tool_response = ToolResponseMessage(content=result, tool_call_id=tool_call.id)
-        self.process_handler.add_message(
-            process_ids=self.process_ids, message=tool_response
-        )
-        self.logger.info(
-            f"Executing tool: {tool_call.function.name} with response: {result}"
-        )
-        return function_call.should_continue
+        result = self.tool_manager.execute_function(function_call=function_call)
+        return ToolResponseMessage(content=result, tool_call_id=tool_call.id)
 
     def _get_prompt_kwargs(self) -> Dict[str, Any]:
         all_prompt_kwargs = self.prompt_kwargs
@@ -89,7 +87,9 @@ class ProcessInterface:
         # TODO: DETERMINE module_path depending on the use-case!!!
         self.module_path = "aware.tools.tools"
         self.capability_registry = CapabilityRegistry(
-            process_ids=self.process_ids, tools_folders=["core", "private", "public"]
+            process_ids=self.process_ids,
+            process_loger=self.process_logger,
+            capabilities_folders=["core", "private", "public"],
         )
 
         capability_class = process_info.process_data.capability_class
@@ -103,16 +103,15 @@ class ProcessInterface:
             process_info=process_info,
         )
 
-    def _get_openai_tools(self) -> List[ChatCompletionMessageToolCall]:
-        all_openai_tools: List[ChatCompletionMessageToolCall] = self.tools_openai
+    def _initialize_tools(self):
+        all_tools = self.tools
 
         tool_names = (
             self.current_state.tools.keys()
         )  # Tools is: tool_name + transition, TODO: Make it explicit.
-        openai_tools = all_openai_tools.extend(
-            self.capability.get_filtered_openai_tools(tool_names=tool_names)
-        )
-        return openai_tools
+        all_tools.extend(self.capability.get_filtered_tools(tool_names=tool_names))
+
+        self.tool_manager.register_tools(tools=all_tools)
 
     def preprocess(self):
         chat = Chat(
@@ -121,7 +120,7 @@ class ProcessInterface:
             prompt_kwargs=self._get_prompt_kwargs(),
             logger=self.logger,
         )
-        chat.request_response(tools_openai=self._get_openai_tools())
+        chat.request_response(tools_openai=self.tool_manager.get_openai_tools())
 
     def postprocess(self, response_str: str) -> List[ToolResponseMessage]:
         try:
@@ -157,26 +156,22 @@ class ProcessInterface:
             # 3. Process tool calls: Send Communications or Call Functions.
             if tool_calls:
                 self.logger.info("Getting function calls.")
-                should_continue = self.process_tool_calls(tool_calls=tool_calls)
+                self.process_tool_calls(tool_calls=tool_calls)
 
             # 4. Step process if needed.
-            self.step(should_continue)
+            self.logger.info("Stepping process.")
+            self.process_handler.step(process_ids=self.process_ids)
         except Exception as e:
             self.logger.error(f"Error in process_response: {e}")
 
-    def process_tool_calls(
-        self, tool_calls: List[ChatCompletionMessageToolCall]
-    ) -> bool:
+    def process_tool_calls(self, tool_calls: List[ChatCompletionMessageToolCall]):
         """Default function to process tool calls by using the tools from the current capability."""
 
-        should_continue = True
         for tool_call in tool_calls:
-            tool_continue = self.execute_tool(tool_call=tool_call)
-            if should_continue:
-                should_continue = tool_continue
-        return should_continue
-
-    @abstractmethod
-    def step(self, should_continue: bool):
-        """The step method that must be implemented by derived classes."""
-        pass
+            tool_response = self.execute_tool(tool_call=tool_call)
+            self.process_handler.add_message(
+                process_ids=self.process_ids, message=tool_response
+            )
+            self.logger.info(
+                f"Executing tool: {tool_call.function.name} with response: {tool_response.content}"
+            )
