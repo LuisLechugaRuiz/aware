@@ -1,23 +1,17 @@
 from aware.process.process_info import ProcessInfo
-from aware.tools.tools import Tools
+from aware.tool.decorators import tool, default_function, stop_process
+from aware.tool.capability.capability import Capability
 
 
-class DataStorageManager(Tools):
+class DataStorageManager(Capability):
     def __init__(
         self,
         process_info: ProcessInfo,
     ):
         super().__init__(process_info=process_info)
 
-    def set_tools(self):
-        return [
-            # self.append_profile,
-            # self.edit_profile,
-            self.store,
-            self.stop,
-        ]
-
-    # TODO: Temporally disabled, we need a way to manage the full profile (and fields) ensuring max tokens.
+    # TODO: Temporally disabled, we need a way to manage the full profile (and fields) ensuring max tokens.+
+    # @tool
     # def append_profile(self, field: str, data: str):
     #     """
     #     Append data into a specific field of the profile.
@@ -32,6 +26,7 @@ class DataStorageManager(Tools):
     #     self.update_agent_data()
     #     return result
 
+    # @tool
     # def edit_profile(self, field: str, old_data: str, new_data: str):
     #     """
     #     Edit the profile overwriting the old data with the new data.
@@ -47,6 +42,7 @@ class DataStorageManager(Tools):
     #     self.update_agent_data()
     #     return result
 
+    @tool
     def store(self, data: str, potential_query: str):
         """
         Stores data in the Weaviate database with an associated potential query for future retrieval.
@@ -59,6 +55,9 @@ class DataStorageManager(Tools):
             data=data, potential_query=potential_query
         )
 
+    @tool
+    @default_function
+    @stop_process
     def stop(self, new_context: str):
         """Stop saving info. Call this function after all relevant data has been stored and provide a new context for the agent which contains the most relevant information from previous interactions.
 

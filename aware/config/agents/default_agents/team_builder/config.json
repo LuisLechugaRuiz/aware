@@ -1,6 +1,6 @@
 {
     "name": "agent_builder",
-    "tools_class": "AgentBuilder",
+    "capability_class": "AgentBuilder",
     "modalities": ["text"],
     "memory_mode": "stateless",
     "thought_generator_mode": "disabled"

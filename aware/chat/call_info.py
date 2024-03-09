@@ -1,5 +1,6 @@
 import json
 from typing import Any, Dict, List
+from openai.types.chat import ChatCompletionMessageToolCall
 
 
 from aware.chat.conversation_schemas import JSONMessage, SystemMessage
@@ -13,13 +14,13 @@ class CallInfo:
         name: str,
         process_ids: ProcessIds,
         system_message: str,
-        functions: List[Dict[str, Any]],
+        tools_openai: List[ChatCompletionMessageToolCall],
     ):
         self.call_id = call_id
         self.name = name
         self.process_ids = process_ids
         self.system_message = system_message
-        self.functions = functions
+        self.tools_openai = tools_openai
 
         self.conversation = None
         self.api_key = None
@@ -36,7 +37,7 @@ class CallInfo:
             "name": self.name,
             "process_ids": self.process_ids.to_dict(),
             "system_message": self.system_message,
-            "functions": self.functions,
+            "tools_openai": self.tools_openai,
         }
 
     def to_json(self):

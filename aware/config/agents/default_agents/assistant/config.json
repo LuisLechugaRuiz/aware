@@ -1,6 +1,6 @@
 {
     "name": "assistant",
-    "tools_class": "Assistant",
+    "capability_class": "Assistant",
     "modalities": ["text"],
     "memory_mode": "statefull",
     "thought_generator_mode": "post"

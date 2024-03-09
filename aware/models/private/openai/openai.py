@@ -37,13 +37,13 @@ class OpenAIModel(Model):
     async def get_response(
         self,
         messages: Dict[str, Any],
-        functions: List[Dict[str, Any]] = [],
+        tools_openai: List[ChatCompletionToolParam] = NOT_GIVEN,
         temperature: float = 0.7,
     ) -> ChatCompletionMessage:
         try:
             return await self._get_response_with_retries(
                 messages=messages,
-                functions=functions,
+                tools_openai=tools_openai,
                 response_format="text",
                 temperature=temperature,
             )
@@ -58,14 +58,10 @@ class OpenAIModel(Model):
     async def _get_response(
         self,
         messages: Dict[str, Any],
-        functions: List[Dict[str, Any]] = [],
+        tools_openai: List[ChatCompletionToolParam] = NOT_GIVEN,
         response_format: str = "text",  # or json_object.
         temperature: float = 0.7,
     ) -> ChatCompletionMessage:
-        if functions:
-            tools_openai: List[ChatCompletionToolParam] = functions
-        else:
-            tools_openai = NOT_GIVEN
 
         # TODO :Check if it is multimodal and use vision.
         response = await self.client.chat.completions.create(

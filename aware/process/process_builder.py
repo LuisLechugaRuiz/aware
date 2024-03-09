@@ -27,7 +27,7 @@ class ProcessBuilder:
             user_id=self.user_id,
             agent_id=self.agent_id,
             name=process_config["name"],
-            tools_class=process_config["tools_class"],
+            capability_class=process_config["capability_class"],
             flow_type=ProcessFlowType(process_config["flow_type"]),
             service_name=service_name,
         )

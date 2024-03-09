@@ -21,7 +21,7 @@ def create_agent(
     try:
         agent_builder.create_agent(
             name=name,
-            tools_class=tools,
+            capability_class=tools,
             task=task,
             instructions=instructions,
         )
@@ -47,7 +47,7 @@ def create_agent(self, request: Request, name: str, description: str, tools: str
         # TODO: agent builder should be able to create a new agent without detailing task and instructions (which are part of state machine).
         agent_builder.create_agent(
             name=name,
-            tools_class=tools,
+            capability_class=tools,
             task=task,
             instructions=instructions,
         )

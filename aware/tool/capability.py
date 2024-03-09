@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import json
 
 
+# TODO: Override by capability.capability
 @dataclass
 class Capability:
     user_id: str

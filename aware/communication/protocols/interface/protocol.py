@@ -15,20 +15,19 @@ class Protocol(ABC):
         self.registered_functions: List[FunctionDetail] = []
         self.primitive_database_handler = PrimitivesDatabaseHandler()
 
-    # TODO: we need a specific class for function schema!
-    def get_functions(self) -> List[Dict[str, Any]]:
-        function_schemas = []
+    def get_openai_tools(self) -> List[Dict[str, Any]]:
+        openai_tools = []
         functions = self.setup_functions()
         for fn in functions:
             self.registered_functions.append(fn)
-            function_schemas.append(
-                JsonPydanticParser.get_function_schema(
+            openai_tools.append(
+                JsonPydanticParser.get_openai_tool(
                     name=fn.name,
                     args=fn.args,
                     description=fn.description,
                 )
             )
-        return function_schemas
+        return openai_tools
 
     def function_exists(self, name: str) -> bool:
         for fn in self.registered_functions:

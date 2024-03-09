@@ -4,7 +4,7 @@ from aware.agent.agent_data import AgentData
 from aware.data.database.client_handlers import ClientHandlers
 from aware.process.process_ids import ProcessIds
 from aware.requests.request import Request
-from aware.tools.tools import Tools
+from aware.tool.tools import Tools
 from aware.utils.logger.file_logger import FileLogger
 
 

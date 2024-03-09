@@ -6,10 +6,11 @@ from openai.types.chat import ChatCompletionMessageToolCall
 from aware.chat.conversation_schemas import ToolResponseMessage
 from aware.process.process_ids import ProcessIds
 from aware.utils.logger.process_loger import ProcessLogger
-from aware.tools.tools import FunctionCall, Tools
-from aware.tools.tools_registry import ToolsRegistry
+from aware.tool.tools import FunctionCall, Tools
+from aware.tool.tools_registry import ToolsRegistry
 
 
+# TODO: Refactor. Tools should be obtained from specific capability.
 class ToolsManager:
     def __init__(self, process_ids: ProcessIds, process_logger: ProcessLogger):
         self.module_path = "aware.tools.tools"

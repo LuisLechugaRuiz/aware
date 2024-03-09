@@ -4,7 +4,7 @@ from openai.types.chat import ChatCompletionMessageToolCall
 from aware.architecture.helpers import Request
 from aware.chat.parser.pydantic_parser import PydanticParser
 from aware.deprecated.chat import Chat
-from aware.tools.tools_manager import ToolsManager
+from aware.tool.tools_manager import ToolsManager
 from aware.utils.helpers import colored
 from aware.utils.logger.file_logger import FileLogger
 from aware.data.database.weaviate.weaviate import WeaviateDB

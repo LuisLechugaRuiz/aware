@@ -38,6 +38,9 @@ class Config(metaclass=Singleton):
         self.conversation_timeout_sec = 240
         self.task_timeout_sec = 600
 
+        # Capabilities
+        self.max_iterations = 10
+
         # Weaviate
         # Only local for now.
         self.local_weaviate_url = os.getenv(

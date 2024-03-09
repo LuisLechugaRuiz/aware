@@ -7,7 +7,7 @@ from requests import HTTPError
 import os
 import pickle
 
-from aware.tools.helpers import get_private_data
+from aware.tool.helpers import get_private_data
 
 
 def send_email(recipient: str, subject: str, body: str):

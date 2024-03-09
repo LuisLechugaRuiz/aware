@@ -1,6 +1,6 @@
 from aware.database.weaviate.memory_manager import MemoryManager
 from aware.utils.logger.file_logger import FileLogger
-from aware.tools.tools import Tools
+from aware.tool.tool import Tools
 
 
 class DataStorageManagerTools(Tools):

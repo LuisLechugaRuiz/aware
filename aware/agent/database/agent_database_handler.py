@@ -30,7 +30,7 @@ class AgentDatabaseHandler:
         self,
         user_id: str,
         name: str,
-        tools_class: str,
+        capability_class: str,
         memory_mode: str,
         modalities: List[str],
         thought_generator_mode: str,
@@ -39,7 +39,7 @@ class AgentDatabaseHandler:
         agent_data = self.supabase_handler.create_agent(
             user_id=user_id,
             name=name,
-            tools_class=tools_class,
+            capability_class=capability_class,
             memory_mode=memory_mode,
             modalities=modalities,
             thought_generator_mode=thought_generator_mode,

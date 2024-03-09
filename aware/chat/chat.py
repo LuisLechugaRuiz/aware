@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Tuple
 import uuid
+from openai.types.chat import ChatCompletionMessageToolCall
 
 from aware.chat.call_info import CallInfo
 from aware.chat.conversation import Conversation
@@ -53,7 +54,7 @@ class Chat:
         args.update(prompt_kwargs)
         return load_prompt_from_args("meta", args=args)
 
-    def request_response(self, function_schemas: List[Dict[str, Any]]):
+    def request_response(self, tools_openai: List[ChatCompletionMessageToolCall]):
         self.conversation.trim_conversation()
 
         call_info = CallInfo(
@@ -61,7 +62,7 @@ class Chat:
             name=self.name,
             process_ids=self.process_ids,
             system_message=self.system_message,
-            functions=function_schemas,
+            tools_openai=tools_openai,
         )
         self.chat_database_handler.add_call_info(call_info)
         self.log_conversation()

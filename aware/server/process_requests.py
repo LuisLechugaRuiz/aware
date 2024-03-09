@@ -15,7 +15,7 @@ async def process_openai_call(call_id):
         openai_model = OpenAIModel(api_key=call_info.get_api_key(), logger=logger)
         result = await openai_model.get_response(
             messages=call_info.get_conversation_messages(),
-            functions=call_info.functions,
+            tools_openai=call_info.tools_openai,
         )
         logger.info(f"Result: {result}")
     except Exception as e:

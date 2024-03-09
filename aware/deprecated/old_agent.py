@@ -1,7 +1,7 @@
 from typing import Callable, List, Optional
 
 from aware.deprecated.chat import Chat
-from aware.tools.tools_manager import ToolsManager
+from aware.tool.tools_manager import ToolsManager
 from aware.utils.logger.file_logger import FileLogger
 
 

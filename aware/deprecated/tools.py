@@ -14,7 +14,8 @@ from aware.database.weaviate.memory_manager import MemoryManager
 from aware.process.process_info import ProcessInfo
 from aware.process.process_handler import ProcessHandler
 from aware.utils.logger.process_loger import ProcessLogger
-from aware.tools.database.tool_database_handler import ToolDatabaseHandler
+from aware.tool.decorators import IS_DEFAULT_FUNCTION
+from aware.tool.database.tool_database_handler import ToolDatabaseHandler
 
 
 class Tools(ABC):
@@ -44,12 +45,6 @@ class Tools(ABC):
 
         self.tool_database_handler = ToolDatabaseHandler()
 
-        # TODO: Check where to register capability!! Mode this to registry.
-        self.tool_database_handler.create_capability(
-            process_ids=self.process_ids, capability_name=self.get_tool_name()
-        )
-        # TODO: we need a way to update the variable when using a tool. Maybe a wrapper that initializes tool then calls the function and then updates the variable.
-
     def _construct_arguments_dict(self, func: Callable, content: str):
         signature = inspect.signature(func)
         args = list(signature.parameters.keys())
@@ -61,6 +56,8 @@ class Tools(ABC):
             )
         return {args[0]: content}
 
+    # TODO: I think this shoud just be: self.process_data.name
+    #   we set the correct name at Process creation with the new split - MainProcess / InternalProcess.
     def get_process_name(self) -> str:
         if self.process_data.name == "main":
             return self.agent_data.name
@@ -91,8 +88,8 @@ class Tools(ABC):
             attr = getattr(self, attr_name)
             if (
                 callable(attr)
-                and hasattr(attr, "is_default_function")
-                and getattr(attr, "is_default_function")
+                and hasattr(attr, IS_DEFAULT_FUNCTION)
+                and getattr(attr, IS_DEFAULT_FUNCTION)
             ):
                 arguments_dict = self._construct_arguments_dict(attr, content)
                 arguments_json = json.dumps(arguments_dict)
@@ -118,10 +115,3 @@ class Tools(ABC):
 
     def finish_process(self):
         self.finished = True
-
-
-class FunctionCall:
-    def __init__(self, name: str, call_id: str, arguments: Dict[str, Any]):
-        self.name = name
-        self.call_id = call_id
-        self.arguments = arguments
