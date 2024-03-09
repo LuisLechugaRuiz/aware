@@ -2,10 +2,11 @@ from typing import Dict, List
 
 from aware.agent.agent_builder import AgentBuilder
 from aware.process.process_info import ProcessInfo
-from aware.tools.tools import Tools
+from aware.tool.decorators import tool
+from aware.tool.capability.capability import Capability
 
 
-class Orchestrator(Tools):
+class Orchestrator(Capability):
     """As orchestrator your role is to manage the task distribution within the system. For this you can create new agents or create new requests for existing ones"""
 
     def __init__(
@@ -15,14 +16,7 @@ class Orchestrator(Tools):
         super().__init__(process_info=process_info)
         self.agent_builder = AgentBuilder(user_id=self.process_ids.user_id)
 
-    def set_tools(self):
-        return [
-            self.create_agent,
-            self.create_request,
-            self.find_agent,
-            self.find_tools,
-        ]
-
+    @tool
     def create_agent(self, name: str, tools: str, task: str, instructions: str):
         """
         Use this tool to create a new agent in case none of the existent ones can fulfill the step to complete the task.
@@ -37,7 +31,7 @@ class Orchestrator(Tools):
         try:
             self.agent_builder.create_agent(
                 name=name,
-                tools_class=tools,
+                capability_class=tools,
                 task=task,
                 instructions=instructions,
             )
@@ -45,6 +39,7 @@ class Orchestrator(Tools):
         except Exception as e:
             return f"Error creating agent {name}: {e}"
 
+    @tool
     def create_request(
         self, agent_name: str, request_details: str, is_async: bool = False
     ):
@@ -71,6 +66,7 @@ class Orchestrator(Tools):
     # TODO: Should we add edit_agent?
 
     # TODO: Add potential name to search by keyword?
+    @tool
     def find_agent(self, task: str, potential_name: str):
         """
         Search an agent that could by task or potential name.
@@ -84,6 +80,7 @@ class Orchestrator(Tools):
             return "\n".join(agent_descriptions)
         return "No agents found!"
 
+    @tool
     def find_tools(self, potential_approach: str, descriptions: List[str]):
         """
         Search for existing tools that can be used by the agents.
@@ -106,13 +103,3 @@ class Orchestrator(Tools):
             for name, description in potential_tools.items()
         )
         return f"Found available tools:\n{tools_str}"
-
-    def wait(self, reason: str):
-        """
-        Use this tool to wait for a specific reason, specially if a request should be completed or waiting for a response from an agent.
-
-        Args:
-            reason (str): The reason for waiting.
-        """
-        self.finish_process()
-        return "Waiting..."

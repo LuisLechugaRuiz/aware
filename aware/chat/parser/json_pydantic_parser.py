@@ -1,5 +1,6 @@
 import typing
 from typing import Dict
+from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
 
 from aware.chat.parser.pydantic_parser import PydanticParser
 
@@ -40,16 +41,16 @@ class DynamicFunctionHolder:
 
 class JsonPydanticParser:
     @staticmethod
-    def get_function_schema(name, args, description):
+    def get_openai_tool(name, args, description) -> ChatCompletionToolParam:
         dynamic_holder = DynamicFunctionHolder(name, args, description)
 
         # Retrieve the dynamically added function using its name
         dynamic_function = getattr(dynamic_holder, name)
 
-        # Pass the function to PydanticParser.get_function_schema
-        schema = PydanticParser.get_function_schema(dynamic_function)
+        # Pass the function to PydanticParser.get_openai_tool
+        chat_completion_param = PydanticParser.get_openai_tool(dynamic_function)
 
-        return schema
+        return chat_completion_param
 
 
 def main():

@@ -1,5 +1,7 @@
 import json
 from typing import Any, Callable, cast, Dict, Generic, List, Optional, TypeVar, Type
+from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
+from openai.types.shared_params.function_definition import FunctionDefinition
 from pydantic import create_model, BaseModel
 import inspect
 from logging import getLogger
@@ -183,8 +185,9 @@ class PydanticParser(Generic[T]):
         # json_schema = json.dumps(schema)
         return schema
 
+    # TODO: DEPRECATE IN FAVOR OF get_openai_tool
     @classmethod
-    def get_function_schema(cls, fn: Callable) -> Dict[str, Any]:
+    def get_function_schema(cls, fn: Callable) -> ChatCompletionToolParam:
         """Turn a function signature into a JSON schema.
 
         Every JSON object valid to the output JSON Schema can be passed
@@ -202,13 +205,33 @@ class PydanticParser(Generic[T]):
         schema = cls._get_json_schema(model)
 
         docstring = inspect.getdoc(fn) or "No docstring provided"
-        # As specified by -> from openai.types.shared_params.function_definition
-        function_info = {
-            "type": "function",
-            "function": {
-                "name": fn.__name__,
-                "description": docstring,
-                "parameters": schema,
-            },
+        function_definition = FunctionDefinition(
+            name=fn.__name__, description=docstring, parameters=schema
+        )
+        chat_completion_param = ChatCompletionToolParam(
+            type="function", function=function_definition
+        )
+        return chat_completion_param
+
+    @classmethod
+    def get_openai_tool(cls, fn: Callable) -> ChatCompletionToolParam:
+        """Turn a function signature into a OpenAI ChatCompletionToolParam."""
+
+        params = {
+            name: (param.annotation, ...)
+            for name, param in inspect.signature(fn).parameters.items()
+            if name != "self"  # Skip the 'self' parameter
         }
-        return function_info
+
+        model = create_model(f"{fn.__name__}Model", **params)
+        schema = cls._get_json_schema(model)
+
+        docstring = inspect.getdoc(fn) or "No docstring provided"
+        # As specified by -> from openai.types.shared_params.function_definition
+        function_definition = FunctionDefinition(
+            name=fn.__name__, description=docstring, parameters=schema
+        )
+        chat_completion_param = ChatCompletionToolParam(
+            type="function", function=function_definition
+        )
+        return chat_completion_param

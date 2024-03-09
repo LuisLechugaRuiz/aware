@@ -58,14 +58,14 @@ class Process:
         return prompt_kwargs
 
     def _get_tools(self, process_info: ProcessInfo) -> Tools:
-        tools_class = process_info.process_data.tools_class
-        tools_class_type = self.tools_manager.get_tools(name=tools_class)
+        capability_class = process_info.process_data.capability_class
+        capability_class_type = self.tools_manager.get_tools(name=capability_class)
 
         # self.current_state.tools -> TODO: Filter by all tools and get only the available ones for current state.
 
-        if tools_class_type is None:
+        if capability_class_type is None:
             raise Exception("Tools class not found")
-        return tools_class_type(
+        return capability_class_type(
             process_info=process_info,
         )
 

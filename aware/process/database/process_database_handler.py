@@ -1,9 +1,6 @@
 from typing import Dict, List, Optional
 
 from aware.agent.database.agent_database_handler import AgentDatabaseHandler
-from aware.communication.protocols.database.protocols_database_handler import (
-    ProtocolsDatabaseHandler,
-)
 from aware.process.database.process_redis_handler import (
     ProcessRedisHandler,
 )
@@ -28,7 +25,6 @@ class ProcessDatabaseHandler:
         )
         self.logger = FileLogger("process_agent_handler")
         self.agent_database_handler = AgentDatabaseHandler()
-        self.comm_protocols_database_handler = ProtocolsDatabaseHandler()
 
     def create_current_process_state(
         self, user_id: str, process_id: str, process_state: ProcessState
@@ -47,7 +43,7 @@ class ProcessDatabaseHandler:
         user_id: str,
         agent_id: str,
         name: str,
-        tools_class: str,
+        capability_class: str,
         flow_type: ProcessFlowType,
         service_name: Optional[str] = None,
     ) -> ProcessData:
@@ -55,7 +51,7 @@ class ProcessDatabaseHandler:
             user_id=user_id,
             agent_id=agent_id,
             name=name,
-            tools_class=tools_class,
+            capability_class=capability_class,
             flow_type=flow_type,
         )
         self.redis_handler.set_process_data(
@@ -170,9 +166,6 @@ class ProcessDatabaseHandler:
         return ProcessInfo(
             agent_data=self.agent_database_handler.get_agent_data(
                 agent_id=process_ids.agent_id
-            ),
-            communication_protocols=self.comm_protocols_database_handler.get_communication_protocols(
-                process_id=process_ids.process_id
             ),
             process_ids=process_ids,
             process_data=self.get_process_data(process_id=process_ids.process_id),

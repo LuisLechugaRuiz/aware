@@ -90,7 +90,7 @@ class AgentBuilder:
     ) -> ProcessIds:
         main_process_ids = self.create_new_agent(
             agent_name=agent_name,
-            tools_class=agent_config["tools_class"],
+            capability_class=agent_config["capability_class"],
             memory_mode=AgentMemoryMode(agent_config["memory_mode"]),
             modalities=agent_config["modalities"],
             thought_generator_mode=ThoughtGeneratorMode(
@@ -124,7 +124,7 @@ class AgentBuilder:
     def create_new_agent(
         self,
         agent_name: str,
-        tools_class: str,
+        capability_class: str,
         memory_mode: AgentMemoryMode,
         modalities: List[str],
         thought_generator_mode: ThoughtGeneratorMode,
@@ -136,7 +136,7 @@ class AgentBuilder:
             agent_data = self.agent_database_handler.create_agent(
                 user_id=self.user_id,
                 name=agent_name,
-                tools_class=tools_class,
+                capability_class=capability_class,
                 memory_mode=memory_mode.value,
                 modalities=modalities,
                 thought_generator_mode=thought_generator_mode.value,
@@ -152,7 +152,7 @@ class AgentBuilder:
             main_process_ids = self.create_internal_processes(
                 agent_id=agent_data.id,
                 agent_name=agent_name,
-                tools_class=tools_class,
+                capability_class=capability_class,
                 communication_builder=communication_builder,
             )
 
@@ -165,7 +165,7 @@ class AgentBuilder:
         self,
         agent_id: str,
         agent_name: str,
-        tools_class: str,
+        capability_class: str,
         communication_builder: CommunicationBuilder,
     ):
         """Create the internal processes for the agent"""
@@ -175,7 +175,7 @@ class AgentBuilder:
         # Create main -> Fixed config and internal communication
         main_config = {
             "name": "main",
-            "tools_class": tools_class,
+            "capability_class": capability_class,
             "flow_type": ProcessFlowType.INTERACTIVE,
         }
         process_builder = ProcessBuilder(user_id=self.user_id, agent_id=agent_id)

@@ -51,7 +51,7 @@ class TeamBuilder(Tools):
         try:
             self.agent_builder.create_agent(
                 name=name,
-                tools_class=tools,
+                capability_class=tools,
                 task=task,
                 instructions=instructions,
             )

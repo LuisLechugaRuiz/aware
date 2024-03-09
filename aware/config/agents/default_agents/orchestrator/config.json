@@ -2,7 +2,7 @@
 // TODO: MERGE ASSISTANT AND ORCHESTRATOR INTO ONLY ASSISTANT WHICH MANAGES THE TEAMS!!!
 {
     "name": "orchestrator",
-    "tools_class": "Orchestrator",
+    "capability_class": "Orchestrator",
     "modalities": ["text"],
     "thought_generator_mode": "pre",
     "memory_mode": "statefull"

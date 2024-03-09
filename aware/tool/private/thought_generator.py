@@ -1,21 +1,15 @@
 from typing import List
 
 from aware.process.process_info import ProcessInfo
-from aware.tools.decorators import default_function
-from aware.tools.tools import Tools
+from aware.tool.decorators import default_function, tool, stop_process
+from aware.tool.capability.capability import Capability
 
 
-class ThoughtGenerator(Tools):
+class ThoughtGenerator(Capability):
     def __init__(self, process_info: ProcessInfo):
         super().__init__(process_info=process_info)
 
-    def set_tools(self):
-        return [
-            self.intermediate_thought,
-            self.final_thought,
-            self.search,
-        ]
-
+    @tool
     def search(self, questions: List[str]):
         """Search for the answer to the questions in the memory.
 
@@ -24,6 +18,7 @@ class ThoughtGenerator(Tools):
         """
         return self.memory_manager.search_data(queries=questions)
 
+    @tool
     def intermediate_thought(self, thought: str):
         """Generate an intermediate thought that will be used to reason about the data.
 
@@ -33,6 +28,8 @@ class ThoughtGenerator(Tools):
         return "Intermediate thought saved."
 
     @default_function
+    @tool
+    @stop_process
     def final_thought(self, thought: str):
         """Generate a final thought that will be used by the agent to optimize his performance.
 

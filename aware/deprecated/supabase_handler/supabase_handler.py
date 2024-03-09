@@ -71,7 +71,7 @@ class SupabaseHandler:
         self,
         user_id: str,
         name: str,
-        tools_class: str,
+        capability_class: str,
         memory_mode: str,
         modalities: List[str],
         thought_generator_mode: str,
@@ -83,7 +83,7 @@ class SupabaseHandler:
                 {
                     "user_id": user_id,
                     "name": name,
-                    "tools_class": tools_class,
+                    "capability_class": capability_class,
                     "memory_mode": memory_mode,
                     "modalities": modalities,
                     "thought_generator_mode": thought_generator_mode,
@@ -98,7 +98,7 @@ class SupabaseHandler:
             id=data["id"],
             name=data["name"],
             context=data["context"],
-            tools_class=data["tools_class"],
+            capability_class=data["capability_class"],
             state=AgentState(data["state"]),
             memory_mode=AgentMemoryMode(data["memory_mode"]),
             modalities=data["modalities"],
@@ -130,8 +130,9 @@ class SupabaseHandler:
         user_id: str,
         agent_id: str,
         name: str,
-        tools_class: str,
+        capability_class: str,
         flow_type: ProcessFlowType,
+        type=ProcessType,
     ) -> ProcessData:
         self.logger.info(f"Creating process {name}")
         data = (
@@ -141,7 +142,7 @@ class SupabaseHandler:
                     "user_id": user_id,
                     "agent_id": agent_id,
                     "name": name,
-                    "tools_class": tools_class,
+                    "capability_class": capability_class,
                     "flow_type": flow_type.value,
                 }
             )
@@ -153,7 +154,7 @@ class SupabaseHandler:
         return ProcessData(
             id=data["id"],
             name=data["name"],
-            tools_class=data["tools_class"],
+            capability_class=data["capability_class"],
             flow_type=ProcessFlowType(data["flow_type"]),
         )
 
@@ -740,8 +741,9 @@ class SupabaseHandler:
         return ProcessData(
             id=data["id"],
             name=data["name"],
-            tools_class=data["tools_class"],
+            capability_class=data["capability_class"],
             flow_type=ProcessFlowType(data["flow_type"]),
+            type=data["type"],
         )
 
     def get_process_ids(self, process_id: str) -> Optional[ProcessIds]:

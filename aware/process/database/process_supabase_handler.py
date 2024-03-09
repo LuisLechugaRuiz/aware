@@ -1,7 +1,7 @@
 from supabase import Client
 from typing import Dict, List, Optional
 
-from aware.process.process_data import ProcessData, ProcessFlowType
+from aware.process.process_data import ProcessData, ProcessFlowType, ProcessType
 from aware.process.process_ids import ProcessIds
 from aware.process.state_machine.state import ProcessState
 from aware.utils.logger.file_logger import FileLogger
@@ -37,8 +37,9 @@ class ProcessSupabaseHandler:
         user_id: str,
         agent_id: str,
         name: str,
-        tools_class: str,
+        capability_class: str,
         flow_type: ProcessFlowType,
+        process_type: ProcessType,
     ) -> ProcessData:
         self.logger.info(f"Creating process {name}")
         data = (
@@ -48,8 +49,9 @@ class ProcessSupabaseHandler:
                     "user_id": user_id,
                     "agent_id": agent_id,
                     "name": name,
-                    "tools_class": tools_class,
+                    "capability_class": capability_class,
                     "flow_type": flow_type.value,
+                    "type": process_type.value,
                 }
             )
             .execute()
@@ -60,8 +62,9 @@ class ProcessSupabaseHandler:
         return ProcessData(
             id=data["id"],
             name=data["name"],
-            tools_class=data["tools_class"],
+            capability_class=data["capability_class"],
             flow_type=ProcessFlowType(data["flow_type"]),
+            type=ProcessType(data["type"]),
         )
 
     def create_process_state(
@@ -162,8 +165,9 @@ class ProcessSupabaseHandler:
         return ProcessData(
             id=data["id"],
             name=data["name"],
-            tools_class=data["tools_class"],
+            capability_class=data["capability_class"],
             flow_type=ProcessFlowType(data["flow_type"]),
+            type=ProcessType(data["type"]),
         )
 
     def get_process_ids(self, process_id: str) -> Optional[ProcessIds]:

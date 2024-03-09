@@ -80,7 +80,7 @@ class ClientHandlers:
         self,
         user_id: str,
         name: str,
-        tools_class: str,
+        capability_class: str,
         memory_mode: str,
         modalities: List[str],
         thought_generator_mode: str,
@@ -89,7 +89,7 @@ class ClientHandlers:
         agent_data = self.supabase_handler.create_agent(
             user_id=user_id,
             name=name,
-            tools_class=tools_class,
+            capability_class=capability_class,
             memory_mode=memory_mode,
             modalities=modalities,
             thought_generator_mode=thought_generator_mode,
@@ -116,7 +116,7 @@ class ClientHandlers:
         user_id: str,
         agent_id: str,
         name: str,
-        tools_class: str,
+        capability_class: str,
         flow_type: ProcessFlowType,
         service_name: Optional[str] = None,
     ) -> ProcessData:
@@ -124,7 +124,7 @@ class ClientHandlers:
             user_id=user_id,
             agent_id=agent_id,
             name=name,
-            tools_class=tools_class,
+            capability_class=capability_class,
             flow_type=flow_type,
         )
         self.redis_handler.set_process_data(

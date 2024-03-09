@@ -30,7 +30,7 @@ class AgentData:
     id: str
     name: str
     context: str
-    tools_class: str
+    capability_class: str
     # task: str
     # instructions: str
     state: AgentState
@@ -47,7 +47,7 @@ class AgentData:
             "id": self.id,
             "name": self.name,
             "context": self.context,
-            "tools_class": self.tools_class,
+            "capability_class": self.capability_class,
             # "task": self.task,
             # "instructions": self.instructions,
             "state": self.state.value,

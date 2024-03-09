@@ -31,21 +31,21 @@ class CommunicationProtocols:
         self.input_protocol = input_protocol
         self.input = input
 
-    def get_function_schemas(self) -> List[Dict[str, Any]]:
-        function_schemas: List[Dict[str, Any]] = []
+    def get_openai_tools(self) -> List[ChatCompletionMessageToolCall]:
+        openai_tools: List[ChatCompletionMessageToolCall] = []
         # Add topic_publisher functions
         for publisher in self.topic_publishers.values():
-            function_schemas.extend(publisher.get_functions())
+            openai_tools.extend(publisher.get_openai_tools())
         # Add action_client functions
         for client in self.action_clients.values():
-            function_schemas.extend(client.get_functions())
+            openai_tools.extend(client.get_openai_tools())
         # Add request_client functions
         for client in self.request_clients.values():
-            function_schemas.extend(client.get_functions())
+            openai_tools.extend(client.get_openai_tools())
 
         # Add input protocol functions - Can be request_service, action_service or event_subscriber
-        function_schemas.extend(self.input_protocol.get_functions())
-        return function_schemas
+        openai_tools.extend(self.input_protocol.get_openai_tools())
+        return openai_tools
 
     # TODO: make this more elegant.
     def process_tool_call(
@@ -76,9 +76,9 @@ class CommunicationProtocols:
     def get_client(self, service_name: str) -> Optional[RequestClient]:
         return self.request_clients.get(service_name, None)
 
-    def to_prompt_kwargs(self):
+    def to_prompt_kwargs(self) -> Dict[str, str]:
         """Show permanent info on the prompt. Don't show event as it will be part of conversation."""
-        prompt_kwargs = {}
+        prompt_kwargs: Dict[str, str] = {}
 
         # Add the input
         prompt_kwargs.update({"input": self.input.input_to_prompt_string()})

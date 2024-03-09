@@ -1,12 +1,11 @@
 from aware.chat.conversation_schemas import AssistantMessage
 from aware.chat.database.chat_database_handler import ChatDatabaseHandler
 from aware.process.process_info import ProcessInfo
-from aware.tools.decorators import default_function
-from aware.tools.tools import Tools
+from aware.tool.decorators import default_function, tool
+from aware.tool.capability.capability import Capability
 
 
-# REFACTOR TO INCLUDE THE PROPER TOOLS.
-class Assistant(Tools):
+class Assistant(Capability):
     def __init__(
         self,
         process_info: ProcessInfo,
@@ -14,34 +13,15 @@ class Assistant(Tools):
         super().__init__(process_info=process_info)
         self.chat_database_handler = ChatDatabaseHandler()
 
-    def set_tools(self):
-        return [
-            self.talk,
-            self.send_request,
-            self.search_info,
-        ]
-
-    # TODO: REFACTOR!
-    def send_request(self, request: str):
-        """
-        Send a request to the orchestrator, should be very explicit.
-
-        Args:
-            request (str): The request the system needs to solve.
-
-        Returns:
-            None
-        """
-        self.create_async_request("orchestrator", request)
-        return "Request sent to the system; the status will be updated soon."
-
     @default_function
-    def talk(self, message: str):
+    @tool
+    def talk(self, message: str, should_stop: bool = False):
         """
         Use this tool as the only way to communicate with the user.
 
         Args:
             message (str): The message to be sent.
+            should_stop (bool, optional): If the process should stop after sending the message. Defaults to False.
 
         Returns:
             str
@@ -56,9 +36,12 @@ class Assistant(Tools):
             name=assistant_message.name,
             content=assistant_message.content,
         )
-        self.finish_process()
+        if should_stop:
+            # TODO: how to set input completed from tool?
+            #  IN THE PAST: self.finish_process() but now we only finish by completing the event
         return "Message sent to the user."
 
+    @tool
     def search_info(self, query: str):
         """
         Search the query on semantic database.
@@ -69,4 +52,5 @@ class Assistant(Tools):
         Returns:
             str
         """
-        return self.create_request("thought_generator", query)
+        # Dummy function to direct the thought_generator's search.
+        return f"Searching for: {query}. Check the thought."
