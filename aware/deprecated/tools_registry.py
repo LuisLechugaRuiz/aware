@@ -6,8 +6,8 @@ from typing import Dict, Optional, Type
 
 from aware.database.weaviate.memory_manager import MemoryManager
 from aware.process.process_ids import ProcessIds
-from aware.tools.tools import Tools
-from aware.tools.database.tool_database_handler import ToolDatabaseHandler
+from aware.tool.tools import Tools
+from aware.tool.database.tool_database_handler import ToolDatabaseHandler
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -59,7 +59,7 @@ class ToolsRegistry:
                     description=obj.get_description(),
                 )
                 ToolDatabaseHandler().create_capability(
-                    process_ids=self.process_ids, capability_name=name
+                    process_ids=self.process_ids, capability=
                 )
 
     def get_tools(self, tools_name: str) -> Optional[Type[Tools]]:

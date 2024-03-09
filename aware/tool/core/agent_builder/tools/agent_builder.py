@@ -3,7 +3,7 @@ from typing import Dict, List
 from aware.agent.agent_builder import AgentBuilder as InternalAgentBuilder
 from aware.agent.database.agent_database_handler import AgentDatabaseHandler
 from aware.process.process_info import ProcessInfo
-from aware.tools.tools import Tools
+from aware.tool.tools import Tools
 
 
 class AgentBuilder(Tools):

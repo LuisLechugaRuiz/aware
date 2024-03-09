@@ -8,7 +8,7 @@ from typing import List
 
 
 # Assuming get_private_data_path is a function that returns the path to a secure storage location
-from aware.tools.helpers import get_private_data_path
+from aware.tool.helpers import get_private_data_path
 
 
 def get_local_timezone():

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from aware.tools.default_data.data import Data
+from aware.tool.default_data.data import Data
 
 DEF_TASK = """Delegate atomic requests to the appropriate agents and manage the communication between them."""
 # TODO: Add instructions

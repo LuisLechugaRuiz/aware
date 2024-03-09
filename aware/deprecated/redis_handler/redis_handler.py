@@ -14,7 +14,7 @@ from aware.chat.conversation_schemas import (
     ToolCalls,
 )
 from aware.chat.call_info import CallInfo
-from aware.communication.communication_protocols import Communications
+from aware.agent.agent_communication import Communications
 from aware.communication.events.event import Event
 from aware.communication.events.event_subscriber import EventSubscriber
 from aware.communication.events.event_publisher import EventPublisher

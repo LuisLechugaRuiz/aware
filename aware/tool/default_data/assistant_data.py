@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from aware.tools.default_data.data import Data
+from aware.tool.default_data.data import Data
 
 DEF_TASK = """Assist users by providing tailored responses or generating requests for the orchestrator when tasks are beyond chatbot capabilities."""
 

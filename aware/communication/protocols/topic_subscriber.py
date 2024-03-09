@@ -42,5 +42,7 @@ class TopicSubscriber(Protocol):
         topic = PrimitivesDatabaseHandler().get_topic(self.topic_id)
         return topic.to_string()
 
-    def setup_functions(self) -> List[FunctionDetail]:
+    @property
+    # TODO: add set_topic_processed ??
+    def tools(self) -> List[FunctionDetail]:
         return []

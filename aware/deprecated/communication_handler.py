@@ -4,7 +4,7 @@ from typing import Any, Dict
 from openai.types.chat import ChatCompletionMessageToolCall
 
 from aware.chat.conversation_schemas import UserMessage, ToolResponseMessage
-from aware.communication.communication_protocols import CommunicationProtocols
+from aware.agent.agent_communication import CommunicationProtocols
 from aware.communication.protocols.request_client import RequestClient
 from aware.communication.protocols.request_service import RequestService
 from aware.communication.protocols.topic_publisher import TopicPublisher

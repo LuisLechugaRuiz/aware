@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional, Tuple
 
-from aware.communication.communication_protocols import CommunicationProtocols
+from aware.agent.agent_communication import AgentCommunication
 from aware.communication.helpers.current_input_metadata import CurrentInputMetadata
 from aware.communication.primitives.database.primitives_database_handler import (
     PrimitivesDatabaseHandler,
@@ -40,16 +40,16 @@ class ProtocolsDatabaseHandler:
         self.logger = FileLogger("protocols_database_handler")
 
     def delete_current_input(self, process_id: str):
-        self.primitives_database_handler.delete_current_input_metadata(process_id)
+        self.primitives_database_handler.delete_current_input(process_id)
 
-    def get_communication_protocols(self, process_id: str) -> CommunicationProtocols:
-        current_input, input_protocol = self.get_current_input()
+    def get_agent_communication(self, process_id: str) -> AgentCommunication:
+        current_input, input_protocol = self.get_current_input(process_id)
         if current_input is None:
             raise Exception(
                 "Trying to get communication protocols without current input"
             )
 
-        communication_protocols = CommunicationProtocols(
+        agent_communication = AgentCommunication(
             topic_publishers=self.get_topic_publishers(process_id),
             topic_subscribers=self.get_topic_subscribers(process_id),
             action_clients=self.get_action_clients(process_id),
@@ -57,7 +57,7 @@ class ProtocolsDatabaseHandler:
             input_protocol=input_protocol,
             input=current_input,
         )
-        return communication_protocols
+        return agent_communication
 
     def get_current_input(
         self, process_id: str

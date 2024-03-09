@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from aware.tools.default_data.data import Data
+from aware.tool.default_data.data import Data
 
 DEF_TASK = """Optimize {agent_name}'s performance in executing its task through strategic thought generation.
 {agent_name}'s Task:

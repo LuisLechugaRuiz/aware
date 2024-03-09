@@ -1,6 +1,7 @@
 import json
 from typing import Any, Dict, List
 
+from aware.agent.agent_data import NewAgentState
 from aware.communication.primitives.database.primitives_database_handler import (
     PrimitivesDatabaseHandler,
 )
@@ -58,13 +59,15 @@ class RequestClient(Protocol):
         priority: int,
     ) -> DatabaseResult[Request]:
         # - Save request in database
-        return self.primitives_database_handler.create_request(
-            client_id=self.client_id,
+        self.primitives_database_handler.create_request(
+            client_id=self.id,
             request_message=request_message,
             priority=priority,
         )
+        # TODO: Update agent data to set it to: NewAgentState.WAITING_FOR_RESPONSE
 
-    def setup_functions(self) -> List[FunctionDetail]:
+    @property
+    def tools(self) -> List[FunctionDetail]:
         self.request_format["priority"] = "int"
         return [
             FunctionDetail(
@@ -72,6 +75,5 @@ class RequestClient(Protocol):
                 args=self.request_format,
                 description=f"Call this function to send a request to a service with the following description: {self.service_description}",
                 callback=self.create_request,
-                should_continue=False,
             )
         ]

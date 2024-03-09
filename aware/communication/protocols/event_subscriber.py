@@ -46,7 +46,8 @@ class EventSubscriber(InputProtocol):
         # TODO: implement this
         pass
 
-    def setup_functions(self) -> List[FunctionDetail]:
+    @property
+    def tools(self) -> List[FunctionDetail]:
         response_format = {"success": "bool", "details": "str"}
         return [
             FunctionDetail(
@@ -54,6 +55,5 @@ class EventSubscriber(InputProtocol):
                 args=response_format,
                 description="Call this function to set the request completed, filling the args and the success flag.",
                 callback=self.set_event_comleted,
-                should_continue=True,
             )
         ]

@@ -66,7 +66,8 @@ class ActionClient(Protocol):
             return f"Error creating action: {result.error}"
         return "Action created successfully."
 
-    def setup_functions(self) -> List[FunctionDetail]:
+    @property
+    def tools(self) -> List[FunctionDetail]:
         self.request_format["priority"] = "int"
         return [
             FunctionDetail(

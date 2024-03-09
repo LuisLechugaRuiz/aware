@@ -2,7 +2,7 @@ from typing import Any, Dict
 
 from aware.agent.agent_builder import AgentBuilder as InternalAgentBuilder
 from aware.process.process_info import ProcessInfo
-from aware.tools.tools import Tools
+from aware.tool.tools import Tools
 
 # TODO: Implement me
 # TWO OPTIONS:

@@ -8,7 +8,7 @@ from aware.agent.agent_data import (
     ThoughtGeneratorMode,
 )
 from aware.chat.conversation_schemas import ChatMessage, JSONMessage
-from aware.communication.communication_protocols import Communications
+from aware.agent.agent_communication import Communications
 from aware.communication.events.event import Event, EventStatus
 from aware.communication.events.event_type import EventType
 from aware.communication.events.event_subscriber import EventSubscriber
@@ -28,7 +28,7 @@ from aware.memory.user.user_data import UserData
 from aware.process.process_data import ProcessData, ProcessFlowType
 from aware.process.process_ids import ProcessIds
 from aware.process.state_machine.state import ProcessState
-from aware.tools.capability import Capability
+from aware.tool.capability import Capability
 from aware.agent.agent_profile import Profile
 from aware.utils.logger.file_logger import FileLogger
 

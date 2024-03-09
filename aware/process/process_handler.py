@@ -122,9 +122,12 @@ class ProcessHandler:
         else:
             self.logger.info(f"Agent already active: {process_ids.agent_id}")
 
-    def step(self, process_ids: ProcessIds, is_process_finished: bool = False):
+    def step(self, process_ids: ProcessIds):
         self.logger.info(f"On step: {process_ids.process_id}")
         process_info = self.process_database_handler.get_process_info(process_ids)
+        # TODO: 1. STEP PROCESS STATE MACHINE AND TRANSITION TO NEXT STATE -> This will determine if is_process_finished (in case of END), CONTINUE (which does not transition) or TRANSITION NAME (to new state)
+        # TODO: 2. Then step agent machine. - We need to consider agent state -> If agent is WAITING_FOR_RESPONSE then don't step it.
+        #   One thing is the state machine (with specific transitions) and another is agent state (Idle, running, waiting_for_response).
         if process_info.process_data.flow_type == ProcessFlowType.INTERACTIVE:
             self.step_state_machine(process_info, is_process_finished)
         elif process_info.process_data.flow_type == ProcessFlowType.INDEPENDENT:
@@ -134,7 +137,7 @@ class ProcessHandler:
         agent_data = process_info.agent_data
         process_id = process_info.process_ids.process_id
         if agent_data.state == AgentState.IDLE:
-            # Initialize process
+            # Initialize process - TODO: refactor active_agents with AgentState.
             self.agent_database_handler.add_active_agent(
                 agent_id=process_info.process_ids.agent_id
             )
@@ -151,7 +154,6 @@ class ProcessHandler:
 
         agent_state_machine = AgentStateMachine(
             agent_data=agent_data,
-            communication_protocols=process_info.communication_protocols,
             is_process_finished=is_process_finished,
         )
         next_state = agent_state_machine.step()

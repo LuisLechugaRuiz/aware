@@ -12,8 +12,8 @@ from aware.process.database.process_database_handler import ProcessDatabaseHandl
 from aware.process.process_ids import ProcessIds
 from aware.process.process_info import ProcessInfo
 from aware.process.process_handler import ProcessHandler
-from aware.tools.tools_manager import ToolsManager
-from aware.tools.tools import Tools
+from aware.tool.tools_manager import ToolsManager
+from aware.tool.tools import Tools
 from aware.utils.logger.process_loger import ProcessLogger
 
 

@@ -1,10 +1,11 @@
 import json
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from aware.communication.primitives.event import Event
 from aware.communication.primitives.database.primitives_database_handler import (
     PrimitivesDatabaseHandler,
 )
+from aware.communication.primitives.interface.function_detail import FunctionDetail
 from aware.communication.protocols.interface.protocol import Protocol
 
 
@@ -42,3 +43,14 @@ class EventPublisher(Protocol):
         PrimitivesDatabaseHandler().create_event(
             publisher_id=self.id, event_message=event_message
         )
+
+    @property
+    def tools(self) -> List[FunctionDetail]:
+        return [
+            FunctionDetail(
+                name=self.event_name,
+                args=self.event_format,
+                description=f"Call this function to publish event: {self.event_name} with description: {self.event_description}",
+                callback=self.create_event,
+            )
+        ]

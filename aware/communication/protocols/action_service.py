@@ -69,7 +69,7 @@ class ActionService(InputProtocol):
         return None
 
     # TODO: refactor to receive the input (action) as arg.
-    def send_feedback(self, action: Action, feedback: Dict[str, Any]):
+    def send_action_feedback(self, action: Action, feedback: Dict[str, Any]):
         if self.current_action:
             return PrimitivesDatabaseHandler().send_action_feedback(
                 self.current_action, feedback
@@ -89,7 +89,8 @@ class ActionService(InputProtocol):
     def get_inputs(self) -> List[Action]:
         return PrimitivesDatabaseHandler().get_service_actions(self.id)
 
-    def setup_functions(self) -> List[FunctionDetail]:
+    @property
+    def tools(self) -> List[FunctionDetail]:
         self.data.response_format["success"] = "bool"
         self.data.response_format["details"] = "str"
         return [
@@ -98,13 +99,11 @@ class ActionService(InputProtocol):
                 args=self.data.response_format,
                 description="Call this function to set the action completed, filling the args and the success flag.",
                 callback=self.set_action_completed,
-                should_continue=True,
             ),
             FunctionDetail(
-                name=self.send_feedback.__name__,
+                name=self.send_action_feedback.__name__,
                 args=self.data.feedback_format,
                 description="Call this function to send feedback to the action client.",
-                callback=self.send_feedback,
-                should_continue=True,
+                callback=self.send_action_feedback,
             ),
         ]

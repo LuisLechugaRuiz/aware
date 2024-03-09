@@ -1,5 +1,5 @@
 from aware.process.process_info import ProcessInfo
-from aware.tool.decorators import tool, default_function, stop_process
+from aware.tool.decorators import tool, default_function
 from aware.tool.capability.capability import Capability
 
 
@@ -57,7 +57,6 @@ class DataStorageManager(Capability):
 
     @tool
     @default_function
-    @stop_process
     def stop(self, new_context: str):
         """Stop saving info. Call this function after all relevant data has been stored and provide a new context for the agent which contains the most relevant information from previous interactions.
 

@@ -1,7 +1,7 @@
 from typing import List
 
 from aware.process.process_info import ProcessInfo
-from aware.tool.decorators import default_function, tool, stop_process
+from aware.tool.decorators import default_function, tool
 from aware.tool.capability.capability import Capability
 
 
@@ -29,7 +29,6 @@ class ThoughtGenerator(Capability):
 
     @default_function
     @tool
-    @stop_process
     def final_thought(self, thought: str):
         """Generate a final thought that will be used by the agent to optimize his performance.
 
