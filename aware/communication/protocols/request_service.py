@@ -71,6 +71,9 @@ class RequestService(InputProtocol):
             return self.current_request.query_to_string()
         return None
 
+    def set_input_completed(self):
+        self.set_request_completed(response={}, success=True)
+
     # TODO: How to get current request?
     def set_request_completed(self, response: Dict[str, Any], success: bool):
         if self.current_request:

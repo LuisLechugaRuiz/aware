@@ -14,3 +14,6 @@ class InternalProcess(ProcessInterface):
     @property
     def prompt_name(self) -> str:
         return self.process_data.prompt_name
+
+    def on_finish(self):
+        pass

@@ -25,3 +25,10 @@ class InputProtocol(Protocol):
         Derived classes must implement this method to return the primitives that will be used in the protocol.
         """
         pass
+
+    @abstractmethod
+    def set_input_completed(self):
+        """
+        Derived classes must implement this method to set the input as completed.
+        """
+        pass

@@ -122,7 +122,7 @@ class ProcessHandler:
         else:
             self.logger.info(f"Agent already active: {process_ids.agent_id}")
 
-    def step(self, process_ids: ProcessIds):
+    def step(self, process_ids: ProcessIds, is_process_finished: bool):
         self.logger.info(f"On step: {process_ids.process_id}")
         process_info = self.process_database_handler.get_process_info(process_ids)
         # TODO: 1. STEP PROCESS STATE MACHINE AND TRANSITION TO NEXT STATE -> This will determine if is_process_finished (in case of END), CONTINUE (which does not transition) or TRANSITION NAME (to new state)

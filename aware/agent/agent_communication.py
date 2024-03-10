@@ -50,6 +50,9 @@ class AgentCommunication:
     def get_client(self, service_name: str) -> Optional[RequestClient]:
         return self.request_clients.get(service_name, None)
 
+    def set_input_completed(self):
+        self.input_protocol.set_input_completed()
+
     def to_prompt_kwargs(self) -> Dict[str, str]:
         """Show permanent info on the prompt. Don't show event as it will be part of conversation."""
         prompt_kwargs: Dict[str, str] = {}

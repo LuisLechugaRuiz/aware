@@ -35,3 +35,6 @@ class MainProcess(ProcessInterface):
     @property
     def prompt_name(self) -> str:
         return "meta"
+
+    def on_finish(self):
+        self.agent_communication.set_input_completed()
