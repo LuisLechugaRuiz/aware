@@ -42,6 +42,9 @@ class EventSubscriber(InputProtocol):
     def get_inputs(self) -> List[Event]:
         return PrimitivesDatabaseHandler().get_events(self.event_type_id)
 
+    def set_input_completed(self):
+        self.set_event_comleted(response={}, success=True)
+
     def set_event_comleted(self, success: bool, details: str):
         # TODO: implement this
         pass

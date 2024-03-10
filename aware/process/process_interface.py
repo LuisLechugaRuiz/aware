@@ -158,9 +158,19 @@ class ProcessInterface:
                 self.logger.info("Getting function calls.")
                 self.process_tool_calls(tool_calls=tool_calls)
 
-            # 4. Step process if needed.
+            # TODO: ADDRESS ME PROPERLY!! process_tool_calls should trigger transition and update process state. In case the transition is END we should call on_finish
+            #  on_finish will help us to set_input_completed on main process and also to send this info to step()!!
+            if self.process_data.status == "END":
+                self.on_finish()
+                is_process_finished = True
+            else:
+                is_process_finished = False
+
+            # 4. Step process if needed
             self.logger.info("Stepping process.")
-            self.process_handler.step(process_ids=self.process_ids)
+            self.process_handler.step(
+                process_ids=self.process_ids, is_process_finished=is_process_finished
+            )
         except Exception as e:
             self.logger.error(f"Error in process_response: {e}")
 
@@ -175,3 +185,9 @@ class ProcessInterface:
             self.logger.info(
                 f"Executing tool: {tool_call.function.name} with response: {tool_response.content}"
             )
+            # TODO: Get transition depending on tool_name and current state!
+
+    @abstractmethod
+    def on_finish(self):
+        """The on_finish method that must be implemented by derived classes."""
+        pass

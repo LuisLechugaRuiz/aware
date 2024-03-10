@@ -76,6 +76,9 @@ class ActionService(InputProtocol):
             )
         return None
 
+    def set_input_completed(self):
+        self.set_action_completed(response={}, success=True)
+
     def set_action_completed(
         self, action: Action, response: Dict[str, Any], success: bool
     ):
