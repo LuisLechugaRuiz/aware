@@ -59,12 +59,16 @@ class RequestClient(Protocol):
         priority: int,
     ) -> DatabaseResult[Request]:
         # - Save request in database
-        self.primitives_database_handler.create_request(
+        request = self.primitives_database_handler.create_request(
             client_id=self.id,
             request_message=request_message,
             priority=priority,
         )
+        if request.error:
+            return f"Error creating request: {request.error}"
+        self.send_communication(task_name="create_request", primitive_str=request.data.to_json())
         # TODO: Update agent data to set it to: NewAgentState.WAITING_FOR_RESPONSE
+        return "Request created successfully."
 
     @property
     def tools(self) -> List[FunctionDetail]:

@@ -8,6 +8,7 @@ from aware.communication.primitives.interface.function_detail import FunctionDet
 from aware.communication.protocols.interface.protocol import Protocol
 
 
+# TODO: Update to input_protocol.
 class TopicSubscriber(Protocol):
     def __init__(
         self,

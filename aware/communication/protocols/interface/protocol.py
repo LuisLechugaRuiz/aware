@@ -7,6 +7,7 @@ from aware.communication.primitives.database.primitives_database_handler import 
 from aware.communication.primitives.interface.function_detail import FunctionDetail
 from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
 from aware.tool.tool import Tool
+from aware.server.celery_app import app
 
 
 class Protocol(ABC):
@@ -22,9 +23,18 @@ class Protocol(ABC):
                     name=fn.name,
                     args=fn.args,
                     description=fn.description,
+                    callback=fn.callback,
                 )
             )
         return tools
+
+    def send_communication(self, task_name: str, primitive_str: str):
+        app.send_task(
+            task_name,
+            kwargs={
+                'primitive_str': primitive_str
+            },
+        )
 
     @abstractmethod
     @property

@@ -40,6 +40,8 @@ class TopicPublisher(Protocol):
 
     def update_topic(self, message: Dict[str, Any]) -> str:
         PrimitivesDatabaseHandler().update_topic(self.topic_id, message)
+        topic = PrimitivesDatabaseHandler().get_topic(self.topic_id)
+        self.send_communication(task_name="update_topic", primitive_str=topic.to_json())
         return "Topic updated successfully"
 
     @property

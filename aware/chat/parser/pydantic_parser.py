@@ -239,19 +239,22 @@ class PydanticParser(Generic[T]):
         return chat_completion_param
 
     @classmethod
-    def get_tool(cls, callable: Callable) -> Tool:
+    def get_tool(cls, callable: Callable, callback: Optional[Callable] = None) -> Tool:
         params = {
             name: (param.annotation, param.default is not inspect.Parameter.empty)
             for name, param in inspect.signature(callable).parameters.items()
             if name != "self"  # Skip the 'self' parameter
         }
         docstring = inspect.getdoc(callable) or "No docstring provided"
+        
+        if callback is None:
+            callback = callable
 
         # Create and add the Tool object to the tools list
         return Tool(
             name=callable.__name__,
             params=params,
             description=docstring,
-            callback=callable,
-            run_remote=getattr(callable, RUN_REMOTE, False),
+            callback=callback,
+            run_remote=getattr(callback, RUN_REMOTE, False),
         )

@@ -17,7 +17,7 @@ from aware.tool.capability.capability import Capability
 from aware.tool.capability.capability_registry import CapabilityRegistry
 from aware.tool.tool import Tool
 from aware.tool.tool_manager import ToolManager
-from aware.utils.logger.process_loger import ProcessLogger
+from aware.utils.logger.process_logger import ProcessLogger
 
 
 class ProcessInterface:
@@ -29,9 +29,7 @@ class ProcessInterface:
         process_info = ProcessDatabaseHandler().get_process_info(process_ids=ids)
 
         self.process_logger = ProcessLogger(
-            user_id=ids.user_id,
-            agent_name=process_info.agent_data.name,
-            process_name=self.process_data.name,
+            process_id=ids.process_id,
         )
         self.logger = self.process_logger.get_logger("process")
 
@@ -44,7 +42,7 @@ class ProcessInterface:
         self.capability = self._get_capability(process_info=process_info)
         self._initialize_tools()
 
-        self.process_handler = ProcessHandler()
+        self.process_handler = ProcessHandler(process_ids=ids)
         self.process_state_machine = ProcessStateMachine(process_id=ids.process_id, process_logger=self.process_logger)
 
     @property
@@ -146,8 +144,7 @@ class ProcessInterface:
 
             # 2. Upload message to Supabase and Redis.
             self.logger.info("Adding message to redis and supabase")
-            process_handler = ProcessHandler()
-            process_handler.add_message(
+            self.process_handler.add_message(
                 process_ids=self.process_ids, message=new_message
             )
 

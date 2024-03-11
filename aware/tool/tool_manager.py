@@ -7,7 +7,7 @@ from aware.chat.conversation_schemas import ToolResponseMessage
 from aware.tool.helpers.function_call import FunctionCall
 from aware.tool.tool import Tool
 from aware.tool.tool_registry import ToolRegistry
-from aware.utils.logger.process_loger import ProcessLogger
+from aware.utils.logger.process_logger import ProcessLogger
 
 
 class ToolManager:

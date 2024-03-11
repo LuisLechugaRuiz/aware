@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from aware.agent.database.agent_database_handler import AgentDatabaseHandler
 from aware.process.database.process_redis_handler import (

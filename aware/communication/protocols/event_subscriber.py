@@ -48,23 +48,24 @@ class EventSubscriber(InputProtocol):
         return PrimitivesDatabaseHandler().get_events(self.event_type_id)
 
     def set_input_completed(self):
-        self.set_event_comleted(response={}, success=True)
+        self.set_event_completed(response={}, success=True)
 
-    def set_event_comleted(self, details: str, success: bool):
+    def set_event_completed(self, details: str, success: bool):
         if self.current_event:
             PrimitivesDatabaseHandler().set_event_completed(event=self.current_event, details=details, success=success)
             self.remove_current_input()
+            self.send_communication(task_name="set_event_completed", primitive_str=self.current_event.to_json())
             return "Event completed."
         raise ValueError("No event to complete.")
 
     @property
     def tools(self) -> List[FunctionDetail]:
-        response_format = {"success": "bool", "details": "str"}
+        response_format = {"details": "str", "success": "bool"}
         return [
             FunctionDetail(
-                name=self.set_event_comleted.__name__,
+                name=self.set_event_completed.__name__,
                 args=response_format,
                 description="Call this function to set the request completed, filling the args and the success flag.",
-                callback=self.set_event_comleted,
+                callback=self.set_event_completed,
             )
         ]

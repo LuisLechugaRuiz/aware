@@ -40,9 +40,14 @@ class EventPublisher(Protocol):
         return cls(**data)
 
     def create_event(self, event_message: Dict[str, Any]) -> Event:
-        PrimitivesDatabaseHandler().create_event(
+        event = PrimitivesDatabaseHandler().create_event(
             publisher_id=self.id, event_message=event_message
         )
+        if event.error:
+            raise Exception(f"Error creating event: {event.error}")
+
+        self.send_communication(task_name="create_event", primitive_str=event.data.to_json())
+        return "Event created successfully."
 
     @property
     def tools(self) -> List[FunctionDetail]:
