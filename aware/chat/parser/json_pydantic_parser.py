@@ -48,9 +48,9 @@ class JsonPydanticParser:
         return getattr(dynamic_holder, name)
 
     @staticmethod
-    def get_tool(name: str, args: Dict[str, str], description: str) -> Tool:
+    def get_tool(name: str, args: Dict[str, str], description: str, callback: Callable) -> Tool:
         callable = JsonPydanticParser.create_callable(name, args, description)
-        return PydanticParser.get_tool(callable=callable)
+        return PydanticParser.get_tool(callable=callable, callback=callback)
 
 
 def main():

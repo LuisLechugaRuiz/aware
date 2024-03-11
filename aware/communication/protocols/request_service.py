@@ -74,14 +74,13 @@ class RequestService(InputProtocol):
     def set_input_completed(self):
         self.set_request_completed(response={}, success=True)
 
-    # TODO: How to get current request?
     def set_request_completed(self, response: Dict[str, Any], success: bool):
         if self.current_request:
             self.primitive_database_handler.set_request_completed(
                 self.current_request, response, success
             )
             self.remove_current_input()
-            # TODO: send here to CommunicationDispatcher to process set_request_completed! Use celery to send the task.
+            self.send_communication(task_name="set_request_completed", primitive_str=self.current_request.to_json())
             return f"Request {self.current_request.id} completed."
         raise ValueError("No current request to set completed.")
 

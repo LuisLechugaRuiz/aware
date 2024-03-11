@@ -72,6 +72,7 @@ class ActionService(InputProtocol):
             PrimitivesDatabaseHandler().send_action_feedback(
                 self.current_action, feedback
             )
+            self.send_communication(task_name="send_action_feedback", primitive_str=self.current_action.to_json())
             return "Feedback sent."
         raise ValueError("No action to send feedback to.")
 
@@ -87,6 +88,7 @@ class ActionService(InputProtocol):
                 self.current_action, response, success
             )
             self.remove_current_input()
+            self.send_communication(task_name="set_action_completed", primitive_str=self.current_action.to_json())
             return "Action set as completed."
         raise ValueError("No action to set as completed.")
 

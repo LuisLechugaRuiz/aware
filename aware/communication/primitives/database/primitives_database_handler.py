@@ -225,6 +225,7 @@ class PrimitivesDatabaseHandler:
         self.redis_handler.update_request(request)
         self.supabase_handler.update_request_status(request)
 
+    # TODO: Update to create new topic message and return the newly created message.. TBD
     def update_topic(self, topic_id: str, message: Dict[str, Any]):
         self.redis_handler.update_topic(topic_id, message)
         self.supabase_handler.update_topic(topic_id, message)

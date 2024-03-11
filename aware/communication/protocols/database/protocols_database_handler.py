@@ -93,7 +93,7 @@ class ProtocolsDatabaseHandler:
             raise Exception(f"Unknown input type: {current_input_metadata.input_type}")
         return current_input, input_protocol
 
-    def has_current_input(self, process_id: str) -> bool:
+    def has_current_input(self, process_id) -> bool:
         current_input_metadata = (
             self.primitives_database_handler.get_current_input_metadata(process_id)
         )
@@ -209,28 +209,28 @@ class ProtocolsDatabaseHandler:
         return self.redis_handler.get_event_subscribers_from_type(event_type_id)
 
     def get_request_services(self, process_id: str) -> Dict[str, RequestService]:
-        self.redis_handler.get_request_services(process_id)
+        return self.redis_handler.get_request_services(process_id)
 
     def get_request_clients(self, process_id: str) -> Dict[str, RequestClient]:
-        self.redis_handler.get_request_clients(process_id)
+        return self.redis_handler.get_request_clients(process_id)
 
     def get_action_clients(self, process_id: str) -> Dict[str, ActionClient]:
-        self.redis_handler.get_action_clients(process_id)
+        return self.redis_handler.get_action_clients(process_id)
 
     def get_action_services(self, process_id: str) -> Dict[str, ActionService]:
-        self.redis_handler.get_action_services(process_id)
+        return self.redis_handler.get_action_services(process_id)
 
     def get_topic_publishers(self, process_id: str) -> Dict[str, TopicPublisher]:
-        self.redis_handler.get_topic_publishers(process_id)
+        return self.redis_handler.get_topic_publishers(process_id)
 
     def get_topic_subscribers(self, process_id: str) -> Dict[str, TopicSubscriber]:
-        self.redis_handler.get_topic_subscribers(process_id)
+        return self.redis_handler.get_topic_subscribers(process_id)
 
     def get_topic_subscribers_from_topic(self, topic_id: str) -> List[TopicSubscriber]:
         return self.redis_handler.get_topic_subscribers_from_topic(topic_id)
 
     def get_event_subscribers(self, process_id: str) -> Dict[str, EventSubscriber]:
-        self.redis_handler.get_event_subscribers(process_id)
+        return self.redis_handler.get_event_subscribers(process_id)
 
     def get_event_publishers(self, process_id: str) -> Dict[str, EventPublisher]:
-        self.redis_handler.get_event_publishers(process_id)
+        return self.redis_handler.get_event_publishers(process_id)

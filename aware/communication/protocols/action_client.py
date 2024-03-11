@@ -64,6 +64,7 @@ class ActionClient(Protocol):
         )
         if result.error:
             return f"Error creating action: {result.error}"
+        self.send_communication(task_name="create_action", primitive_str=result.data.to_json())
         return "Action created successfully."
 
     @property

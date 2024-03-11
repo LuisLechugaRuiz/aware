@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import json
-from typing import Any, Callable, Dict, List, Optional
+from typing import Callable, List, Optional
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
     Function,
@@ -10,14 +10,11 @@ import uuid
 import inspect
 
 from aware.agent.database.agent_database_handler import AgentDatabaseHandler
-from aware.chat.conversation_schemas import ToolResponseMessage
 from aware.chat.parser.pydantic_parser import PydanticParser
-from aware.config.config import Config
 from aware.database.weaviate.memory_manager import MemoryManager
 from aware.process.process_info import ProcessInfo
-from aware.utils.logger.process_loger import ProcessLogger
-from aware.tool.helpers.function_call import FunctionCall
-from aware.tool.decorators import IS_DEFAULT_FUNCTION, IS_TOOL, RUN_REMOTE
+from aware.utils.logger.process_logger import ProcessLogger
+from aware.tool.decorators import IS_DEFAULT_FUNCTION, IS_TOOL
 from aware.tool.tool import Tool
 from aware.tool.database.tool_database_handler import ToolDatabaseHandler
 
@@ -32,9 +29,7 @@ class Capability(ABC):
         self.process_ids = process_info.process_ids
         self.process_data = process_info.process_data
         self.process_logger = ProcessLogger(
-            user_id=self.process_ids.user_id,
-            agent_name=self.agent_data.name,
-            process_name=self.process_data.name,
+            id=self.process_ids.process_id,
         )
         self.logger = self.process_logger.get_logger(self.get_name())
 
