@@ -3,12 +3,13 @@ from aware.process.types.internal_process import InternalProcess
 from aware.process.types.main_process import MainProcess
 from aware.process.process_ids import ProcessIds
 from aware.process.process_data import ProcessType
+from aware.process.process_interface import ProcessInterface
 from aware.process.database.process_database_handler import ProcessDatabaseHandler
 from aware.server.celery_app import app
 from aware.utils.logger.file_logger import FileLogger
 
 
-def get_process(process_ids: ProcessIds) -> InternalProcess:
+def get_process(process_ids: ProcessIds) -> ProcessInterface:
     """Small factory to build the process depending on type."""
     process_data = ProcessDatabaseHandler().get_process_data(
         process_id=process_ids.process_id

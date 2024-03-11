@@ -7,13 +7,11 @@ from aware.communication.primitives.interface.input import Input
 from aware.chat.conversation_schemas import UserMessage
 
 
-# TODO: REMOVE, should not be not needed. Just completed with SUCCESS/FAILURE as it is sync.
 class RequestStatus(Enum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     SUCCESS = "success"
     FAILURE = "failure"
-    WAITING_USER_FEEDBACK = "waiting_user_feedback"  # TODO: Verify if needed.
 
 
 @dataclass
@@ -115,7 +113,7 @@ class Request(Input):
     def get_type(self) -> str:
         return "request"
 
-    def to_user_message(self) -> UserMessage:
+    def input_to_user_message(self) -> UserMessage:
         return UserMessage(
             name=self.client_process_name,
             content=f"Received the following request: {self.input_to_prompt_string()}",

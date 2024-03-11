@@ -14,9 +14,9 @@ from aware.communication.protocols.interface.input_protocol import InputProtocol
 class ActionServiceData:
     service_name: str
     service_description: str
-    request_format: Dict[str, Any]
-    feedback_format: Dict[str, Any]
-    response_format: Dict[str, Any]
+    request_format: Dict[str, str]
+    feedback_format: Dict[str, str]
+    response_format: Dict[str, str]
     tool_name: str
 
     def to_dict(self):
@@ -41,9 +41,8 @@ class ActionServiceData:
 class ActionService(InputProtocol):
     def __init__(self, id: str, user_id: str, process_id: str, data: ActionServiceData):
         self.user_id = user_id
-        self.process_id = process_id
         self.data = data
-        super().__init__(id=id)
+        super().__init__(id=id, process_id=process_id)
 
     def to_dict(self):
         return {
@@ -62,32 +61,34 @@ class ActionService(InputProtocol):
         data["data"] = ActionServiceData.from_json(data["data"])
         return ActionServiceData(**data)
 
-    # TODO: Do we need this? Now are using generic input_to_prompt_string to get the query of any of possible inputs.
-    def get_action_query(self) -> Optional[str]:
-        if self.current_action:
-            return self.current_action.query_to_string()
-        return None
+    def add_input(self, input: Action):
+        self.current_action = input
 
-    # TODO: refactor to receive the input (action) as arg.
-    def send_action_feedback(self, action: Action, feedback: Dict[str, Any]):
+    def get_input(self) -> Optional[Action]:
+        return self.current_action
+
+    def send_action_feedback(self, feedback: Dict[str, Any]):
         if self.current_action:
-            return PrimitivesDatabaseHandler().send_action_feedback(
+            PrimitivesDatabaseHandler().send_action_feedback(
                 self.current_action, feedback
             )
-        return None
+            return "Feedback sent."
+        raise ValueError("No action to send feedback to.")
 
     def set_input_completed(self):
+        # TODO: Fill self.data.response_format with dummy data. To don't break the logic while checking response format.
         self.set_action_completed(response={}, success=True)
 
     def set_action_completed(
-        self, action: Action, response: Dict[str, Any], success: bool
+        self, response: Dict[str, Any], success: bool
     ):
         if self.current_action:
-            # TODO: address me properly.
-            return PrimitivesDatabaseHandler().set_action_completed(
+            PrimitivesDatabaseHandler().set_action_completed(
                 self.current_action, response, success
             )
-        return None
+            self.remove_current_input()
+            return "Action set as completed."
+        raise ValueError("No action to set as completed.")
 
     def get_inputs(self) -> List[Action]:
         return PrimitivesDatabaseHandler().get_service_actions(self.id)

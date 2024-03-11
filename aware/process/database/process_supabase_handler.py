@@ -38,6 +38,7 @@ class ProcessSupabaseHandler:
         agent_id: str,
         name: str,
         capability_class: str,
+        prompt_name: str,
         flow_type: ProcessFlowType,
         process_type: ProcessType,
     ) -> ProcessData:
@@ -63,6 +64,7 @@ class ProcessSupabaseHandler:
             id=data["id"],
             name=data["name"],
             capability_class=data["capability_class"],
+            prompt_name=prompt_name,
             flow_type=ProcessFlowType(data["flow_type"]),
             type=ProcessType(data["type"]),
         )
@@ -166,6 +168,7 @@ class ProcessSupabaseHandler:
             id=data["id"],
             name=data["name"],
             capability_class=data["capability_class"],
+            prompt_name=data["prompt_name"],
             flow_type=ProcessFlowType(data["flow_type"]),
             type=ProcessType(data["type"]),
         )

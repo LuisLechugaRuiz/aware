@@ -120,15 +120,15 @@ class Action(Input):
     def input_to_prompt_string(self) -> str:
         return f"This is the action you should perform: {self.data.query_to_string()}"
 
+    def input_to_user_message(self) -> UserMessage:
+        return UserMessage(
+            name=self.client_process_name,
+            content=f"Received a request to perform the following action: {self.data.query_to_string()}",
+        )
+
     def is_completed(self) -> bool:
         return self.data.status in [ActionStatus.SUCCESS, ActionStatus.FAILURE]
 
     @staticmethod
     def get_type() -> str:
         return "action"
-
-    def to_user_message(self) -> UserMessage:
-        return UserMessage(
-            name=self.client_process_name,
-            content=f"Received a request to perform the following action: {self.data.query_to_string()}",
-        )

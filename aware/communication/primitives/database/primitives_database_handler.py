@@ -183,11 +183,11 @@ class PrimitivesDatabaseHandler:
             process_id, current_input_metadata
         )
 
-    def set_event_notified(self, event: Event):
-        event.status = EventStatus.NOTIFIED
+    def set_event_completed(self, event: Event, details: str, success: bool):
+        event.event_details = details
 
         self.redis_handler.delete_event(event)
-        self.supabase_handler.update_event(event)
+        self.supabase_handler.set_event_completed(event)
 
     def set_action_completed(
         self, action: Action, response: Dict[str, Any], success: bool

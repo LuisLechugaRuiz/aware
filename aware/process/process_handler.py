@@ -125,8 +125,7 @@ class ProcessHandler:
     def step(self, process_ids: ProcessIds, is_process_finished: bool):
         self.logger.info(f"On step: {process_ids.process_id}")
         process_info = self.process_database_handler.get_process_info(process_ids)
-        # TODO: 1. STEP PROCESS STATE MACHINE AND TRANSITION TO NEXT STATE -> This will determine if is_process_finished (in case of END), CONTINUE (which does not transition) or TRANSITION NAME (to new state)
-        # TODO: 2. Then step agent machine. - We need to consider agent state -> If agent is WAITING_FOR_RESPONSE then don't step it.
+        # TODO: Step agent machine. - We need to consider agent state -> If agent is WAITING_FOR_RESPONSE then don't step it.
         #   One thing is the state machine (with specific transitions) and another is agent state (Idle, running, waiting_for_response).
         if process_info.process_data.flow_type == ProcessFlowType.INTERACTIVE:
             self.step_state_machine(process_info, is_process_finished)
@@ -157,6 +156,8 @@ class ProcessHandler:
             is_process_finished=is_process_finished,
         )
         next_state = agent_state_machine.step()
+
+        # TODO: Clarify this function. It is used to update input or stop if input is completed and agent finished.
         if next_state == AgentState.FINISHED:
             agent_id = process_info.process_ids.agent_id
             self.logger.info(f"Agent: {agent_id} finished.")
@@ -169,6 +170,9 @@ class ProcessHandler:
                     agent_data.state = AgentState.IDLE
                 else:
                     next_state = agent_state_machine.on_start()
+            else:
+                next_state = agent_state_machine.on_start()
+
         self.logger.info(f"Next state: {next_state.value}")
         agent_data.state = next_state
         self.agent_database_handler.update_agent_data(agent_data)
@@ -176,7 +180,6 @@ class ProcessHandler:
 
     def trigger_transition(self, process_ids: ProcessIds, next_state: AgentState):
         if next_state == AgentState.MAIN_PROCESS:
-            # TODO: preprocess should include if is main or internal process! split into two functions: main and internal process.
             main_process_ids = self.get_process_ids(
                 user_id=process_ids.user_id,
                 agent_id=process_ids.agent_id,
@@ -213,7 +216,7 @@ class ProcessHandler:
                     process_id=process_id
                 )
             )
-            new_input_message = current_input.to_user_message()
+            new_input_message = current_input.input_to_user_message()
             self.add_message(process_ids, new_input_message)
             self.logger.info(
                 f"Input updated for process: {process_id}, new input: {new_input_message.to_string()}"

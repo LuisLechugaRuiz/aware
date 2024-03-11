@@ -1,6 +1,5 @@
 from typing import Dict, List, Optional
 
-from aware.communication.primitives.interface.input import Input
 from aware.communication.protocols import (
     TopicPublisher,
     TopicSubscriber,
@@ -19,14 +18,12 @@ class AgentCommunication:
         action_clients: Dict[str, ActionClient],
         request_clients: Dict[str, RequestClient],
         input_protocol: InputProtocol,
-        input: Input,
     ):
         self.topic_publishers = topic_publishers
         self.topic_subscribers = topic_subscribers
         self.action_clients = action_clients
         self.request_clients = request_clients
         self.input_protocol = input_protocol
-        self.input = input
 
     def get_tools(self) -> List[Tool]:
         tools: List[Tool] = []
@@ -58,7 +55,8 @@ class AgentCommunication:
         prompt_kwargs: Dict[str, str] = {}
 
         # Add the input
-        prompt_kwargs.update({"input": self.input.input_to_prompt_string()})
+        input = self.input_protocol.get_input()
+        prompt_kwargs.update({"input": input.input_to_prompt_string()})
 
         # Add the feedback of all the client actions
         actions_feedback = "\n".join(

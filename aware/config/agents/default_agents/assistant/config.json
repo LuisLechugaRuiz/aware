@@ -1,5 +1,6 @@
 {
     "name": "assistant",
+    "description": "The assistant which chats with user and communicates with team leaders",
     "capability_class": "Assistant",
     "modalities": ["text"],
     "memory_mode": "statefull",

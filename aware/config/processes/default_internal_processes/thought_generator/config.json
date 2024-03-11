@@ -1,5 +1,6 @@
 {
     "name": "thought_generator",
     "capability_class": "ThoughtGenerator",
-    "flow_type": "interactive"
+    "flow_type": "interactive",
+    "prompt_name": "thought_generator"
 }

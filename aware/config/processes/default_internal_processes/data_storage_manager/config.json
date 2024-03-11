@@ -1,5 +1,6 @@
 {
-    "flow_type": "independent",
     "name": "data_storage_manager",
-    "capability_class": "DataStorageManager"
+    "capability_class": "DataStorageManager",
+    "flow_type": "independent",
+    "prompt_name": "data_storage_manager"
 }

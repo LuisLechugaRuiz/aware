@@ -8,7 +8,9 @@ from aware.chat.conversation_schemas import UserMessage
 
 class EventStatus(Enum):
     PENDING = "pending"
-    NOTIFIED = "notified"
+    IN_PROGRESS = "in_progress"
+    SUCCESS = "success"
+    FAILURE = "failure"
 
 
 class EventType:
@@ -19,12 +21,14 @@ class EventType:
         name: str,
         description: str,
         message_format: Dict[str, Any],
+        priority: int
     ):
         self.id = id
         self.user_id = user_id
         self.name = name
         self.description = description
         self.message_format = message_format
+        self.priority = priority
 
     def to_dict(self):
         return {
@@ -32,6 +36,7 @@ class EventType:
             "name": self.name,
             "description": self.description,
             "message_format": self.message_format,
+            "priority": self.priority
         }
 
     def to_json(self):
@@ -53,6 +58,8 @@ class Event(Input):
         event_description: str,
         event_message: Dict[str, Any],
         event_message_format: Dict[str, Any],
+        event_details: str,
+        priority: int,
         status: EventStatus,
         timestamp: str,
     ):
@@ -62,9 +69,10 @@ class Event(Input):
         self.event_description = event_description
         self.event_message = event_message
         self.event_message_format = event_message_format
+        self.event_details = event_details
         self.status = status
         self.timestamp = timestamp
-        super().__init__(id=id, priority=self.priority)
+        super().__init__(id=id, priority=priority)
 
     def to_dict(self):
         return {
@@ -75,6 +83,8 @@ class Event(Input):
             "event_description": self.event_description,
             "event_message": self.event_message,
             "event_message_format": self.event_message_format,
+            "event_details": self.event_details,
+            "priority": self.priority,
             "status": self.status.value,
             "timestamp": self.timestamp,
         }
@@ -97,7 +107,7 @@ class Event(Input):
     def get_type(self) -> str:
         return "event"
 
-    def to_user_message(self) -> UserMessage:
+    def input_to_user_message(self) -> UserMessage:
         return UserMessage(
             name=self.event_name,
             content=f"Received new event: {self.input_to_prompt_string()}",

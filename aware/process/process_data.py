@@ -18,6 +18,7 @@ class ProcessData:
     id: str
     name: str
     capability_class: str
+    prompt_name: str
     flow_type: ProcessFlowType
     type: ProcessType
 
@@ -26,6 +27,7 @@ class ProcessData:
             "id": self.id,
             "name": self.name,
             "capability_class": self.capability_class,
+            "prompt_name": self.prompt_name,
             "flow_type": self.flow_type.value,
             "type": self.type.value,
         }

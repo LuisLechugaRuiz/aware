@@ -113,12 +113,11 @@ class WeaviateDB:
             agent_uuid = agent_collection.data.insert(
                 properties={
                     "name": agent_data.name,
-                    "task": agent_data.task,
-                    "instructions": agent_data.instructions,
+                    "description": agent_data.description,
                 },
                 references={"user": user_id},
                 uuid=user_id,
-                vector=self.get_ada_embedding(agent_data.task),
+                vector=self.get_ada_embedding(agent_data.description),
             )
             return WeaviateResult(data=agent_uuid)
         except Exception as err:
@@ -164,7 +163,7 @@ class WeaviateDB:
             agents_data = [
                 AgentData().create_description(
                     name=agent_object.properties["name"],
-                    task=agent_object.properties["task"],
+                    task=agent_object.properties["description"],
                 )
                 for agent_object in agent_objects
             ]
