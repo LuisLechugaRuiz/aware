@@ -2,8 +2,9 @@
 // TODO: MERGE ASSISTANT AND ORCHESTRATOR INTO ONLY ASSISTANT WHICH MANAGES THE TEAMS!!!
 {
     "name": "orchestrator",
+    "description": "The assistant which chats with user and communicates with team leaders",
     "capability_class": "Orchestrator",
     "modalities": ["text"],
-    "thought_generator_mode": "pre",
-    "memory_mode": "statefull"
+    "memory_mode": "statefull",
+    "thought_generator_mode": "pre"
 }

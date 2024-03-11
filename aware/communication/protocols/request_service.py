@@ -42,9 +42,8 @@ class RequestService(InputProtocol):
         data: RequestServiceData,
     ):
         self.user_id = user_id
-        self.process_id = process_id
         self.data = data
-        super().__init__(id=id)
+        super().__init__(id=id, process_id=process_id)
 
     def get_inputs(self) -> List[Request]:
         return self.primitive_database_handler.get_service_requests(self.id)
@@ -66,10 +65,11 @@ class RequestService(InputProtocol):
         data["data"] = RequestServiceData.from_json(data["data"])
         return RequestService(**data)
 
-    def get_request_query(self) -> Optional[str]:
-        if self.current_request:
-            return self.current_request.query_to_string()
-        return None
+    def add_input(self, input: Request):
+        self.current_request = input
+
+    def get_input(self) -> Optional[Request]:
+        return self.current_request
 
     def set_input_completed(self):
         self.set_request_completed(response={}, success=True)
@@ -80,11 +80,10 @@ class RequestService(InputProtocol):
             self.primitive_database_handler.set_request_completed(
                 self.current_request, response, success
             )
-            self.primitive_database_handler.delete_current_input(
-                process_id=request.client_process_id
-            )
-        # TODO: send here to CommunicationDispatcher to process set_request_completed! Use celery to send the task.
-        return f"Request {self.current_request.id} completed."
+            self.remove_current_input()
+            # TODO: send here to CommunicationDispatcher to process set_request_completed! Use celery to send the task.
+            return f"Request {self.current_request.id} completed."
+        raise ValueError("No current request to set completed.")
 
     @property
     def tools(self) -> List[FunctionDetail]:

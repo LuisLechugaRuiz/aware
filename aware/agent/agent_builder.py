@@ -9,7 +9,7 @@ from aware.communication.communication_builder import (
 )
 from aware.process.process_builder import ProcessBuilder
 from aware.process.process_ids import ProcessIds
-from aware.process.process_data import ProcessFlowType
+from aware.process.process_data import ProcessFlowType, ProcessType
 from aware.utils.logger.file_logger import FileLogger
 from aware.utils.json_loader import JsonLoader
 
@@ -172,15 +172,16 @@ class AgentBuilder:
         internal_processes_path = get_internal_processes_path()
         internal_processes_json_loader = JsonLoader(root_dir=internal_processes_path)
 
-        # Create main -> Fixed config and internal communication
+        # Create main process using agent's capability class
         main_config = {
-            "name": "main",
+            "name": agent_name,
             "capability_class": capability_class,
             "flow_type": ProcessFlowType.INTERACTIVE,
+            "prompt_name": "meta",
         }
         process_builder = ProcessBuilder(user_id=self.user_id, agent_id=agent_id)
         main_process_ids = process_builder.create_process_by_config(
-            process_config=main_config, service_name=agent_name
+            process_config=main_config, process_type=ProcessType.MAIN
         )
 
         main_internal_communication_config = internal_processes_json_loader.get_file(
@@ -197,7 +198,7 @@ class AgentBuilder:
         )
         for process_folder, process_files in internal_processes_files_dict.items():
             process_ids = process_builder.create_process_by_config(
-                process_config=process_files["config"]
+                process_config=process_files["config"], process_type=ProcessType.INTERNAL
             )
             process_builder.create_process_state_machine(
                 process_ids=process_ids,

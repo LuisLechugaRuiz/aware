@@ -5,7 +5,7 @@ from aware.process.database.process_redis_handler import (
     ProcessRedisHandler,
 )
 from aware.process.process_ids import ProcessIds
-from aware.process.process_data import ProcessData, ProcessFlowType
+from aware.process.process_data import ProcessData, ProcessFlowType, ProcessType
 from aware.process.process_info import ProcessInfo
 from aware.process.state_machine.state import ProcessState
 from aware.process.database.process_supabase_handler import (
@@ -44,15 +44,18 @@ class ProcessDatabaseHandler:
         agent_id: str,
         name: str,
         capability_class: str,
+        prompt_name: str,
         flow_type: ProcessFlowType,
-        service_name: Optional[str] = None,
+        process_type: ProcessType,
     ) -> ProcessData:
         process_data = self.supabase_handler.create_process(
             user_id=user_id,
             agent_id=agent_id,
             name=name,
             capability_class=capability_class,
+            prompt_name=prompt_name,
             flow_type=flow_type,
+            process_type=process_type,
         )
         self.redis_handler.set_process_data(
             process_id=process_data.id, process_data=process_data
@@ -61,17 +64,6 @@ class ProcessDatabaseHandler:
             user_id=user_id, agent_id=agent_id, process_id=process_data.id
         )
         self.redis_handler.set_process_ids(process_ids)
-
-        # TODO: do we need to create a service for each process? I think team leader should ensure that all agents are connected creating services (action or request).
-        if service_name is None:
-            service_name = name  # Use the name of the process, otherwise the name of the Agent. TODO: Solve this by internal and external requests.
-        # TODO: Refactor based on new services - request system.
-        # self.create_service(
-        #     user_id=user_id,
-        #     process_id=process_data.id,
-        #     name=service_name,
-        #     description=task,
-        # )
         return process_data
 
     def create_process_state(
@@ -168,11 +160,7 @@ class ProcessDatabaseHandler:
                 agent_id=process_ids.agent_id
             ),
             process_ids=process_ids,
-            process_data=self.get_process_data(process_id=process_ids.process_id),
-            process_states=self.get_process_states(process_id=process_ids.process_id),
-            current_state=self.get_current_process_state(
-                process_id=process_ids.process_id
-            ),
+            process_data=self.get_process_data(process_id=process_ids.process_id)
         )
 
     def update_current_process_state(

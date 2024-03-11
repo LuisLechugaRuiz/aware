@@ -41,6 +41,7 @@ class PrimitiveSupabaseHandler:
             event_description=response["event_description"],
             event_message=event_message,
             event_format=response["message_format"],
+            event_details=response["details"],
             status=EventStatus(response["status"]),
             timestamp=response["created_at"],
         )
@@ -51,6 +52,7 @@ class PrimitiveSupabaseHandler:
         event_name: str,
         event_description: str,
         message_format: Dict[str, Any],
+        priority: int,
     ) -> Event:
         self.logger.info(
             f"Creating event type {event_name} with description: {event_description} for user: {user_id}"
@@ -63,6 +65,7 @@ class PrimitiveSupabaseHandler:
                     "name": event_name,
                     "description": event_description,
                     "message_format": message_format,
+                    "priority": priority,
                 }
             )
             .execute()
@@ -75,6 +78,7 @@ class PrimitiveSupabaseHandler:
             name=event_name,
             description=event_description,
             message_format=message_format,
+            priority=priority,
         )
 
     def create_action_type(
@@ -259,7 +263,7 @@ class PrimitiveSupabaseHandler:
         ).eq("id", action.id).execute()
 
     def set_event_completed(self, event: Event):
-        self.client.table("events").update({"status": event.status.value}).eq(
+        self.client.table("events").update({"details": event.event_details, "status": event.status.value}).eq(
             "id", event.id
         ).execute()
 

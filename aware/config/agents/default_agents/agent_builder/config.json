@@ -1,5 +1,6 @@
 {
     "name": "agent_builder",
+    "description": "This agent is used to build other agents.",
     "capability_class": "AgentBuilder",
     "modalities": ["text"],
     "memory_mode": "stateless",

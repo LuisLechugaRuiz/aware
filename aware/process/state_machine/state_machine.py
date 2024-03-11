@@ -1,8 +1,9 @@
 from enum import Enum
 from typing import List
 
+from aware.process.database.process_database_handler import ProcessDatabaseHandler
 from aware.process.state_machine.state import ProcessState
-from aware.utils.logger.file_logger import FileLogger
+from aware.utils.logger.process_loger import ProcessLogger
 
 
 class Transitions(Enum):
@@ -16,14 +17,21 @@ class ProcessStatus(Enum):
 
 
 class ProcessStateMachine:
-    def __init__(self, states: List[ProcessState], current_state: str):
-        self.logger = FileLogger("state_machine")
+    def __init__(self, process_id: str, process_logger: ProcessLogger):
+        self.logger = process_logger.get_logger("state_machine")
+        self.process_id = process_id
+
+        self.process_database_handler = ProcessDatabaseHandler()
+        self.current_state = self.process_database_handler.get_current_process_state(process_id=process_id)
+        self.states = self.process_database_handler.get_process_states(process_id=process_id)
+
+        # TODO: get process status from database.
         self.status = ProcessStatus.RUNNING
 
-        self.states = states
-        self.states_dict = {state.name: state for state in states}
+        self.states_dict = {state.name: state for state in self.states}
 
-        self.current_state = self.states_dict[current_state]
+    def get_current_state(self) -> ProcessState:
+        return self.current_state
 
     def get_instructions(self) -> str:
         return self.current_state.instructions
@@ -49,4 +57,7 @@ class ProcessStateMachine:
                 self.current_state = self.states_dict[next_state]
             except KeyError:
                 raise ValueError(f"State {next_state} does not exist")
-        return self.current_state
+
+    def update_current_state(self, state: ProcessState):
+        self.current_state = state
+        self.process_database_handler.update_current_process_state(process_id=self.process_id, process_state=state)

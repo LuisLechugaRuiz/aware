@@ -135,7 +135,8 @@ class CommunicationBuilder:
         event_subscribers = communications_config["event_subscribers"]
         for event_name in event_subscribers:
             self.protocols_database_handler.create_event_subscriber(
-                process_ids=process_ids,
+                user_id=process_ids.user_id,
+                process_id=process_ids.process_id,
                 event_name=event_name,
             )
 

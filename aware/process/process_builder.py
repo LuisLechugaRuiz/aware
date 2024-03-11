@@ -1,8 +1,8 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from aware.process.database.process_database_handler import ProcessDatabaseHandler
 from aware.process.process_ids import ProcessIds
-from aware.process.process_data import ProcessFlowType
+from aware.process.process_data import ProcessFlowType, ProcessType
 from aware.process.state_machine.state import ProcessState
 
 
@@ -19,17 +19,16 @@ class ProcessBuilder:
     def create_process_by_config(
         self,
         process_config: Dict[str, Any],
-        service_name: Optional[
-            str
-        ] = None,  # TODO: Remove when refactoring service - requests.
+        process_type: ProcessType
     ) -> ProcessIds:
         process_data = self.process_database_handler.create_process(
             user_id=self.user_id,
             agent_id=self.agent_id,
             name=process_config["name"],
             capability_class=process_config["capability_class"],
+            prompt_name=process_config["prompt_name"],
             flow_type=ProcessFlowType(process_config["flow_type"]),
-            service_name=service_name,
+            process_type=process_type,
         )
         process_ids = ProcessIds(
             user_id=self.user_id,

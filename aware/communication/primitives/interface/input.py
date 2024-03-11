@@ -9,7 +9,7 @@ class Input(ABC):
         self.priority = priority
 
     @abstractmethod
-    def is_completed(self) -> bool:
+    def get_type(self) -> str:
         pass
 
     @abstractmethod
@@ -17,9 +17,9 @@ class Input(ABC):
         pass
 
     @abstractmethod
-    def get_type(self) -> str:
+    def input_to_user_message(self) -> UserMessage:
         pass
 
     @abstractmethod
-    def to_user_message(self) -> UserMessage:
+    def is_completed(self) -> bool:
         pass

@@ -1,6 +1,7 @@
 {
-    "name": "agent_builder",
-    "capability_class": "AgentBuilder",
+    "name": "team_builder",
+    "description": "Team builder to request agent creation and communicate them",
+    "capability_class": "TeamBuilder",
     "modalities": ["text"],
     "memory_mode": "stateless",
     "thought_generator_mode": "disabled"

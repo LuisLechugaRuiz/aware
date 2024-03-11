@@ -33,10 +33,13 @@ class ThoughtGeneratorMode(Enum):
     POST = "post"
 
 
+# TODO: We should add some kind of description to later share this info with Team Leader so he understand the responsability of each agent.
+#    now task and instructions are part of Process state, but agent should have a permanent description which is not task anymore.
 @dataclass
 class AgentData:
     id: str
     name: str
+    description: str
     context: str
     capability_class: str
     # task: str
@@ -54,6 +57,7 @@ class AgentData:
         return {
             "id": self.id,
             "name": self.name,
+            "description": self.description,
             "context": self.context,
             "capability_class": self.capability_class,
             # "task": self.task,
@@ -82,10 +86,9 @@ class AgentData:
     def to_prompt_kwargs(self):
         return {
             "agent_name": self.name,
-            "agent_task": self.task,
             "context": self.context,
         }
 
     @classmethod
-    def create_description(cls, name: str, task: str):
-        return f"- Name: {name}\nTask: {task}"
+    def create_description(cls, name: str, description: str):
+        return f"- Name: {name}\nDescription: {description}"

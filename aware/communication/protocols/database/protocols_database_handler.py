@@ -49,13 +49,13 @@ class ProtocolsDatabaseHandler:
                 "Trying to get communication protocols without current input"
             )
 
+        input_protocol.add_input(current_input)
         agent_communication = AgentCommunication(
             topic_publishers=self.get_topic_publishers(process_id),
             topic_subscribers=self.get_topic_subscribers(process_id),
             action_clients=self.get_action_clients(process_id),
             request_clients=self.get_request_clients(process_id),
             input_protocol=input_protocol,
-            input=current_input,
         )
         return agent_communication
 
@@ -101,24 +101,25 @@ class ProtocolsDatabaseHandler:
 
     def update_highest_prio_input(self, process_id: str) -> bool:
         highest_prio_input: Optional[Input] = None
-        input_protocol: Optional[InputProtocol] = None
+        current_input_protocol: Optional[InputProtocol] = None
 
         # Consolidate all services and subscribers into a single iterable
-        all_input_sources: List[InputProtocol] = [
+        # TODO: How to get highest priority input without creating all the protocols as they require to have input?
+        all_input_protocols: List[InputProtocol] = [
             *self.get_request_services(process_id).values(),
             *self.get_action_services(process_id).values(),
             *self.get_event_subscribers(process_id).values(),
         ]
 
         # Iterate over all input sources to find the one with the highest priority
-        for input_source in all_input_sources:
-            new_input = input_source.get_highest_priority_input()
+        for input_protocol in all_input_protocols:
+            new_input = input_protocol.get_highest_priority_input()
             if new_input and (
                 highest_prio_input is None
                 or new_input.priority > highest_prio_input.priority
             ):
                 highest_prio_input = new_input
-                input_protocol = input_source
+                current_input_protocol = input_protocol
 
         if highest_prio_input is None:
             return False
@@ -127,7 +128,7 @@ class ProtocolsDatabaseHandler:
         current_input_metadata = CurrentInputMetadata(
             input_type=highest_prio_input.get_type(),
             input_id=highest_prio_input.id,
-            protocol_id=input_protocol.id,
+            protocol_id=current_input_protocol.id,
         )
         self.primitives_database_handler.set_current_input_metadata(
             process_id, current_input_metadata
@@ -146,6 +147,12 @@ class ProtocolsDatabaseHandler:
             user_id=user_id, process_id=process_id, action_name=action_name
         )
         self.redis_handler.create_action_service(action_service=action_service)
+
+    def create_event_subscriber(self, user_id: str, process_id: str, event_name: str):
+        event_subscriber = self.supabase_handler.create_event_subscriber(
+            user_id=user_id, process_id=process_id, event_name=event_name
+        )
+        self.redis_handler.create_event_subscriber(event_subscriber=event_subscriber)
 
     def create_request_client(self, user_id: str, process_id: str, service_name: str):
         request_client = self.supabase_handler.create_request_client(
