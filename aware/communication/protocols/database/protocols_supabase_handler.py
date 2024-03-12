@@ -105,7 +105,7 @@ class ProtocolSupabaseHandler:
             request_format=response["_request_format"],
         )
 
-    def create_action_service(self, user_id: str, process_id: str, action_name: str):
+    def create_action_service(self, user_id: str, process_id: str, service_name: str, service_description: str, action_name: str):
         self.logger.info(f"Creating action service {action_name}")
         response = (
             self.client.rpc(
@@ -113,15 +113,17 @@ class ProtocolSupabaseHandler:
                 {
                     "p_user_id": user_id,
                     "p_process_id": process_id,
-                    "p_name": action_name,
+                    "p_name": service_name,
+                    "p_description": service_description,
+                    "p_action_name": action_name,
                 },
             )
             .execute()
             .data
         )
         service_data = ActionServiceData(
-            service_name=action_name,
-            service_description=action_name,
+            service_name=service_name,
+            service_description=service_description,
             request_format=response["_request_format"],
             feedback_format=response["_feedback_format"],
             response_format=response["_response_format"],

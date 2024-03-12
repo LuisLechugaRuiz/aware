@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+import json
 from typing import Dict, List, Optional
 
 from aware.communication.protocols import (
@@ -6,8 +8,71 @@ from aware.communication.protocols import (
     ActionClient,
     RequestClient,
 )
+from aware.communication.protocols import (
+    ActionClientConfig,
+    ActionServiceConfig,
+    EventPublisherConfig,
+    EventSubscriberConfig,
+    RequestClientConfig,
+    RequestServiceConfig,
+    TopicPublisherConfig,
+    TopicSubscriberConfig,
+)
 from aware.communication.protocols.interface.input_protocol import InputProtocol
 from aware.tool.tool import Tool
+
+
+@dataclass
+class AgentCommunicationConfig:
+    action_clients: List[ActionClientConfig]
+    action_services: List[ActionServiceConfig]
+    event_publishers: List[EventPublisherConfig]
+    event_subscribers: List[EventSubscriberConfig]
+    request_clients: List[RequestClientConfig]
+    request_services: List[RequestServiceConfig]
+    topic_publishers: List[TopicPublisherConfig]
+    topic_subscribers: List[TopicSubscriberConfig]
+
+    def to_json(self):
+        return {
+            "action_clients": [client.to_json() for client in self.action_clients],
+            "action_services": [service.to_json() for service in self.action_services],
+            "event_publishers": [publisher.to_json() for publisher in self.event_publishers],
+            "event_subscribers": [subscriber.to_json() for subscriber in self.event_subscribers],
+            "request_clients": [client.to_json() for client in self.request_clients],
+            "request_services": [service.to_json() for service in self.request_services],
+            "topic_publishers": [publisher.to_json() for publisher in self.topic_publishers],
+            "topic_subscribers": [subscriber.to_json() for subscriber in self.topic_subscribers],
+        }
+
+    @classmethod
+    def from_json(cls, json_str):
+        data = json.loads(json_str)
+        data["action_clients"] = [
+            ActionClientConfig.from_json(client) for client in data["action_clients"]
+        ]
+        data["action_services"] = [
+            ActionServiceConfig.from_json(service) for service in data["action_services"]
+        ]
+        data["event_publishers"] = [
+            EventPublisherConfig.from_json(publisher) for publisher in data["event_publishers"]
+        ]
+        data["event_subscribers"] = [
+            EventSubscriberConfig.from_json(subscriber) for subscriber in data["event_subscribers"]
+        ]
+        data["request_clients"] = [
+            RequestClientConfig.from_json(client) for client in data["request_clients"]
+        ]
+        data["request_services"] = [
+            RequestServiceConfig.from_json(service) for service in data["request_services"]
+        ]
+        data["topic_publishers"] = [
+            TopicPublisherConfig.from_json(publisher) for publisher in data["topic_publishers"]
+        ]
+        data["topic_subscribers"] = [
+            TopicSubscriberConfig.from_json(subscriber) for subscriber in data["topic_subscribers"]
+        ]
+        return cls(**data)
 
 
 class AgentCommunication:

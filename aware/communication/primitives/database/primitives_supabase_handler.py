@@ -171,7 +171,7 @@ class PrimitiveSupabaseHandler:
             status=RequestStatus(response["status"]),
         )
         return Request(
-            request_id=response["id"],
+            id=response["id"],
             service_id=response["service_id"],
             service_process_id=response["service_process_id"],
             service_name=response["service_name"],
@@ -206,15 +206,12 @@ class PrimitiveSupabaseHandler:
         response = response[0]
         return response
 
-    # TODO: call it properly to initialize topics.
     def create_topic(
         self,
         user_id: str,
         topic_name: str,
         topic_description: str,
         message_format: Dict[str, str],
-        agent_id: Optional[str] = None,
-        is_private: bool = False,
     ) -> Topic:
         existing_topic = (
             self.client.table("topics")
@@ -225,26 +222,15 @@ class PrimitiveSupabaseHandler:
         ).data
         self.logger.info(f"Got existing topic: {existing_topic}")
         if not existing_topic:
-            if agent_id is not None:
-                new_topic_dict = {
-                    "agent_id": agent_id,
-                }
-            else:
-                new_topic_dict = {}
-
             self.logger.info(f"Creating topic {topic_name}")
-            new_topic_dict.update(
-                {
-                    "user_id": user_id,
-                    "name": topic_name,
-                    "description": topic_description,
-                    "message_format": message_format,
-                    "is_private": is_private,
-                }
-            )
-
+            topic_dict = {
+                "user_id": user_id,
+                "name": topic_name,
+                "description": topic_description,
+                "message_format": message_format,
+            }
             existing_topic = (
-                self.client.table("topics").insert(new_topic_dict).execute().data
+                self.client.table("topics").insert(topic_dict).execute().data
             )
         existing_topic = existing_topic[0]
         return Topic(

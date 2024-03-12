@@ -1,10 +1,31 @@
-import json
 from dataclasses import dataclass
+import json
 from typing import Any, Dict, List, Optional
 
 from aware.communication.primitives.request import Request
 from aware.communication.primitives.interface.function_detail import FunctionDetail
 from aware.communication.protocols.interface.input_protocol import InputProtocol
+
+
+@dataclass
+class RequestServiceConfig:
+    service_name: str
+    service_description: str
+    request_name: str
+    tool_name: Optional[str] = None
+
+    def to_json(self):
+        return {
+            "service_name": self.service_name,
+            "service_description": self.service_description,
+            "request_name": self.request_name,
+            "tool_name": self.tool_name,
+        }
+
+    def from_json(cls, json_str):
+        data = json.loads(json_str)
+        data["tool_name"] = data.get("tool_name", None)
+        return cls(**data)
 
 
 @dataclass

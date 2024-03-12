@@ -3,7 +3,7 @@ from typing import List
 
 from aware.process.database.process_database_handler import ProcessDatabaseHandler
 from aware.process.state_machine.state import ProcessState
-from aware.utils.logger.process_loger import ProcessLogger
+from aware.utils.logger.process_logger import ProcessLogger
 
 
 class Transitions(Enum):

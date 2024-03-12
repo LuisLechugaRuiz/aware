@@ -16,6 +16,21 @@ class ActionStatus(Enum):
 
 
 @dataclass
+class ActionConfig:
+    name: str
+    request_format: Dict[str, Any]
+    feedback_format: Dict[str, Any]
+    response_format: Dict[str, Any]
+
+    def to_json(self):
+        return json.dumps(self.__dict__)
+
+    def from_json(cls, json_str):
+        data = json.loads(json_str)
+        return cls(**data)
+
+
+@dataclass
 class ActionData:
     request: Dict[str, Any]
     feedback: Dict[str, Any]

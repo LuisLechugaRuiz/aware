@@ -6,12 +6,7 @@ from typing import List
 # from aware.tools.profile import Profile
 
 
-# TODO: Split between agent state and the process that is running? TBD
-class AgentState(Enum):
-    IDLE = "idle"
-    MAIN_PROCESS = "main_process"
-    THOUGHT_GENERATOR = "thought_generator"
-    FINISHED = "finished"
+
 
 
 class NewAgentState(Enum):
@@ -33,8 +28,7 @@ class ThoughtGeneratorMode(Enum):
     POST = "post"
 
 
-# TODO: We should add some kind of description to later share this info with Team Leader so he understand the responsability of each agent.
-#    now task and instructions are part of Process state, but agent should have a permanent description which is not task anymore.
+# TODO: Split between AgentConfig and InternalAgentData. TBD.
 @dataclass
 class AgentData:
     id: str

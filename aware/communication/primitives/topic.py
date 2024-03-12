@@ -4,6 +4,19 @@ from typing import Any, Dict
 
 
 @dataclass
+class TopicConfig:
+    name: str
+    message_format: Dict[str, Any]
+
+    def to_json(self):
+        return json.dumps(self.__dict__)
+
+    def from_json(cls, json_str):
+        data = json.loads(json_str)
+        return cls(**data)
+
+
+@dataclass
 class Topic:
     id: str
     user_id: str

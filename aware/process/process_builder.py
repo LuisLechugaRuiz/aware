@@ -37,30 +37,6 @@ class ProcessBuilder:
         )
         return process_ids
 
-    # TODO: FILL ME PROPERLY! REFACTOR.
-    def create_communications(
-        self, process_ids: ProcessIds, communications_config: Dict[str, Any]
-    ) -> None:
-        internal_events = communications_config["internal_events"]
-        if len(internal_events) > 0:
-            for event_name in internal_events:
-                # TODO: Differentiate between internal and external events!!
-                ClientHandlers().create_event_subscription(
-                    process_ids=process_ids, event_name=event_name
-                )
-                # TODO: Include here topics - requests with external-internal differentiation.
-
-                # TODO: Topics should be created first then subscriptions... we need publish - subscriber. Define along with request refactor - teams architecture to clarify comms.
-                # ClientHandlers().create_topic(
-                #     user_id=self.user_id,
-                #     topic_name="agent_interactions",
-                #     topic_description="Agent interactions:",
-                # )
-                # ClientHandlers().create_topic_subscription(
-                #     process_id=data_storage_process_data.id,
-                #     topic_name="agent_interactions",
-                # )
-
     def create_process_state_machine(
         self, process_ids: ProcessIds, state_machine_config: Dict[str, Any]
     ) -> None:

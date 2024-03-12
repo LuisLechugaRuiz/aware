@@ -1,174 +1,196 @@
-from typing import Dict, Any
+from typing import Dict, List
 
+from aware.agent.agent_communication import AgentCommunicationConfig
+from aware.communication.protocols import (
+    ActionClientConfig,
+    ActionServiceConfig,
+    RequestClientConfig,
+    RequestServiceConfig
+)
 from aware.communication.primitives.database.primitives_database_handler import (
     PrimitivesDatabaseHandler,
 )
+from aware.communication.primitives import (
+    ActionConfig,
+    EventConfig,
+    RequestConfig,
+    TopicConfig,
+)
+from aware.communication.primitives.primitives_config import CommunicationPrimitivesConfig
 from aware.communication.protocols.database.protocols_database_handler import (
     ProtocolsDatabaseHandler,
 )
-from aware.process.process_ids import ProcessIds
 
 
+# TODO: We should fetch from the specific config of the use-case that we are running.
+#  - For this we should include organization on supabase so we can get the specific organization config on server.
+#  - TODO: For now just by user_id? This implies specific agents for each user, we can add org in the future.
 class CommunicationBuilder:
-    def __init__(self):
-        self.clients: Dict[ProcessIds, Dict[str, Any]] = {}
-        self.services: Dict[ProcessIds, Dict[str, Any]] = {}
+    def __init__(self, user_id: str):
+        self.user_id = user_id
+
+        self.action_clients: Dict[str, ActionClientConfig] = {}
+        self.action_services: Dict[str, ActionServiceConfig] = {}
+
+        self.request_clients: Dict[str, RequestClientConfig] = {}
+        self.request_services: Dict[str, RequestServiceConfig] = {}
+
         self.primitives_database_handler = PrimitivesDatabaseHandler()
         self.protocols_database_handler = ProtocolsDatabaseHandler()
 
     def end_setup(self):
         # Create clients and services
-        for process_ids, service_config in self.services.items():
+        for main_process_id, action_config in self.action_services.items():
+            self.create_action_service(
+                main_process_id=main_process_id, service_config=action_config
+            )
+
+        for main_process_id, action_config in self.action_clients.items():
+            self.create_action_client(
+                main_process_id=main_process_id, client_config=action_config
+            )
+
+        for main_process_id, service_config in self.request_services.items():
             self.create_request_service(
-                process_ids=process_ids, service_config=service_config
+                main_process_id=main_process_id, service_config=service_config
             )
 
-        for process_ids, service_name in self.clients.items():
+        for main_process_id, client_config in self.request_clients.items():
             self.create_request_client(
-                process_ids=process_ids, service_name=service_name
+                main_process_id=main_process_id, client_config=client_config
             )
 
         self._reset()
 
-    def setup_communications(self):
+    def setup_communications(self, communication_primitives_config: CommunicationPrimitivesConfig):
         self._reset()
 
-        self.create_agent_events()
-        self.create_agent_requests()
-        self.create_agent_topics()
+        self.create_actions(communication_primitives_config.action_configs)
+        self.create_events(communication_primitives_config.event_configs)
+        self.create_requests(communication_primitives_config.request_configs)
+        self.create_topics(communication_primitives_config.topic_configs)
 
-    def setup_process(
-        self, process_ids: ProcessIds, communications_config: Dict[str, Any]
+    def setup_agent(
+        self, main_process_id: str, communications_config: AgentCommunicationConfig
     ):
+        # Topic and events are pub/sub, we can create them directly instead of waiting for all services to exist.
         self.create_topic_communications(
-            process_ids=process_ids, communications_config=communications_config
+            process_ids=main_process_id, communications_config=communications_config
+        )
+        self.create_event_communications(
+            process_ids=main_process_id, communications_config=communications_config
         )
         # Save clients and servers until end_setup
-        self.clients[process_ids] = communications_config["clients"]
-        self.services[process_ids] = communications_config["services"]
+        self.action_clients[main_process_id] = communications_config.action_clients
+        self.action_services[main_process_id] = communications_config.action_services
+
+        self.request_clients[main_process_id] = communications_config.request_clients
+        self.request_services[main_process_id] = communications_config.request_services
 
     def _reset(self):
         # Reset clients and services
-        self.clients = {}
-        self.services = {}
+        self.request_clients = {}
+        self.request_services = {}
 
-    # TODO: This should match the agent creation at AgentBuilder.
-    def create_new_agent(
-        self, process_ids: ProcessIds, communications_config: Dict[str, Any]
-    ):
-        self.create_event_communications(
-            process_ids=process_ids, communications_config=communications_config
+    # TODO: We should split between type and message.
+    def create_events(self, event_configs: List[EventConfig]):
+        for event_config in event_configs:
+            self.primitives_database_handler.create_event_type(
+                publisher_id=self.user_id,
+                event_name=event_config.name,
+                event_description=event_config.description,
+                message_format=event_config.message_format,
+            )
+
+    # TODO: Same than for event, we should split between type and message.
+    def create_topics(self, topic_configs: List[TopicConfig]):
+        for topic_config in topic_configs:
+            self.primitives_database_handler.create_topic(
+                user_id=self.user_id,
+                topic_name=topic_config.name,
+                topic_description=topic_config.description,
+                message_format=topic_config.message_format,
+            )
+
+    def create_actions(self, action_configs: List[ActionConfig]):
+        for action_config in action_configs:
+            self.primitives_database_handler.create_action_type(
+                user_id=self.user_id,
+                action_name=action_config.name,
+                request_format=action_config.request_format,
+                feedback_format=action_config.feedback_format,
+                response_format=action_config.response_format,
+            )
+
+    def create_requests(self, request_configs: List[RequestConfig]):
+        for request_config in request_configs:
+            self.primitives_database_handler.create_request_type(
+                user_id=self.user_id,
+                request_name=request_config.name,
+                request_format=request_config.request_format,
+                response_format=request_config.response_format,
+            )
+
+    def create_action_service(self, main_process_id: str, service_config: ActionServiceConfig):
+        self.protocols_database_handler.create_action_service(
+            user_id=self.user_id,
+            process_id=main_process_id,
+            service_name=service_config.service_name,
+            service_description=service_config.service_description,
+            action_name=service_config.action_name,
         )
-        self.create_topic_communications(
-            process_ids=process_ids, communications_config=communications_config
+
+    def create_action_client(self, main_process_id: str, client_config: ActionClientConfig):
+        self.protocols_database_handler.create_action_client(
+            user_id=self.user_id,
+            process_id=main_process_id,
+            service_name=client_config.service_name,
         )
-        self.create_request_communications(
-            process_ids=process_ids, communications_config=communications_config
-        )
 
-    # TODO: Merge this functions with existing create_event_type, create_topic and create_request_type (create_request_messsage?)
-    def create_agent_events(self):
-        # TODO: Fetch events from agent communications folder at config and create them as public.
-        pass
-
-    # # TODO: We should have a dynamic blackboard where events are updated. Events are used to stream external info to specific process! (from now just .json file)
-    # def initialize_events(self):
-    #     events_data = get_events()
-    #     if events_data is None:
-    #         self.logger.info("No events.")
-    #         return
-    #     self.logger.info(f"Got events data: {events_data}")
-    #     for event_name, event_description in events_data.items() # TODO: FIX THIS!
-    #         self.primitives_database_handler.create_event_type(
-    #             self.user_id, event_name, event_description, message_format
-    #         )
-
-    # TODO: We should have a dynamic blackboard where topics are updated. Topics are used to share info process to process! (from now just .json file)
-    # def initialize_topics(self):
-    #     topics_data = get_topics()
-    #     if topics_data is None:
-    #         self.logger.info("No topics.")
-    #         return
-    #     self.logger.info(f"Got topics data: {topics_data}")
-    #     for topic_name, topic_description in topics_data.items():
-    #         self.primitives_database_handler.create_topic(self.user_id, topic_name, topic_description)
-
-    def create_agent_topics(self):
-        # TODO: Fetch topics from agent communications folder at config and create them as public.
-        pass
-
-    def create_agent_requests(self):
-        # TODO: Fetch requests from agent communications folder at config, no need of public or private as is always process to process.
-        self.primitives_database_handler.create_request_type(
-            user_id,
-            request_name,
-            request_format,
-            response_format,
-            feedback_format,
-        )
-        pass
-
-    def create_request_client(self, process_ids: ProcessIds, service_name: str):
+    def create_request_client(self, main_process_id: str, client_config: RequestClientConfig):
         self.protocols_database_handler.create_request_client(
-            user_id=process_ids.user_id,
-            process_id=process_ids.process_id,
-            service_name=service_name,
+            user_id=self.user_id,
+            process_id=main_process_id,
+            service_name=client_config.service_name,
         )
 
     def create_request_service(
-        self, process_ids: ProcessIds, service_config: Dict[str, Any]
+        self, main_process_id: str, service_config: RequestServiceConfig
     ):
         self.protocols_database_handler.create_request_service(
-            user_id=process_ids.user_id,
-            process_id=process_ids.process_id,
-            service_name=service_config["name"],
-            service_description=service_config["description"],
-            request_name=service_config["request_name"],
-            tool_name=service_config.get("tool_name", None),
+            user_id=self.user_id,
+            process_id=main_process_id,
+            service_name=service_config.service_name,
+            service_description=service_config.service_description,
+            request_name=service_config.request_name,
+            tool_name=service_config.tool_name,  # This implies that the agent managing the service have access to the tool.. verify.
         )
 
     def create_event_communications(
-        self, process_ids: ProcessIds, communications_config: Dict[str, Any]
+        self, main_process_id: str, communications_config: AgentCommunicationConfig
     ):
         # Events are always external, no public/private for now.
         # Processes should ONLY subscribe as the publishers should be external!
-        event_subscribers = communications_config["event_subscribers"]
-        for event_name in event_subscribers:
+        for event_subscriber in communications_config.event_subscribers:
             self.protocols_database_handler.create_event_subscriber(
-                user_id=process_ids.user_id,
-                process_id=process_ids.process_id,
-                event_name=event_name,
+                user_id=self.user_id,
+                process_id=main_process_id,
+                event_name=event_subscriber.event_name,
             )
-
-    def create_request_communications(
-        self, process_ids: ProcessIds, communications_config: Dict[str, Any]
-    ):
-        service_config = communications_config["request_services"]
-        self.create_request_service(
-            process_ids=process_ids, service_config=service_config
-        )
-
-        client_name = communications_config["request_clients"]
-        self.create_request_client(process_ids=process_ids, service_name=client_name)
 
     def create_topic_communications(
-        self, process_ids: ProcessIds, communications_config: Dict[str, Any]
+        self, main_process_id: str, communications_config: AgentCommunicationConfig
     ):
-        # Create private topics for internal processes.
-        # TODO: Fetch the topics from the internal_processes communications folder at config and create them as private using agent_id!
-
-        topic_publishers = communications_config["topic_publishers"]
-        for topic_name in topic_publishers:
+        for topic_publisher in communications_config.topic_publishers:
             self.protocols_database_handler.create_topic_publisher(
-                user_id=process_ids.user_id,
-                process_id=process_ids.process_id,
-                topic_name=topic_name,
+                user_id=self.user_id,
+                process_id=main_process_id,
+                topic_name=topic_publisher.topic_name,
             )
 
-        topic_subscribers = communications_config["topic_subscribers"]
-        for topic_name in topic_subscribers:
+        for topic_subscriber in communications_config.topic_subscribers:
             self.protocols_database_handler.create_topic_subscriber(
-                user_id=process_ids.user_id,
-                process_id=process_ids.process_id,
-                topic_name=topic_name,
+                user_id=self.user_id,
+                process_id=main_process_id,
+                topic_name=topic_subscriber.topic_name,
             )

@@ -5,7 +5,7 @@ from openai.types.chat import ChatCompletionMessageToolCall
 
 from aware.chat.conversation_schemas import ToolResponseMessage
 from aware.process.process_ids import ProcessIds
-from aware.utils.logger.process_loger import ProcessLogger
+from aware.utils.logger.process_logger import ProcessLogger
 from aware.tool.tools import FunctionCall, Tools
 from aware.tool.tools_registry import ToolsRegistry
 
