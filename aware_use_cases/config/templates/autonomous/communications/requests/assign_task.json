@@ -1,0 +1,11 @@
+{
+    "request": {
+        "agent_name": "str",
+        "state_name": "str",
+        "task": "str",
+        "instructions": "str",
+        "tools": "List[str]"
+    },
+    "feedback": {},
+    "response": {}
+}

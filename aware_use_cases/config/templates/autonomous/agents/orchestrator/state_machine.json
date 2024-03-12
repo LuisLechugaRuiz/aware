@@ -1,0 +1,13 @@
+{
+    "default": {
+        "tools": {
+            "create_agent": "continue",
+            "create_request": "continue",
+            "find_agent": "continue",
+            "find_tools": "continue",
+            "stop": "end"
+        },
+        "task": "Delegate atomic requests to the appropriate agents and manage the communication between them.",
+        "instructions": "TODO: FILL ME"
+    }
+}

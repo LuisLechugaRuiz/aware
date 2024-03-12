@@ -1,0 +1,16 @@
+{
+    "create_instructions": {
+        "tools": {
+            "create_instructions": "create_profile"
+        },
+        "task": "TODO: FILL ME the task itself",
+        "instructions": "TODO: FILL ME (tools combination or explanation about tool"
+    },
+    "create_profile": {
+        "tools": {
+            "create_profile": "end"
+        },
+        "task": "TODO: FILL ME the task itself",
+        "instructions": "TODO: FILL ME (tools combination or explanation about tool"
+    }
+}

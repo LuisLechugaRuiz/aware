@@ -1,0 +1,17 @@
+{
+    "agent_requests": {
+        "agent_builder": {
+            "description": "Create a new agent that pursues a specific task using certain tools",
+            "tool": "create_agent", // This implies that tool matches request params, we can add bridges to send only certain info to tool.
+            "params": {
+                "task": {
+                    "type": "string",
+                    "description": "The task the new agent should pursue and the tool he can use."
+                }
+            },
+            "is_async": false
+        }
+    },
+    "agent_channels": ["assistant"],
+    "external_events": []
+}
