@@ -14,6 +14,7 @@ class PostInstallCommand(install):
         # Now, perform the post-installation steps
         self.create_local_json_files()
 
+    # TODO: refactor.
     def create_local_json_files(self):
         # Delayed import: Import your module here
         try:

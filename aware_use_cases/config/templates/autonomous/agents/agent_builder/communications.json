@@ -1,0 +1,14 @@
+{
+    "publisher": [],
+    "subscriber": [],
+    "clients": [],
+    "request_server": [
+        {
+            "name": "create_agent",
+            "description": "Create a new agent to perform a specific task using a specific tool",
+            "request_name": "create_agent",
+            "tool": "create_agent"
+        }
+    ],
+    "event_subscriber": []
+}
