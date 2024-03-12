@@ -11,7 +11,7 @@ from aware.process.process_ids import ProcessIds
 from aware.tool.capability.capability import Capability
 from aware.tool.database.tool_database_handler import ToolDatabaseHandler
 from aware.utils.logger.file_logger import FileLogger
-from aware.utils.logger.process_loger import ProcessLogger
+from aware.utils.logger.process_logger import ProcessLogger
 
 
 # TODO: This is stored for now at user level, but I think Capability should be stored at ORGANIZATION level.

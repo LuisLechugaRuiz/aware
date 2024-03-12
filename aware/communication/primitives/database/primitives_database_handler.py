@@ -124,12 +124,11 @@ class PrimitivesDatabaseHandler:
         user_id: str,
         topic_name: str,
         topic_description: str,
-        agent_id: Optional[str] = None,
-        is_private: bool = False,
+        message_format: Dict[str, Any],
     ) -> DatabaseResult[Topic]:
         try:
             topic = self.supabase_handler.create_topic(
-                user_id, topic_name, topic_description, agent_id, is_private
+                user_id, topic_name, topic_description, message_format
             )
             self.redis_handler.create_topic(topic)
             return DatabaseResult(data=topic)

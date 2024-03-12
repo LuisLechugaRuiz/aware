@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import json
 from typing import Dict, List, Optional
 
@@ -7,6 +8,20 @@ from aware.communication.primitives.database.primitives_database_handler import 
 from aware.communication.primitives.event import Event
 from aware.communication.primitives.interface.function_detail import FunctionDetail
 from aware.communication.protocols.interface.input_protocol import InputProtocol
+
+
+@dataclass
+class EventSubscriberConfig:
+    event_name: str
+
+    def to_json(self):
+        return {
+            "event_name": self.event_name
+        }
+
+    def from_json(cls, json_str):
+        data = json.loads(json_str)
+        return cls(**data)
 
 
 class EventSubscriber(InputProtocol):

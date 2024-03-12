@@ -12,7 +12,7 @@ from aware.communication.protocols.topic_publisher import TopicPublisher
 
 from aware.process.process_ids import ProcessIds
 from aware.process.process_handler import ProcessHandler
-from aware.utils.logger.process_loger import ProcessLogger
+from aware.utils.logger.process_logger import ProcessLogger
 
 
 class ProcessToolCallResponse(Enum):

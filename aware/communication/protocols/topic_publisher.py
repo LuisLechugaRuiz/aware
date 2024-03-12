@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import json
 from typing import Any, Dict, List
 
@@ -6,6 +7,20 @@ from aware.communication.primitives.database.primitives_database_handler import 
 )
 from aware.communication.primitives.interface.function_detail import FunctionDetail
 from aware.communication.protocols.interface.protocol import Protocol
+
+
+@dataclass
+class TopicPublisherConfig:
+    topic_name: str
+
+    def to_json(self):
+        return {
+            "topic_name": self.topic_name,
+        }
+
+    def from_json(cls, json_str):
+        data = json.loads(json_str)
+        return cls(**data)
 
 
 class TopicPublisher(Protocol):

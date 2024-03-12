@@ -11,6 +11,9 @@ from aware.chat.database.chat_supabase_handler import (
 )
 from aware.process.process_ids import ProcessIds
 from aware.database.client_handlers import ClientHandlers
+
+# TODO: is this the right place to save UserData?
+from aware.memory.user.user_data import UserData
 from aware.utils.logger.file_logger import FileLogger  # TODO: use agent logger?
 
 
@@ -106,6 +109,9 @@ class ChatDatabaseHandler:
             name=name,
             content=content,
         )
+
+    def set_user_data(self, user_data: UserData):
+        self.redis_handler.set_user_data(user_data)
 
     def update_message(self, message_key: str, message: JSONMessage):
         # self.supabase_handler.update_message(process_id, message_id, message) # TODO: Implement me! refactor this function properly..

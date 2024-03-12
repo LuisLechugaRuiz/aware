@@ -13,7 +13,7 @@ from aware.agent.database.agent_database_handler import AgentDatabaseHandler
 from aware.database.weaviate.memory_manager import MemoryManager
 from aware.process.process_info import ProcessInfo
 from aware.process.process_handler import ProcessHandler
-from aware.utils.logger.process_loger import ProcessLogger
+from aware.utils.logger.process_logger import ProcessLogger
 from aware.tool.decorators import IS_DEFAULT_FUNCTION
 from aware.tool.database.tool_database_handler import ToolDatabaseHandler
 

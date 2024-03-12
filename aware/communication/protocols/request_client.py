@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import json
 from typing import Any, Dict, List
 
@@ -9,6 +10,20 @@ from aware.communication.primitives.request import Request
 from aware.communication.protocols.interface.protocol import Protocol
 from aware.database.helpers import DatabaseResult
 from aware.communication.primitives.interface.function_detail import FunctionDetail
+
+
+@dataclass
+class RequestClientConfig:
+    service_name: str
+
+    def to_json(self):
+        return {
+            "service_name": self.service_name
+        }
+
+    def from_json(cls, json_str):
+        data = json.loads(json_str)
+        return cls(**data)
 
 
 class RequestClient(Protocol):

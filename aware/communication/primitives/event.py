@@ -13,6 +13,21 @@ class EventStatus(Enum):
     FAILURE = "failure"
 
 
+# TODO: Split between EventTypeConfig and EventConfig...
+@dataclass
+class EventConfig:
+    name: str
+    description: str
+    message_format: Dict[str, Any]
+
+    def to_json(self):
+        return json.dumps(self.__dict__)
+
+    def from_json(cls, json_str):
+        data = json.loads(json_str)
+        return cls(**data)
+
+
 class EventType:
     def __init__(
         self,

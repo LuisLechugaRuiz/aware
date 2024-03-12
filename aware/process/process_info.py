@@ -1,6 +1,5 @@
 import json
 from dataclasses import dataclass
-from typing import List
 
 from aware.agent.agent_data import AgentData
 from aware.process.process_data import ProcessData

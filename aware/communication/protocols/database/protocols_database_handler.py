@@ -142,9 +142,20 @@ class ProtocolsDatabaseHandler:
         )
         self.redis_handler.create_action_client(action_client=action_client)
 
-    def create_action_service(self, user_id: str, process_id: str, action_name: str):
+    def create_action_service(
+        self,
+        user_id: str,
+        process_id: str,
+        service_name: str,
+        service_description: str,
+        action_name: str,
+    ):
         action_service = self.supabase_handler.create_action_service(
-            user_id=user_id, process_id=process_id, action_name=action_name
+            user_id=user_id,
+            process_id=process_id,
+            service_name=service_name,
+            service_description=service_description,
+            action_name=action_name,
         )
         self.redis_handler.create_action_service(action_service=action_service)
 

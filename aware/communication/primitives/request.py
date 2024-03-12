@@ -15,6 +15,20 @@ class RequestStatus(Enum):
 
 
 @dataclass
+class RequestConfig:
+    name: str
+    request_format: Dict[str, Any]
+    response_format: Dict[str, Any]
+
+    def to_json(self):
+        return json.dumps(self.__dict__)
+
+    def from_json(cls, json_str):
+        data = json.loads(json_str)
+        return cls(**data)
+
+
+@dataclass
 class RequestData:
     request: Dict[str, Any]
     response: Dict[str, Any]
@@ -52,6 +66,7 @@ class RequestData:
 class Request(Input):
     def __init__(
         self,
+        id: str,
         service_id: str,
         service_process_id: str,
         service_name: str,
@@ -71,7 +86,7 @@ class Request(Input):
         self.timestamp = timestamp
         self.data = data
         self.tool = tool
-        super().__init__(id=request_id, priority=self.data.priority)
+        super().__init__(id=id, priority=self.data.priority)
 
     def to_dict(self):
         return {

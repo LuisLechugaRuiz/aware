@@ -14,7 +14,7 @@ from aware.process.process_info import ProcessInfo
 from aware.process.process_handler import ProcessHandler
 from aware.tool.tools_manager import ToolsManager
 from aware.tool.tools import Tools
-from aware.utils.logger.process_loger import ProcessLogger
+from aware.utils.logger.process_logger import ProcessLogger
 
 
 # TODO: Split - ProcessInterface, MainProcess and InternalProcess

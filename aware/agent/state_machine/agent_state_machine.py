@@ -1,4 +1,5 @@
-from aware.agent.agent_data import AgentData, AgentState, ThoughtGeneratorMode
+from aware.agent.agent_data import AgentData, ThoughtGeneratorMode
+from aware.agent.state_machine.agent_state import AgentState
 
 
 class AgentStateMachine:
