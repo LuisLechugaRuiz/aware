@@ -1,19 +1,23 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from aware.agent.agent_config import AgentConfig
 from aware.agent.agent_communication import AgentCommunicationConfig
 from aware.agent.database.agent_database_handler import AgentDatabaseHandler
+from aware.agent.agent_profile import AgentProfile
 from aware.communication.primitives.primitives_config import CommunicationPrimitivesConfig
-from aware.config import get_internal_processes_path
+from aware.config.internal_processes.processes_config_loader import ProcessesConfigLoader
 from aware.database.weaviate.memory_manager import MemoryManager
 from aware.communication.communication_builder import (
     CommunicationBuilder,
 )
+from aware.process.process_config import ProcessConfig
 from aware.process.process_builder import ProcessBuilder
 from aware.process.process_ids import ProcessIds
 from aware.process.process_data import ProcessFlowType, ProcessType
-from aware.utils.config_loader import AgentConfigFiles, ConfigLoader
+from aware.process.state_machine.state import ProcessState
 from aware.utils.logger.file_logger import FileLogger
+
+from aware_use_cases.config.config_loader import AgentConfigFiles, ConfigLoader
 
 
 class AgentBuilder:
@@ -70,31 +74,31 @@ class AgentBuilder:
         )
 
         # 3. Create the main process state machine
-        process_state_machine_config = ProcessStateMachineConfig.from_json(agent_config_files.state_machine)
+        state_machine_states = self.get_process_states(agent_config_files.state_machine)
         process_builder = ProcessBuilder(
             user_id=self.user_id,
             agent_id=main_process_ids.agent_id,
         )
         process_builder.create_process_state_machine(
             process_ids=main_process_ids,
-            state_machine_config=process_state_machine_config,
+            state_machine_states=state_machine_states,
         )
 
         # 4. Create the agent profile
-        agent_profile = AgentProfile.from_json(agent_config_files.profile) 
+        agent_profile = AgentProfile.from_json(agent_config_files.profile)
         self.create_agent_profile(
-            process_ids=main_process_ids, profile_config=agent_profile
+            process_ids=main_process_ids, agent_profile=agent_profile
         )
 
         if standalone_create_agent:
             communication_builder.end_setup()
 
     def create_agent_profile(
-        self, process_ids: ProcessIds, profile_config: Dict[str, Any]
+        self, process_ids: ProcessIds, agent_profile: AgentProfile
     ):
         # TODO: implement me
         self.agent_database_handler.create_profile(
-            process_ids=process_ids, profile_config=profile_config
+            process_ids=process_ids, agent_profile=agent_profile
         )
 
     def create_new_agent(
@@ -138,36 +142,39 @@ class AgentBuilder:
         capability_class: str,
     ):
         """Create the internal processes for the agent"""
-        internal_processes_path = get_internal_processes_path()
-        # TODO: override by config loader which internally uses JsonLoader
-        internal_processes_json_loader = JsonLoader(root_dir=internal_processes_path)
-
         # Create main process using agent's capability class
-        main_config = {
-            "name": agent_name,
-            "capability_class": capability_class,
-            "flow_type": ProcessFlowType.INTERACTIVE,
-            "prompt_name": "meta",
-        }
+        main_process_config = ProcessConfig(
+            name=agent_name,
+            capability_class=capability_class,
+            prompt_name="meta",
+            flow_type=ProcessFlowType.INTERACTIVE,
+        )
         process_builder = ProcessBuilder(user_id=self.user_id, agent_id=agent_id)
         main_process_ids = process_builder.create_process_by_config(
-            process_config=main_config, process_type=ProcessType.MAIN
+            process_config=main_process_config, process_type=ProcessType.MAIN
         )
 
         # Create the internal processes
-        internal_processes_files_dict = internal_processes_json_loader.search_files(
-            file_names=["config.json", "state_machine.json"]
-        )
+        internal_processes_files_dict = ProcessesConfigLoader().get_all_processes_files()
         for process_folder, process_files in internal_processes_files_dict.items():
+            process_config = ProcessConfig.from_json(process_files.config)
             process_ids = process_builder.create_process_by_config(
-                process_config=process_files["config"], process_type=ProcessType.INTERNAL
+                process_config=process_config, process_type=ProcessType.INTERNAL
             )
+            process_states = self.get_process_states(process_files.state_machine)
             process_builder.create_process_state_machine(
                 process_ids=process_ids,
-                state_machine_config=process_files["state_machine"],
+                state_machine_states=process_states,
             )
 
         return main_process_ids
+
+    def get_process_states(self, state_machine_config: Dict[str, Any]) -> List[ProcessState]:
+        state_machine_states: List[ProcessState] = []
+        for state_name, state_info in state_machine_config.items():
+            state_info["name"] = state_name
+            state_machine_states.append(ProcessState.from_json(state_info))
+        return state_machine_states
 
     def setup_communications(
         self,

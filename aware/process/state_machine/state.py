@@ -17,6 +17,7 @@ class ProcessState:
     def to_json(self):
         return json.dumps(self.to_dict())
 
+    @classmethod
     def from_json(cls, json_str):
         data = json.loads(json_str)
         return cls(**data)

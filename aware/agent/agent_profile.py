@@ -45,5 +45,9 @@ class AgentProfile:
             )
         return profile_str.strip()
 
+    @classmethod
+    def from_json(cls, json_str):
+        return cls(json.loads(json_str))
+
     def to_json(self):
         return json.dumps(self.profile)
