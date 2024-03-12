@@ -49,9 +49,9 @@ class AgentDatabaseHandler:
         self.logger.info(f"Agent: {agent_data.id}, created on redis")
         return agent_data
 
-    def create_profile(self, agent_id: str, profile: Dict[str, Any]):
+    def create_profile(self, agent_id: str, profile: AgentProfile):
         # TODO: address me.
-        AgentProfile(profile=profile)
+        pass
 
     def get_agent_data(self, agent_id: str) -> AgentData:
         agent_data = self.redis_handler.get_agent_data(agent_id)

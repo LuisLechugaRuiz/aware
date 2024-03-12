@@ -1,6 +1,7 @@
 from typing import Any, Dict, List
 
 from aware.process.database.process_database_handler import ProcessDatabaseHandler
+from aware.process.process_config import ProcessConfig
 from aware.process.process_ids import ProcessIds
 from aware.process.process_data import ProcessFlowType, ProcessType
 from aware.process.state_machine.state import ProcessState
@@ -18,16 +19,16 @@ class ProcessBuilder:
 
     def create_process_by_config(
         self,
-        process_config: Dict[str, Any],
+        process_config: ProcessConfig,
         process_type: ProcessType
     ) -> ProcessIds:
         process_data = self.process_database_handler.create_process(
             user_id=self.user_id,
             agent_id=self.agent_id,
-            name=process_config["name"],
-            capability_class=process_config["capability_class"],
-            prompt_name=process_config["prompt_name"],
-            flow_type=ProcessFlowType(process_config["flow_type"]),
+            name=process_config.name,
+            capability_class=process_config.capability_class,
+            prompt_name=process_config.prompt_name,
+            flow_type=ProcessFlowType(process_config.flow_type),
             process_type=process_type,
         )
         process_ids = ProcessIds(
@@ -38,18 +39,18 @@ class ProcessBuilder:
         return process_ids
 
     def create_process_state_machine(
-        self, process_ids: ProcessIds, state_machine_config: Dict[str, Any]
+        self, process_ids: ProcessIds, state_machine_states: List[ProcessState]
     ) -> None:
         process_states: List[ProcessState] = []
-        for state_name, state_info in state_machine_config.items():
+        for state_info in state_machine_states:
             process_states.append(
                 self.process_database_handler.create_process_state(
                     user_id=self.user_id,
                     process_id=process_ids.process_id,
-                    name=state_name,
-                    task=state_info["task"],
-                    instructions=state_info["instructions"],
-                    tools=state_info["tools"],
+                    name=state_info.name,
+                    task=state_info.task,
+                    instructions=state_info.instructions,
+                    tools=state_info.tools,
                 )
             )
         self.process_database_handler.create_current_process_state(
