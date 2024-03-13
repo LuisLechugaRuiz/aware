@@ -42,15 +42,12 @@ class ProcessBuilder:
         self, process_ids: ProcessIds, state_machine_states: List[ProcessState]
     ) -> None:
         process_states: List[ProcessState] = []
-        for state_info in state_machine_states:
+        for process_state in state_machine_states:
             process_states.append(
                 self.process_database_handler.create_process_state(
                     user_id=self.user_id,
                     process_id=process_ids.process_id,
-                    name=state_info.name,
-                    task=state_info.task,
-                    instructions=state_info.instructions,
-                    tools=state_info.tools,
+                    process_state=process_state,
                 )
             )
         self.process_database_handler.create_current_process_state(

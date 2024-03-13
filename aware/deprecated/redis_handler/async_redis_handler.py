@@ -2,7 +2,7 @@ import json
 from redis.asyncio import Redis
 from typing import List, Optional, Tuple
 
-from aware.memory.user.user_data import UserData
+from aware.user.user_data import UserData
 from aware.chat.conversation_schemas import (
     to_json_message,
     JSONMessage,

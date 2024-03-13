@@ -7,7 +7,7 @@ from aware.tool.database.tool_supabase_handler import (
 )
 from aware.process.process_ids import ProcessIds
 from aware.database.client_handlers import ClientHandlers
-from aware.utils.logger.file_logger import FileLogger  # TODO: use agent logger?
+from aware.utils.logger.system_logger import SystemLogger  # TODO: use agent logger?
 
 
 # TODO: Implement me
@@ -19,7 +19,7 @@ class ToolDatabaseHandler:
         self.supabase_handler = ToolSupabaseHandler(
             client=ClientHandlers().get_supabase_client()
         )
-        self.logger = FileLogger("client_agent_handler")
+        self.logger = SystemLogger.get_logger("client_agent_handler")
 
     def create_capability(self, process_ids: ProcessIds, capability: Capability):
         self.supabase_handler.create_capability(process_ids, capability)

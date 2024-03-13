@@ -13,8 +13,6 @@ from aware.chat.conversation_schemas import (
     UserMessage,
 )
 
-# TODO: is this the right place to save UserData?
-from aware.memory.user.user_data import UserData
 from aware.utils.helpers import convert_timestamp_to_epoch
 
 
@@ -144,12 +142,6 @@ class ChatRedisHandler:
             return message_class.from_json(message_json_str)
         else:
             raise ValueError(f"Unknown message type: {message_type}")
-
-    def set_user_data(self, user_data: UserData):
-        self.client.set(
-            f"user_id:{user_data.user_id}:data",
-            user_data.to_json(),
-        )
 
     def update_message(self, message_key: str, message: JSONMessage):
         message_data = json.dumps(

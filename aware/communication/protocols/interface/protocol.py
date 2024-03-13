@@ -5,7 +5,7 @@ from aware.communication.primitives.database.primitives_database_handler import 
     PrimitivesDatabaseHandler,
 )
 from aware.communication.primitives.interface.function_detail import FunctionDetail
-from aware.chat.parser.json_pydantic_parser import JsonPydanticParser
+from aware.utils.parser.json_pydantic_parser import JsonPydanticParser
 from aware.tool.tool import Tool
 from aware.server.celery_app import app
 

@@ -3,12 +3,8 @@ from typing import List
 
 from aware.process.database.process_database_handler import ProcessDatabaseHandler
 from aware.process.state_machine.state import ProcessState
+from aware.process.state_machine.transition import TransitionType
 from aware.utils.logger.process_logger import ProcessLogger
-
-
-class Transitions(Enum):
-    CONTINUE = "continue"
-    END = "end"
 
 
 class ProcessStatus(Enum):
@@ -43,20 +39,24 @@ class ProcessStateMachine:
         return self.current_state.task
 
     def get_tools(self) -> List[str]:
-        self.current_state.tools.keys()
+        self.current_state.tool_transitions.keys()
 
     def on_tool(self, tool_name: str):
-        next_state = self.current_state.tools[tool_name]
-        if next_state == Transitions.CONTINUE.value:
+        transition = self.current_state.tool_transitions.get(tool_name, None)
+        if transition is None:
+            raise ValueError(f"Tool {tool_name} didn't trigger a valid transition for state {self.current_state.name}")
+        if transition.type == TransitionType.CONTINUE:
             return
-        elif next_state == Transitions.END.value:
+        elif transition.type == TransitionType.END:
             self.current_state = self.states[0]  # Reset to initial state
             self.status = ProcessStatus.IDLE
-        else:
+        elif transition.type == TransitionType.OTHER:
             try:
-                self.current_state = self.states_dict[next_state]
+                if transition.new_state is None:
+                    raise ValueError("Transition is OTHER but new state is None, this is not allowed")
+                self.current_state = self.states_dict[transition.new_state]
             except KeyError:
-                raise ValueError(f"State {next_state} does not exist")
+                raise ValueError(f"State {transition.new_state} does not exist")
 
     def update_current_state(self, state: ProcessState):
         self.current_state = state

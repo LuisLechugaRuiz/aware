@@ -3,7 +3,7 @@ from redis import Redis
 from typing import Any, Dict, List, Optional, Tuple
 
 from aware.agent.agent_data import AgentData
-from aware.memory.user.user_data import UserData
+from aware.user.user_data import UserData
 from aware.chat.conversation_schemas import (
     ChatMessage,
     JSONMessage,

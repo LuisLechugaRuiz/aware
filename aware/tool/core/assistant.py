@@ -11,12 +11,12 @@ class Assistant(Capability):
         process_info: ProcessInfo,
     ):
         super().__init__(process_info=process_info)
-        self.chat_database_handler = ChatDatabaseHandler()
 
     @default_function
     @tool
     def talk(self, message: str, should_stop: bool = False):
         """
+        # TODO: Should we remove should_stop? Maybe we want to use it to set event completed.. check set_input_completed.
         Use this tool as the only way to communicate with the user.
 
         Args:
@@ -36,9 +36,6 @@ class Assistant(Capability):
             name=assistant_message.name,
             content=assistant_message.content,
         )
-        if should_stop:
-            # TODO: how to set input completed from tool?
-            #  IN THE PAST: self.finish_process() but now we only finish by completing the event
         return "Message sent to the user."
 
     @tool

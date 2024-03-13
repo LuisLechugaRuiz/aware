@@ -13,19 +13,19 @@ from aware.process.process_ids import ProcessIds
 from aware.database.client_handlers import ClientHandlers
 
 # TODO: is this the right place to save UserData?
-from aware.memory.user.user_data import UserData
-from aware.utils.logger.file_logger import FileLogger  # TODO: use agent logger?
+from aware.user.user_data import UserData
+from aware.utils.logger.process_logger import ProcessLogger  # TODO: use agent logger?
 
 
 class ChatDatabaseHandler:
-    def __init__(self):
+    def __init__(self, process_logger: ProcessLogger):
         self.redis_handler = ChatRedisHandler(
             client=ClientHandlers().get_redis_client()
         )
         self.supabase_handler = ChatSupabaseHandler(
-            client=ClientHandlers().get_supabase_client()
+            client=ClientHandlers().get_supabase_client(), process_logger=process_logger
         )
-        self.logger = FileLogger("client_agent_handler")
+        self.logger = process_logger.get_logger("chat_database_handler")
 
     def add_call_info(self, call_info: CallInfo):
         self.redis_handler.add_call_info(call_info)
@@ -55,7 +55,8 @@ class ChatDatabaseHandler:
         self.supabase_handler.delete_message(message_id)
         self.redis_handler.delete_message(process_id, message_id)
 
-    def get_async_redis_handler(self) -> ChatAsyncRedisHandler:
+    @staticmethod
+    def get_async_redis_handler() -> ChatAsyncRedisHandler:
         return ChatAsyncRedisHandler(client=ClientHandlers().get_async_redis_client())
 
     # TODO: Clarify: Redis returns JsonMessage but Supabase ChatMessage...

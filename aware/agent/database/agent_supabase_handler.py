@@ -8,13 +8,13 @@ from aware.agent.agent_data import (
     ThoughtGeneratorMode,
 )
 from aware.agent.agent_profile import AgentProfile
-from aware.utils.logger.file_logger import FileLogger
+from aware.utils.logger.user_logger import UserLogger
 
 
 class AgentSupabaseHandler:
     def __init__(self, client: Client):
         self.client = client
-        self.logger = FileLogger("supabase_agent_handler")
+        self.logger = UserLogger("supabase_agent_handler")
 
     def create_agent(
         self,
@@ -25,7 +25,6 @@ class AgentSupabaseHandler:
         modalities: List[str],
         thought_generator_mode: str,
     ) -> AgentData:
-        self.logger.info(f"Creating agent {name}")
         data = (
             self.client.table("agents")
             .insert(
@@ -42,7 +41,6 @@ class AgentSupabaseHandler:
             .data
         )
         data = data[0]
-        self.logger.info(f"Agent: {name}, created. Initializing agent data")
         return AgentData(
             id=data["id"],
             name=data["name"],
@@ -72,11 +70,11 @@ class AgentSupabaseHandler:
             thought_generator_mode=ThoughtGeneratorMode(data["thought_generator_mode"]),
         )
 
-    def get_agent_profile(self, agent_id: str) -> Optional[Profile]:
+    def get_agent_profile(self, agent_id: str) -> Optional[AgentProfile]:
         data = self.client.table("agents").select("*").eq("id", agent_id).execute().data
         if not data:
             return None
-        return Profile(profile=data[0]["profile"])
+        return AgentProfile(profile=data[0]["profile"])
 
     def get_agent_process_id(self, agent_id: str, process_name: str) -> Optional[str]:
         data = (

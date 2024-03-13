@@ -1,18 +1,14 @@
 import logging
 import os
 
-from aware.process.database.process_database_handler import ProcessDatabaseHandler
 from aware.permanent_storage.permanent_storage import get_permanent_storage_path
 from aware.utils.logger.file_logger import FileLogger
 
 
 class ProcessLogger:
-    def __init__(self, process_id: str):
-        self.process_database_handler = ProcessDatabaseHandler()
-        process_ids = self.process_database_handler.get_process_ids(process_id=process_id)
-        process_info = self.process_database_handler.get_process_info(process_ids=process_ids)
+    def __init__(self, user_id: str, agent_name: str, process_name: str):
         self.base_path = os.path.join(
-            get_permanent_storage_path(), "logs", process_ids.user_id, process_info.agent_data.name, process_info.process_data.name
+            get_permanent_storage_path(), "logs", user_id, agent_name, process_name
         )
         os.makedirs(self.base_path, exist_ok=True)  # Ensure the base directory exists
 

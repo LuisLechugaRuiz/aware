@@ -8,21 +8,22 @@ from aware.utils.helpers import count_message_tokens
 from aware.chat.conversation_schemas import (
     ChatMessage,
 )
-from aware.utils.logger.file_logger import FileLogger
+from aware.utils.logger.process_logger import ProcessLogger
 
 
 class ConversationBuffer:
     """Conversation class to keep track of the messages and the current state of the conversation."""
 
-    def __init__(self, process_id: str):
-        self.logger = FileLogger("migration_tests", should_print=True)
+    def __init__(self, process_id: str, process_logger: ProcessLogger):
+        self.logger = process_logger.get_logger("conversation_buffer", should_print=True)
         self.logger.info(
             f"Starting new conversation buffer for process_id: {process_id}"
         )
         self.process_id = process_id
 
         self.model_name = Config().openai_model  # TODO: Enable more models.
-        self.chat_database_handler = ChatDatabaseHandler()
+        self.chat_database_handler = ChatDatabaseHandler(process_logger)
+
         self.messages: List[ChatMessage] = (
             self.chat_database_handler.get_conversation_buffer(process_id=process_id)
         )

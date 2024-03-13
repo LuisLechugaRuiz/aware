@@ -2,7 +2,7 @@ from typing import Callable, Dict, List, Optional
 from openai.types.chat import ChatCompletionMessageToolCall
 
 from aware.architecture.helpers import Request
-from aware.chat.parser.pydantic_parser import PydanticParser
+from aware.utils.parser.pydantic_parser import PydanticParser
 from aware.deprecated.chat import Chat
 from aware.tool.tools_manager import ToolsManager
 from aware.utils.helpers import colored

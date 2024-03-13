@@ -7,8 +7,8 @@ import inspect
 from logging import getLogger
 import re
 
-from aware.chat.parser.loggable_base_model import LoggableBaseModel
-from aware.chat.parser.fix_format_prompt import (
+from aware.utils.parser.loggable_base_model import LoggableBaseModel
+from aware.utils.parser.fix_format_prompt import (
     DEF_FIX_FORMAT_PROMPT,
 )
 from aware.models.model import Model
@@ -246,7 +246,7 @@ class PydanticParser(Generic[T]):
             if name != "self"  # Skip the 'self' parameter
         }
         docstring = inspect.getdoc(callable) or "No docstring provided"
-        
+
         if callback is None:
             callback = callable
 

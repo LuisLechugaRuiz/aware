@@ -12,7 +12,7 @@ from aware.process.database.process_supabase_handler import (
     ProcessSupabaseHandler,
 )
 from aware.database.client_handlers import ClientHandlers
-from aware.utils.logger.file_logger import FileLogger  # TODO: use agent logger?
+from aware.utils.logger.system_logger import SystemLogger
 
 
 class ProcessDatabaseHandler:
@@ -23,7 +23,7 @@ class ProcessDatabaseHandler:
         self.supabase_handler = ProcessSupabaseHandler(
             client=ClientHandlers().get_supabase_client()
         )
-        self.logger = FileLogger("process_agent_handler")
+        self.logger = SystemLogger.get_logger("process_agent_handler")
         self.agent_database_handler = AgentDatabaseHandler()
 
     def create_current_process_state(
@@ -70,18 +70,12 @@ class ProcessDatabaseHandler:
         self,
         user_id: str,
         process_id: str,
-        name: str,
-        task: str,
-        instructions: str,
-        tools: Dict[str, str],
+        process_state: ProcessState,
     ):
-        process_state = self.supabase_handler.create_process_state(
+        self.supabase_handler.create_process_state(
             user_id=user_id,
             process_id=process_id,
-            name=name,
-            task=task,
-            instructions=instructions,
-            tools=tools,
+            process_state=process_state,
         )
         self.redis_handler.create_process_state(
             process_id=process_id, process_state=process_state

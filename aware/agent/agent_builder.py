@@ -25,7 +25,7 @@ class AgentBuilder:
         self.logger = FileLogger("agent_builder")
         self.user_id = user_id
         self.memory_manager = MemoryManager(user_id=user_id, logger=self.logger)
-        self.agent_database_handler = AgentDatabaseHandler()
+        self.agent_database_handler = AgentDatabaseHandler(user_id)
 
     def initialize_user_agents(self, config_template_name: str, user_id: str, assistant_name: str):
         """Create the initial agents for the user"""
@@ -74,14 +74,13 @@ class AgentBuilder:
         )
 
         # 3. Create the main process state machine
-        state_machine_states = self.get_process_states(agent_config_files.state_machine)
         process_builder = ProcessBuilder(
             user_id=self.user_id,
             agent_id=main_process_ids.agent_id,
         )
         process_builder.create_process_state_machine(
             process_ids=main_process_ids,
-            state_machine_states=state_machine_states,
+            process_states=self.get_process_states(agent_config_files.state_machine),
         )
 
         # 4. Create the agent profile
@@ -161,10 +160,9 @@ class AgentBuilder:
             process_ids = process_builder.create_process_by_config(
                 process_config=process_config, process_type=ProcessType.INTERNAL
             )
-            process_states = self.get_process_states(process_files.state_machine)
             process_builder.create_process_state_machine(
                 process_ids=process_ids,
-                state_machine_states=process_states,
+                process_states=self.get_process_states(process_files.state_machine),
             )
 
         return main_process_ids

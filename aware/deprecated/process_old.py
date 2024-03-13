@@ -7,7 +7,7 @@ from aware.chat.conversation_schemas import (
     ToolCalls,
     ToolResponseMessage,
 )
-from aware.chat.parser.pydantic_parser import PydanticParser
+from aware.utils.parser.pydantic_parser import PydanticParser
 from aware.process.database.process_database_handler import ProcessDatabaseHandler
 from aware.process.process_ids import ProcessIds
 from aware.process.process_info import ProcessInfo

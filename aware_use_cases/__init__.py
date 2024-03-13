@@ -5,7 +5,7 @@ def get_config_path():
     return Path(__file__).parent / 'config'
 
 
-def get_template_config_path(template_name: str):
+def get_template_config_path(template_name: str = "autonomous"):
     # Construct the path to the config file
     config_path = get_config_path()
     return config_path / 'templates' / template_name

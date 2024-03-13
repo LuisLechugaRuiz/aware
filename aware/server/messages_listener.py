@@ -6,8 +6,8 @@ from typing import Optional
 
 
 from aware.config.config import Config
-from aware.data.database.client_handlers import ClientHandlers
-from aware.memory.user.user_builder import UserBuilder
+from aware.database.client_handlers import ClientHandlers
+from aware.user.user_builder import UserBuilder
 from aware.process.process_handler import ProcessHandler
 from aware.utils.logger.file_logger import FileLogger
 

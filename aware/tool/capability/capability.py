@@ -10,13 +10,13 @@ import uuid
 import inspect
 
 from aware.agent.database.agent_database_handler import AgentDatabaseHandler
-from aware.chat.parser.pydantic_parser import PydanticParser
+from aware.chat.database.chat_database_handler import ChatDatabaseHandler
+from aware.utils.parser.pydantic_parser import PydanticParser
 from aware.database.weaviate.memory_manager import MemoryManager
 from aware.process.process_info import ProcessInfo
 from aware.utils.logger.process_logger import ProcessLogger
 from aware.tool.decorators import IS_DEFAULT_FUNCTION, IS_TOOL
 from aware.tool.tool import Tool
-from aware.tool.database.tool_database_handler import ToolDatabaseHandler
 
 
 class Capability(ABC):
@@ -29,16 +29,14 @@ class Capability(ABC):
         self.process_ids = process_info.process_ids
         self.process_data = process_info.process_data
         self.process_logger = ProcessLogger(
-            id=self.process_ids.process_id,
+            user_id=self.process_ids.user_id, agent_name=process_info.agent_data.name, process_name=process_info.process_data.name
         )
         self.logger = self.process_logger.get_logger(self.get_name())
 
         self.memory_manager = MemoryManager(
             user_id=self.process_ids.user_id, logger=self.logger
         )
-
-        # TODO: Implement also CapabilityDatabaseHandler
-        self.tool_database_handler = ToolDatabaseHandler()
+        self.chat_database_handler = ChatDatabaseHandler(self.process_logger)
 
         # TODO: we need a way to update the variable when using a tool. Maybe a wrapper that initializes tool then calls the function and then updates the variable.
         # TODO: vars = self.get_capability_vars() # Use it to hold internal state of each capability.
@@ -111,6 +109,6 @@ class Capability(ABC):
         return None
 
     def update_agent_data(self):
-        return AgentDatabaseHandler().update_agent_data(
+        return AgentDatabaseHandler(self.process_ids.user_id).update_agent_data(
             agent_data=self.agent_data,
         )

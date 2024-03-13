@@ -8,19 +8,19 @@ from aware.chat.conversation_schemas import (
     ToolCalls,
     ToolResponseMessage,
 )
-from aware.utils.logger.file_logger import FileLogger
+from aware.utils.logger.process_logger import ProcessLogger
 
 
 class Conversation:
     """Conversation class to keep track of the messages and the current state of the conversation."""
 
-    def __init__(self, process_id: str):
-        log = FileLogger("migration_tests", should_print=True)
-        log.info(f"Starting new conversation for process_id: {process_id}")
+    def __init__(self, process_id: str, process_logger: ProcessLogger):
+        self.logger = process_logger.get_logger("conversation", should_print=True)
+        self.logger.info(f"Starting new conversation for process_id: {process_id}")
         self.process_id = process_id
 
         self.model_name = Config().openai_model  # TODO: Enable more models.
-        self.chat_database_handler = ChatDatabaseHandler()
+        self.chat_database_handler = ChatDatabaseHandler(process_logger)
         self.messages = self.chat_database_handler.get_conversation(process_id)
 
     def delete_oldest_message(self) -> ChatMessage:

@@ -1,4 +1,4 @@
-from aware.agent.agent_state_machine import AgentState, AgentStateMachine
+from aware.agent.state_machine.agent_state_machine import AgentState, AgentStateMachine
 from aware.agent.database.agent_database_handler import AgentDatabaseHandler
 from aware.chat.conversation_schemas import (
     AssistantMessage,
@@ -19,13 +19,17 @@ from aware.server.celery_app import app
 
 class ProcessHandler:
     def __init__(self, process_ids: ProcessIds):
-        self.logger = ProcessLogger(process_id=process_ids.process_id).get_logger("process_handler")
+        self.process_database_handler = ProcessDatabaseHandler()
+        process_info = self.process_database_handler.get_process_info(process_ids=process_ids)
+
+        self.process_logger = ProcessLogger(
+            user_id=self.process_ids.user_id, agent_name=process_info.agent_data.name, process_name=process_info.process_data.name
+        )
         self.process_ids = process_ids
 
         self.comm_protocols_database_handler = ProtocolsDatabaseHandler()
-        self.agent_database_handler = AgentDatabaseHandler()
-        self.chat_database_handler = ChatDatabaseHandler()
-        self.process_database_handler = ProcessDatabaseHandler()
+        self.agent_database_handler = AgentDatabaseHandler(process_ids.user_id)
+        self.chat_database_handler = ChatDatabaseHandler(self.process_logger)
 
     # TODO: refactor, lets rethink the logic.
     def add_message(self, message: JSONMessage):
@@ -83,7 +87,7 @@ class ProcessHandler:
         )
 
         assistant_conversation_buffer = ConversationBuffer(
-            process_id=main_ids.process_id
+            process_id=main_ids.process_id, process_logger=self.process_logger
         )
 
         # TODO: modify by communication database handler and verify with internal topics...

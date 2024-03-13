@@ -9,7 +9,7 @@ from aware.chat.database.chat_database_handler import ChatDatabaseHandler
 from aware.prompts.load import load_prompt_from_args
 from aware.process.process_ids import ProcessIds
 from aware.utils.helpers import get_current_date
-from aware.utils.logger.file_logger import FileLogger
+from aware.utils.logger.process_logger import ProcessLogger
 
 
 class Chat:
@@ -20,7 +20,7 @@ class Chat:
         name: str,
         process_ids: ProcessIds,
         prompt_kwargs: Dict[str, str],
-        logger: FileLogger,
+        process_logger: ProcessLogger,
     ):
         self.process_ids = process_ids
         self.name = name
@@ -29,9 +29,9 @@ class Chat:
             prompt_kwargs=prompt_kwargs,
         )
         self.conversation = Conversation(process_id=self.process_ids.process_id)
-        self.chat_database_handler = ChatDatabaseHandler()
+        self.chat_database_handler = ChatDatabaseHandler(process_logger)
 
-        self.logger = logger
+        self.logger = process_logger.get_logger("chat")
 
     def get_conversation(self):
         return self.conversation
