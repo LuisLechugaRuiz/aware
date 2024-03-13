@@ -63,3 +63,37 @@ Author (FileCreator)
 
 Researcher (ArXivExplorer)
    - search_info.
+
+
+### ArXivExplorer
+
+PROFILE NEEDS CAPABILITIES.
+
+In order to MAINTAIN a specific profile for each agent.
+
+This will be very detailed. We need to have capabilities that are able to have the best profile.
+
+—-
+ARXIV 
+
+Capability have a way to add databases to memory.
+
+This way thought later can use a tool to find specific info.
+
+Imagine a:
+
+add_paper(name) - this function calls add document which internally creates a database for that specific paper.
+
+Then our thought generator gets a new document inserted to search on it with:
+
+search_document (document name, queries) - this function search specific info on a paper.
+
+—-
+More functions:
+
+get_papers(query) - this function searches by similarity on ArXiV and returns the abstract of the papers so we can use them in the future.
+
+---
+what if agents can share documents with each other??
+
+this way our Author can also have access to the papers and add them so he can iterate over thems to get answers.
