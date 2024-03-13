@@ -51,7 +51,7 @@ Options:
 - deterministic setup agent-client.
 - real-time creation.
 
-In this version we have a deterministic setup configuring the services that the agents on the team are displaying.
+In this version we have a deterministic setup configuringb the services that the agents on the team are displaying.
 
 These services expect specific format as input (should it be free format?) and have already a custom response designed for the service.
 
