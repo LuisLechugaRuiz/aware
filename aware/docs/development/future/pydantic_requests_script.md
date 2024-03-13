@@ -1,18 +1,68 @@
-No need to save manually the pydantic but we send the complex format as we do when translating to OPENAI.
+# Request creation
 
-We have a (request creator) that gets a function and translates to request (args and so on as we do for communications.
+This file includes new ideas about how to create new requests on demmand.
 
-We use the JSONPYDANTICPARSER.
+The core insight is that requests are created selecting client agent and service agent, this way we automatically setup the proper Client and Service on the respective agents.
 
-Create tools for devs:
-Request to JsonPydanticParser. With request being the arguments needed. The user sends them on terminal for now, but in the future using a UI to create relationship for agents one to one. It just introduces the formats and we instantly create and action server for this task. (For now just a request but feedback would be highly effective, but we need to improve action service to be able to receive updates over the current requests. The client of action server can UPDATE ACTION STATUS AND THIS AFFECT TO THE SERVER.
+This way we avoid needing to create them manually. We just need to define the requests of our system initially and then it will create the protocols.
 
-This way we have a update_action() on client as we do with create_request but for specific action. ACTION HAVE POTENTIAL TO BE SYNC.
+## Request format
+- Client name
+- Service name
+- Query
+- Response format
 
-If the action is sync is a request.
+## Request vs Action
 
-Agent should be able to select it on run time.
+We should do the same for action, which is just an async request.
 
-He just calls send_request and creates it sync or async and we just adapt over it. So AGENT IS AGNOSTIC OF IF SYNC OR ASYNC. He just need to use it when needed. But he should know when to do it sync or async.
+The main difference is that action requires the feedback format.
 
-This means: both action and client send a request with sync or async and depending if it is sync or not we create a request or an action.
+## Setup
+
+Two ways to create requests:
+
+### Deterministic setup:
+
+The requests are defined on setup, this means that the agent only have certain space of freedom, we give him a tool for each request he can use.
+
+In this case a external source needs to setup request. It can be orchestrator (team leader) or user via the setup scripts (and soon the UI).
+
+These requests live into team/ folder at use-case as they are for agent to agent inside a specific team.
+
+### Real-time creation:
+
+This is the strongest one as it increases the space of freedom between the agents, in this version the agents can create requests to any other agents in the team.
+
+It just needs to define the format properly, but it also requires deep knowledge about the capabilities of any other agent as the response format is just a "template" and the fields will depend on the other agent possibilities.
+
+For an autonomous system this would be the way to go:
+
+Requests are just created on demand.
+Client - Servers are only stablished until the request finishes.
+
+Limitations:
+We need to add info about each other agent at agent prompt.
+We need to share info about capabilities of other agents, how to ensure that format makes sense?
+
+### Hybrid
+
+Options:
+- deterministic setup agent-client.
+- real-time creation.
+
+In this version we a deterministic setup with the services that the agents on the team are displaying.
+
+These services expect specific format as input (should it be free format?) and have already a custom response designed for the service.
+
+This will allow us to broadcast the services available (deterministic setup) while giving freedom to the agents to communicate with any other agent in the team.
+
+We can start with free-format as this will help us to use a generic tool (called create request (sync or async)) and send a natural language query while ensuring proper response format.
+
+This looks to me the best:
+
+Deterministic: we understand service agent possibilities and create a tailored service.
+Dynamic: Any client in the team can make requests to this service.
+
+The only question is if free-format or query has specific format.
+This modifies if we can use generic tool (create_request) or we need to give a tool to each agent in the team for each service.
