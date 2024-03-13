@@ -74,3 +74,13 @@ For now we just need to showcase an initial use-case for Aware.
 For this we will go with Deterministic option.
 
 We need to create an easy setup where we define service (and there we are requested to fill the formats!) and also where we can select clients using a dropdown that can help to connect new agents to existing services.
+
+### Small refactor
+
+No need of request format as a standalone table at supabase.
+
+When creating service we define the specific format there.
+
+Create Client only needs service name.
+
+Create Request only needs client id
