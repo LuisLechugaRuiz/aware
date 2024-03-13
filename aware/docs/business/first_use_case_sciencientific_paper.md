@@ -40,3 +40,26 @@ Lets first just be the event of user message and then the team leader requesting
 There is a coordinator that administrates task execution inside the system even when different agents are connected.
 
 The orchestrator ensure proper behavior of components.
+
+
+--
+### TODO:
+
+fix file and move it to use-cases.
+
+### Agents structure
+
+Manager (Orchestrator)
+  Clients:
+    - create_paper.
+    - make_modifications.
+
+Author (FileCreator)
+ Services:
+   - create_paper.
+   - make_modifications.
+ Clients:
+   - search_info.
+
+Researcher (ArXivExplorer)
+   - search_info.
