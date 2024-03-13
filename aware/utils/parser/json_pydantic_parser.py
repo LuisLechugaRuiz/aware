@@ -1,7 +1,7 @@
 import typing
 from typing import Callable, Dict
 
-from aware.chat.parser.pydantic_parser import PydanticParser
+from aware.utils.parser.pydantic_parser import PydanticParser
 from aware.tool.tool import Tool
 
 

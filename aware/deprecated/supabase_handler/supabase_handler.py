@@ -24,7 +24,7 @@ from aware.communication.topics.topic_subscriber import TopicSubscriber
 from aware.communication.topics.topic_publisher import TopicPublisher
 from aware.config.config import Config
 from aware.data.database.supabase_handler.messages_factory import MessagesFactory
-from aware.memory.user.user_data import UserData
+from aware.user.user_data import UserData
 from aware.process.process_data import ProcessData, ProcessFlowType
 from aware.process.process_ids import ProcessIds
 from aware.process.state_machine.state import ProcessState

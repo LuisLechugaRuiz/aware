@@ -1,0 +1,1 @@
+As proposed from Nestor lets make this another module such as aware_teams to split concerns and organize the architecture.

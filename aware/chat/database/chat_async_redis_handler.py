@@ -1,13 +1,11 @@
-import json
 from redis.asyncio import Redis
 from typing import List, Optional, Tuple
 
-from aware.memory.user.user_data import UserData
 from aware.chat.conversation_schemas import (
-    to_json_message,
     JSONMessage,
 )
 from aware.chat.call_info import CallInfo
+from aware.user.database.user_database_handler import UserDatabaseHandler
 
 
 class ChatAsyncRedisHandler:
@@ -49,24 +47,12 @@ class ChatAsyncRedisHandler:
 
     #     return to_json_message(message_type, message_json_str)
 
-    async def get_api_key(self, user_id: str) -> Optional[str]:
-        user_data = await self.get_user_data(user_id)
-        if user_data:
-            return user_data.api_key
-        return None
-
     async def get_call_info(self, process_id: str) -> CallInfo:
         data = CallInfo.from_json(await self.client.get(f"call_info:{process_id}"))
         data.set_conversation(await self.get_conversation(data.process_ids.process_id))
 
-        data.set_api_key(await self.get_api_key(data.process_ids.user_id))
+        data.set_api_key(await UserDatabaseHandler().get_api_key(data.process_ids.user_id))
         return data
-
-    async def get_user_data(self, user_id: str) -> Optional[UserData]:
-        data = await self.client.get(f"user_data:{user_id}")
-        if data:
-            return UserData.from_json(data)
-        return None
 
     async def get_pending_call(self) -> Optional[Tuple[str, str]]:
         return await self.client.brpop("pending_call", timeout=10)

@@ -24,16 +24,17 @@ class CapabilityRegistry:
     def __new__(
         cls,
         process_ids: ProcessIds,
-        process_loger: ProcessLogger,
+        process_logger: ProcessLogger,
+        save_on_db: bool = True,
         capabilities_folders: Optional[List[str]] = None,
     ):
         if cls._instance is None:
             cls._instance = super(CapabilityRegistry, cls).__new__(cls)
             cls._instance.capabilities = {}
-            cls._instance.logger = process_loger.get_logger("capability_registry")
+            cls._instance.logger = process_logger.get_logger("capability_registry")
             if capabilities_folders is not None:
                 cls._instance.process_ids = process_ids
-                cls._instance.register_capabilites(capabilities_folders)
+                cls._instance.register_capabilites(capabilities_folders, save_on_db)
         return cls._instance
 
     def _store_capability_in_memory(self, capability: Capability):
@@ -50,7 +51,7 @@ class CapabilityRegistry:
         )
 
     # TODO: instead of parent get the ORGANIZATION path!
-    def register_capabilites(self, capabilities_folders: List[str]):
+    def register_capabilites(self, capabilities_folders: List[str], save_on_db: bool = True):
         base_path = Path(__file__).parent
 
         for capabilities_folder in capabilities_folders:
@@ -72,7 +73,8 @@ class CapabilityRegistry:
                     if issubclass(obj, Capability) and obj is not Capability:
                         self.logger.info(f"Registering capability: {name}")
                         self.capabilities[name] = obj
-                        self._store_capability_in_memory(capability=obj)
+                        if save_on_db:
+                            self._store_capability_in_memory(capability=obj)
 
     def get_capability(self, capability_name: str) -> Optional[Type[Capability]]:
         return self.capabilities.get(capability_name)

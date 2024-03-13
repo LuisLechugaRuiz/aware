@@ -4,13 +4,13 @@ from typing import List
 from aware.chat.conversation_schemas import ChatMessage, JSONMessage
 from aware.chat.database.messages_factory import MessagesFactory
 from aware.config.config import Config
-from aware.utils.logger.file_logger import FileLogger
+from aware.utils.logger.process_logger import ProcessLogger
 
 
 class ChatSupabaseHandler:
-    def __init__(self, client: Client):
+    def __init__(self, client: Client, process_logger: ProcessLogger):
         self.client = client
-        self.logger = FileLogger("supabase_agent_handler")
+        self.logger = process_logger.get_logger("chat_supabase_handler")
 
     def add_message(
         self,

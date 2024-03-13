@@ -6,10 +6,7 @@ from typing import List
 # from aware.tools.profile import Profile
 
 
-
-
-
-class NewAgentState(Enum):
+class AgentState(Enum):
     IDLE = "idle"
     RUNNING = "running"
     WAITING_FOR_RESPONSE = "waiting_for_response"

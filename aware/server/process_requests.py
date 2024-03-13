@@ -7,7 +7,7 @@ from aware.utils.logger.file_logger import FileLogger
 
 
 async def process_openai_call(call_id):
-    redis_handlers = ChatDatabaseHandler().get_async_redis_handler()
+    redis_handlers = ChatDatabaseHandler.get_async_redis_handler()
     call_info = await redis_handlers.get_call_info(call_id)
     logger = FileLogger(name=call_info.name)
     logger.info("Getting response...")
@@ -35,7 +35,7 @@ async def process_openai_call(call_id):
 
 async def get_pending_call_id():
     while True:
-        redis_handlers = ChatDatabaseHandler().get_async_redis_handler()
+        redis_handlers = ChatDatabaseHandler.get_async_redis_handler()
         message = await redis_handlers.get_pending_call()
 
         if message is not None:

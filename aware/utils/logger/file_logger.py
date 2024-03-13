@@ -5,12 +5,12 @@ import os
 class FileLogger(logging.Logger):
     _instances = {}
 
-    def __new__(cls, file_path, *args, **kwargs):
-        if file_path in cls._instances:
-            return cls._instances[file_path]
+    def __new__(cls, file_name, *args, **kwargs):
+        if file_name in cls._instances:
+            return cls._instances[file_name]
 
         instance = super(FileLogger, cls).__new__(cls)
-        cls._instances[file_path] = instance
+        cls._instances[file_name] = instance
         return instance
 
     def __init__(self, file_path, should_print=True, level=logging.NOTSET):

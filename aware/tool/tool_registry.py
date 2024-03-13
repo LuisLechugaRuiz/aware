@@ -2,7 +2,7 @@ from typing import Dict, List, Optional
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
 
 
-from aware.chat.parser.pydantic_parser import PydanticParser
+from aware.utils.parser.pydantic_parser import PydanticParser
 from aware.tool.tool import Tool
 
 

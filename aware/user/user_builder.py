@@ -1,10 +1,10 @@
 from aware.agent.agent_builder import AgentBuilder
-from aware.chat.database.chat_database_handler import ChatDatabaseHandler
 from aware.communication.primitives.database.primitives_database_handler import (
     PrimitivesDatabaseHandler,
 )
 from aware.database.weaviate.memory_manager import MemoryManager
-from aware.memory.user.user_data import UserData
+from aware.user.user_data import UserData
+from aware.user.database.user_database_handler import UserDatabaseHandler
 from aware.utils.logger.file_logger import FileLogger
 
 
@@ -27,7 +27,7 @@ class UserBuilder:
             raise e
         try:
             # Set user data
-            ChatDatabaseHandler().set_user_data(
+            UserDatabaseHandler().set_user_data(
                 UserData(user_id=self.user_id, user_name=user_name, api_key=api_key)
             )
             # Set initial user agents

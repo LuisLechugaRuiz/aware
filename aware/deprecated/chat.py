@@ -5,7 +5,7 @@ from openai.types.chat import (
 )
 
 from aware.deprecated.conversation import Conversation
-from aware.chat.parser.pydantic_parser import PydanticParser
+from aware.utils.parser.pydantic_parser import PydanticParser
 from aware.models.models_manager import ModelsManager
 from aware.prompts.load import load_prompt_from_args
 from aware.utils.helpers import get_current_date

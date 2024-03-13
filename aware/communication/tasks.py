@@ -9,6 +9,7 @@ from aware.chat.conversation_schemas import ToolResponseMessage, UserMessage
 from aware.chat.database.chat_database_handler import ChatDatabaseHandler
 from aware.process.database.process_database_handler import ProcessDatabaseHandler
 from aware.process.process_handler import ProcessHandler
+from aware.utils.logger.process_logger import ProcessLogger
 from aware.server.celery_app import app
 
 
@@ -65,8 +66,18 @@ def set_action_completed(primitive_str: str):
 def set_request_completed(primitive_str: str):
     # Add message to client process.
     request = Request.from_json(primitive_str)
+    request.client_process_id
 
-    chat_database_handler = ChatDatabaseHandler()
+    service_process_ids = ProcessDatabaseHandler().get_process_ids(
+        process_id=request.client_process_id
+    )
+    service_process_info = ProcessDatabaseHandler().get_process_info(process_ids=service_process_ids)
+    process_logger = ProcessLogger(
+        user_id=service_process_ids.user_id,
+        agent_name=service_process_info.agent_data.name,
+        process_name=service_process_info.process_data.name)
+
+    chat_database_handler = ChatDatabaseHandler(process_logger)
     # - Sync requests: Update last conversation message with the response and step (continue from current state) the client process.
     client_conversation_with_keys = (
         chat_database_handler.get_conversation_with_keys(

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import List
 
 from aware.agent.agent_data import AgentData
 from aware.agent.database.agent_redis_handler import (
@@ -9,7 +9,7 @@ from aware.agent.database.agent_supabase_handler import (
 )
 from aware.agent.agent_profile import AgentProfile
 from aware.database.client_handlers import ClientHandlers
-from aware.utils.logger.file_logger import FileLogger  # TODO: use agent logger?
+from aware.utils.logger.system_logger import SystemLogger
 
 
 class AgentDatabaseHandler:
@@ -20,7 +20,7 @@ class AgentDatabaseHandler:
         self.supabase_handler = AgentSupabaseHandler(
             client=ClientHandlers().get_supabase_client()
         )
-        self.logger = FileLogger("client_agent_handler")
+        self.logger = SystemLogger("agent_database_handler")
 
     def add_active_agent(self, agent_id: str):
         self.redis_handler.add_active_agent(agent_id)

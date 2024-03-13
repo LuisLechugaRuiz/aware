@@ -22,7 +22,7 @@ from aware.process.process_ids import ProcessIds
 from aware.process.process_data import ProcessData, ProcessFlowType
 from aware.process.process_info import ProcessInfo
 from aware.process.state_machine.state import ProcessState
-from aware.memory.user.user_data import UserData
+from aware.user.user_data import UserData
 from aware.utils.logger.file_logger import FileLogger
 
 

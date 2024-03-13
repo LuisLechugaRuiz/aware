@@ -19,6 +19,9 @@ from aware.tool.tool import Tool
 from aware.tool.tool_manager import ToolManager
 from aware.utils.logger.process_logger import ProcessLogger
 
+# TODO: Should it happen here?
+from aware_capabilities import get_capabilities_folder_path
+
 
 class ProcessInterface:
     def __init__(
@@ -27,9 +30,8 @@ class ProcessInterface:
     ):
         self.process_ids = ids
         process_info = ProcessDatabaseHandler().get_process_info(process_ids=ids)
-
         self.process_logger = ProcessLogger(
-            process_id=ids.process_id,
+            user_id=ids.user_id, agent_name=process_info.agent_data.name, process_name=process_info.process_data.name
         )
         self.logger = self.process_logger.get_logger("process")
 
@@ -82,12 +84,10 @@ class ProcessInterface:
         return all_prompt_kwargs
 
     def _get_capability(self, process_info: ProcessInfo) -> Capability:
-        # TODO: DETERMINE module_path depending on the use-case!!!
-        self.module_path = "aware.tools.tools"
         self.capability_registry = CapabilityRegistry(
             process_ids=self.process_ids,
             process_loger=self.process_logger,
-            capabilities_folders=["core", "private", "public"],
+            capabilities_folders=[get_capabilities_folder_path()],
         )
 
         capability_class = process_info.process_data.capability_class
@@ -185,8 +185,10 @@ class ProcessInterface:
             self.logger.info(
                 f"Executing tool: {tool_name} with response: {tool_response.content}"
             )
-            self.process_state_machine.on_tool(tool_name=tool_name)
-            # TODO: Get transition depending on tool_name and current state!
+            try:
+                self.process_state_machine.on_tool(tool_name=tool_name)
+            except Exception as e:
+                self.logger.critical(f"Config error while executing transition on state machine!! This tool will not make any transition. Error: {e}")
 
     @abstractmethod
     def on_finish(self):

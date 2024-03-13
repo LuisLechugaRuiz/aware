@@ -4,13 +4,13 @@ from typing import Dict, List, Optional
 from aware.process.process_data import ProcessData, ProcessFlowType, ProcessType
 from aware.process.process_ids import ProcessIds
 from aware.process.state_machine.state import ProcessState
-from aware.utils.logger.file_logger import FileLogger
+from aware.utils.logger.system_logger import SystemLogger
 
 
 class ProcessSupabaseHandler:
     def __init__(self, client: Client):
         self.client = client
-        self.logger = FileLogger("agent_supabase_handler")
+        self.logger = SystemLogger("process_supabase_handler")
 
     def create_current_process_state(
         self, user_id: str, process_id: str, process_state_id: str
@@ -73,11 +73,8 @@ class ProcessSupabaseHandler:
         self,
         user_id: str,
         process_id: str,
-        name: str,
-        task: str,
-        instructions: str,
-        tools: Dict[str, str],
-    ) -> ProcessState:
+        process_state: ProcessState
+    ):
         self.logger.info(f"Creating process state {name}")
         data = (
             self.client.table("process_states")
@@ -85,9 +82,9 @@ class ProcessSupabaseHandler:
                 {
                     "user_id": user_id,
                     "process_id": process_id,
-                    "name": name,
-                    "task": task,
-                    "instructions": instructions,
+                    "name": process_state.name,
+                    "task": process_state.task,
+                    "instructions": process_state.instructions,
                 }
             )
             .execute()
@@ -95,9 +92,10 @@ class ProcessSupabaseHandler:
         )
         data = data[0]
         process_state_id = data["id"]
-        self.logger.info(f"Process state: {name}, created.")
-        self.logger.info(f"Creating tools for process state: {name}")
-        for tool_name, transition_state_name in tools.items():
+        self.logger.info(f"Process state: {process_state.name}, created.")
+        self.logger.info(f"Creating tools for process state: {process_state.name}")
+        for tool_name, transition in process_state.tool_transitions.items():
+            transition_state_name = transition.to_string()
             data = (
                 # TODO: tools is not the right name, should be a transition
                 self.client.table("tools")
@@ -112,13 +110,6 @@ class ProcessSupabaseHandler:
                 .execute()
                 .data
             )
-        return ProcessState(
-            id=process_state_id,
-            name=name,
-            tools=tools,
-            task=task,
-            instructions=instructions,
-        )
 
     def get_agent_process_id(self, agent_id: str, process_name: str) -> Optional[str]:
         data = (

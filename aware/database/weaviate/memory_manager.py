@@ -13,7 +13,7 @@ class MemoryManager:
         self.logger = logger
         self.weaviate_db = WeaviateDB()
 
-    def create_agent(self, user_id: str, agent_data: AgentData) -> str
+    def create_agent(self, user_id: str, agent_data: AgentData) -> str:
         result = self.weaviate_db.create_agent(user_id=user_id, agent_data=agent_data)
         if result.error:
             message = f"Error creating weaviate agent: {result.error}"
