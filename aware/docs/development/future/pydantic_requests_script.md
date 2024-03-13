@@ -66,3 +66,11 @@ Dynamic: Any client in the team can make requests to this service.
 
 The only question is if free-format or query has specific format.
 This modifies if we can use generic tool (create_request) or we need to give a tool to each agent in the team for each service.
+
+## Plan
+
+For now we just need to showcase an initial use-case for Aware.
+
+For this we will go with Deterministic option.
+
+We need to create an easy setup where we define service (and there we are requested to fill the formats!) and also where we can select clients using a dropdown that can help to connect new agents to existing services.
