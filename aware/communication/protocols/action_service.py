@@ -11,24 +11,6 @@ from aware.communication.protocols.interface.input_protocol import InputProtocol
 
 
 @dataclass
-class ActionServiceConfig:
-    service_name: str
-    service_description: str
-    action_name: str
-
-    def to_json(self):
-        return {
-            "service_name": self.service_name,
-            "service_description": self.service_description,
-            "action_name": self.action_name,
-        }
-
-    def from_json(cls, json_str):
-        data = json.loads(json_str)
-        return cls(**data)
-
-
-@dataclass
 class ActionServiceData:
     service_name: str
     service_description: str

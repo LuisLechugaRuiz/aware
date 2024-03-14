@@ -148,12 +148,13 @@ class ProtocolsRedisHandler:
             event_subscribers[event_subscriber.event_name] = event_subscriber
         return event_subscribers
 
-    # TODO: event_publisher doesn't depend on any process. It should be external!!
-    # def get_event_publishers(self, process_id: str) -> EventPublisher:
-    #     data = self.client.get(f"process:{process_id}:event_publisher")
-    #     if data:
-    #         return EventPublisher.from_json(data)
-    #     return None
+    def get_event_publisher(
+        self, event_publisher_id: str
+    ) -> Optional[EventPublisher]:
+        data = self.client.get(f"event_publisher:{event_publisher_id}")
+        if data:
+            return EventPublisher.from_json(data)
+        return None
 
     def get_action_client(self, action_client_id: str) -> Optional[ActionClient]:
         data = self.client.get(f"action_client:{action_client_id}")

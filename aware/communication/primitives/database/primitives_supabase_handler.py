@@ -17,7 +17,7 @@ class PrimitiveSupabaseHandler:
         self.client = client
         self.logger = FileLogger("supabase_handler")
 
-    def create_event(self, publisher_id: str, event_message: Dict[str, Any]) -> Event:
+    def create_event(self, publisher_id: str, event_message: Dict[str, Any], priority: str) -> Event:
         self.logger.info(
             f"Creating event using publisher: {publisher_id} with message: {event_message}"
         )
@@ -42,6 +42,7 @@ class PrimitiveSupabaseHandler:
             event_message=event_message,
             event_format=response["message_format"],
             event_details=response["details"],
+            priority=priority,
             status=EventStatus(response["status"]),
             timestamp=response["created_at"],
         )
@@ -181,30 +182,6 @@ class PrimitiveSupabaseHandler:
             timestamp=response["created_at"],
             data=request_data,
         )
-
-    def create_request_type(
-        self,
-        user_id: str,
-        request_name: str,
-        request_format: Dict[str, str],
-        response_format: Dict[str, str],
-    ):
-        self.logger.info(f"Creating request type {request_name}")
-        response = (
-            self.client.table("request_types")
-            .insert(
-                {
-                    "user_id": user_id,
-                    "name": request_name,
-                    "request_format": request_format,
-                    "response_format": response_format,
-                }
-            )
-            .execute()
-            .data
-        )
-        response = response[0]
-        return response
 
     def create_topic(
         self,

@@ -448,32 +448,6 @@ class SupabaseHandler:
             requests=[],
         )
 
-    def create_request_type(
-        self,
-        user_id: str,
-        request_name: str,
-        request_format: Dict[str, str],
-        feedback_format: Dict[str, str],
-        response_format: Dict[str, str],
-    ):
-        self.logger.info(f"Creating request type {request_name}")
-        response = (
-            self.client.table("request_types")
-            .insert(
-                {
-                    "user_id": user_id,
-                    "name": request_name,
-                    "request_format": request_format,
-                    "feedback_format": feedback_format,
-                    "response_format": response_format,
-                }
-            )
-            .execute()
-            .data
-        )
-        response = response[0]
-        return response
-
     # TODO: call it properly to initialize topics.
     def create_topic(
         self,

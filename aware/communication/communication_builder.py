@@ -3,19 +3,19 @@ from typing import Dict, List
 from aware.agent.agent_communication import AgentCommunicationConfig
 from aware.communication.protocols import (
     ActionClientConfig,
-    ActionServiceConfig,
     RequestClientConfig,
-    RequestServiceConfig
 )
+from aware.communication.protocols.action_service import ActionServiceData
+from aware.communication.protocols.request_service import RequestServiceData
 from aware.communication.primitives.database.primitives_database_handler import (
     PrimitivesDatabaseHandler,
 )
 from aware.communication.primitives import (
     ActionConfig,
     EventConfig,
-    RequestConfig,
     TopicConfig,
 )
+
 from aware.communication.primitives.primitives_config import CommunicationPrimitivesConfig
 from aware.communication.protocols.database.protocols_database_handler import (
     ProtocolsDatabaseHandler,
@@ -30,10 +30,10 @@ class CommunicationBuilder:
         self.user_id = user_id
 
         self.action_clients: Dict[str, ActionClientConfig] = {}
-        self.action_services: Dict[str, ActionServiceConfig] = {}
+        self.action_services: Dict[str, ActionServiceData] = {}
 
         self.request_clients: Dict[str, RequestClientConfig] = {}
-        self.request_services: Dict[str, RequestServiceConfig] = {}
+        self.request_services: Dict[str, RequestServiceData] = {}
 
         self.primitives_database_handler = PrimitivesDatabaseHandler()
         self.protocols_database_handler = ProtocolsDatabaseHandler()
@@ -92,7 +92,6 @@ class CommunicationBuilder:
         self.request_clients = {}
         self.request_services = {}
 
-    # TODO: We should split between type and message.
     def create_events(self, event_configs: List[EventConfig]):
         for event_config in event_configs:
             self.primitives_database_handler.create_event_type(
@@ -102,7 +101,6 @@ class CommunicationBuilder:
                 message_format=event_config.message_format,
             )
 
-    # TODO: Same than for event, we should split between type and message.
     def create_topics(self, topic_configs: List[TopicConfig]):
         for topic_config in topic_configs:
             self.primitives_database_handler.create_topic(
@@ -112,6 +110,7 @@ class CommunicationBuilder:
                 message_format=topic_config.message_format,
             )
 
+    # TODO: remove. Actions are created on demand as with requests.
     def create_actions(self, action_configs: List[ActionConfig]):
         for action_config in action_configs:
             self.primitives_database_handler.create_action_type(
@@ -122,22 +121,12 @@ class CommunicationBuilder:
                 response_format=action_config.response_format,
             )
 
-    def create_requests(self, request_configs: List[RequestConfig]):
-        for request_config in request_configs:
-            self.primitives_database_handler.create_request_type(
-                user_id=self.user_id,
-                request_name=request_config.name,
-                request_format=request_config.request_format,
-                response_format=request_config.response_format,
-            )
-
-    def create_action_service(self, main_process_id: str, service_config: ActionServiceConfig):
+    # Verified, aligned with database.
+    def create_action_service(self, main_process_id: str, service_data: ActionServiceData):
         self.protocols_database_handler.create_action_service(
             user_id=self.user_id,
             process_id=main_process_id,
-            service_name=service_config.service_name,
-            service_description=service_config.service_description,
-            action_name=service_config.action_name,
+            service_data=service_data,
         )
 
     def create_action_client(self, main_process_id: str, client_config: ActionClientConfig):
@@ -155,15 +144,12 @@ class CommunicationBuilder:
         )
 
     def create_request_service(
-        self, main_process_id: str, service_config: RequestServiceConfig
+        self, main_process_id: str, service_data: RequestServiceData
     ):
         self.protocols_database_handler.create_request_service(
             user_id=self.user_id,
             process_id=main_process_id,
-            service_name=service_config.service_name,
-            service_description=service_config.service_description,
-            request_name=service_config.request_name,
-            tool_name=service_config.tool_name,  # This implies that the agent managing the service have access to the tool.. verify.
+            service_data=service_data,
         )
 
     def create_event_communications(

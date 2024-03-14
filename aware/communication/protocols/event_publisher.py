@@ -54,9 +54,9 @@ class EventPublisher(Protocol):
         data = json.loads(json_str)
         return cls(**data)
 
-    def create_event(self, event_message: Dict[str, Any]) -> Event:
+    def create_event(self, event_message: Dict[str, Any], priority: int) -> Event:
         event = PrimitivesDatabaseHandler().create_event(
-            publisher_id=self.id, event_message=event_message
+            publisher_id=self.id, event_message=event_message, priority=priority
         )
         if event.error:
             raise Exception(f"Error creating event: {event.error}")
