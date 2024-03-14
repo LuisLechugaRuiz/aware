@@ -7,3 +7,6 @@
 [submodule "aware_ui"]
 	path = aware_ui
 	url = git@github.com:LuisLechugaRuiz/aware_ui.git
+[submodule "aware_scripts"]
+	path = aware_scripts
+	url = git@github.com:LuisLechugaRuiz/aware_scripts.git
