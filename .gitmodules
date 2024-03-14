@@ -4,3 +4,6 @@
 [submodule "chatbot-ui"]
 	path = chatbot-ui
 	url = git@github.com:LuisLechugaRuiz/chatbot-ui.git
+[submodule "aware_ui"]
+	path = aware_ui
+	url = git@github.com:LuisLechugaRuiz/aware_ui.git
