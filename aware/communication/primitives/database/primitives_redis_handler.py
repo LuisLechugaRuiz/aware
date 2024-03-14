@@ -42,9 +42,6 @@ class PrimitivesRedisHandler:
         event_type_key = f"event_type:{event_type.id}"
         self.client.set(event_type_key, event_type.to_json())
 
-    # TODO: IMPLEMENT ME!
-    # def create_request_type(self, request_type: RequestType):
-
     def create_request(self, request: Request):
         # Convert the request to JSON and store it
         self.client.set(f"request:{request.id}", request.to_json())

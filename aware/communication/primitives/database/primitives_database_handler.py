@@ -57,12 +57,13 @@ class PrimitivesDatabaseHandler:
         )
 
     def create_event(
-        self, publisher_id: str, event_message: Dict[str, Any]
+        self, publisher_id: str, event_message: Dict[str, Any], priority: int
     ) -> DatabaseResult[Event]:
         try:
             event = self.supabase_handler.create_event(
                 publisher_id=publisher_id,
                 event_message=event_message,
+                priority=priority,
             )
             self.redis_handler.create_event(event=event)
             return DatabaseResult(data=event)
@@ -104,20 +105,6 @@ class PrimitivesDatabaseHandler:
             return DatabaseResult(data=request)
         except Exception as e:
             return DatabaseResult(error=f"Error creating request: {e}")
-
-    def create_request_type(
-        self,
-        user_id: str,
-        request_name: str,
-        request_format: Dict[str, str],
-        response_format: Dict[str, str],
-    ):
-        self.supabase_handler.create_request_type(
-            user_id=user_id,
-            request_name=request_name,
-            request_format=request_format,
-            response_format=response_format,
-        )
 
     def create_topic(
         self,

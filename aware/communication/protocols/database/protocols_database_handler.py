@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from aware.agent.agent_communication import AgentCommunication
 from aware.communication.helpers.current_input_metadata import CurrentInputMetadata
@@ -24,6 +24,7 @@ from aware.communication.protocols import (
     ActionClient,
     ActionService,
 )
+from aware.communication.protocols.action_service import ActionServiceData
 from aware.database.client_handlers import ClientHandlers
 from aware.utils.logger.file_logger import FileLogger
 
@@ -146,16 +147,12 @@ class ProtocolsDatabaseHandler:
         self,
         user_id: str,
         process_id: str,
-        service_name: str,
-        service_description: str,
-        action_name: str,
+        service_data: ActionServiceData,
     ):
         action_service = self.supabase_handler.create_action_service(
             user_id=user_id,
             process_id=process_id,
-            service_name=service_name,
-            service_description=service_description,
-            action_name=action_name,
+            service_data=service_data,
         )
         self.redis_handler.create_action_service(action_service=action_service)
 
@@ -175,19 +172,13 @@ class ProtocolsDatabaseHandler:
         self,
         user_id: str,
         process_id: str,
-        service_name: str,
-        service_description: str,
-        request_name: str,
-        tool_name: Optional[str] = None,
+        service_data: RequestServiceData,
     ):
         """Create new service"""
         request_service = self.supabase_handler.create_request_service(
             user_id=user_id,
             process_id=process_id,
-            service_name=service_name,
-            service_description=service_description,
-            request_name=request_name,
-            tool_name=tool_name,
+            service_data=service_data,
         )
         self.redis_handler.create_request_service(request_service=request_service)
 
@@ -222,6 +213,9 @@ class ProtocolsDatabaseHandler:
     def get_request_services(self, process_id: str) -> Dict[str, RequestService]:
         return self.redis_handler.get_request_services(process_id)
 
+    def get_request_client(self, request_client_id: str) -> Optional[RequestClient]:
+        return self.redis_handler.get_request_client(request_client_id)
+
     def get_request_clients(self, process_id: str) -> Dict[str, RequestClient]:
         return self.redis_handler.get_request_clients(process_id)
 
@@ -243,5 +237,5 @@ class ProtocolsDatabaseHandler:
     def get_event_subscribers(self, process_id: str) -> Dict[str, EventSubscriber]:
         return self.redis_handler.get_event_subscribers(process_id)
 
-    def get_event_publishers(self, process_id: str) -> Dict[str, EventPublisher]:
-        return self.redis_handler.get_event_publishers(process_id)
+    def get_event_publisher(self, publisher_id: str) -> Optional[EventPublisher]:
+        return self.redis_handler.get_event_publisher(publisher_id)

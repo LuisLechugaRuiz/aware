@@ -1,5 +1,7 @@
 from supabase import Client
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
+
+# TODO: remove the any and add openai schema as part of format messages.
 
 from aware.communication.protocols import (
     EventSubscriber,
@@ -105,33 +107,31 @@ class ProtocolSupabaseHandler:
             request_format=response["_request_format"],
         )
 
-    def create_action_service(self, user_id: str, process_id: str, service_name: str, service_description: str, action_name: str):
-        self.logger.info(f"Creating action service {action_name}")
-        response = (
+    def create_action_service(
+        self,
+        user_id: str,
+        process_id: str,
+        service_data: ActionServiceData,
+    ):
+        self.logger.info(f"Creating action service: {service_data.service_name}")
+        id = (
             self.client.rpc(
                 "create_action_service",
                 {
                     "p_user_id": user_id,
                     "p_process_id": process_id,
-                    "p_name": service_name,
-                    "p_description": service_description,
-                    "p_action_name": action_name,
+                    "p_name": service_data.service_name,
+                    "p_description": service_data.service_description,
+                    "p_request_format": service_data.request_format,
+                    "p_feedback_format": service_data.feedback_format,
+                    "p_response_format": service_data.response_format,
                 },
             )
             .execute()
             .data
         )
-        service_data = ActionServiceData(
-            service_name=service_name,
-            service_description=service_description,
-            request_format=response["_request_format"],
-            feedback_format=response["_feedback_format"],
-            response_format=response["_response_format"],
-            tool_name=action_name,
-        )
-        id = response["_id"]
         self.logger.info(
-            f"New service created at supabase. Name: {action_name}, id: {id}"
+            f"New service created at supabase. Name: {service_data.service_name}, id: {id}"
         )
         return ActionService(
             id=id,
@@ -172,45 +172,33 @@ class ProtocolSupabaseHandler:
         self,
         user_id: str,
         process_id: str,
-        service_name: str,
-        service_description: str,
-        request_name: str,
-        tool_name: Optional[str],
+        service_data: RequestServiceData,
     ) -> RequestService:
-        self.logger.info(f"Creating request service {service_name}")
-        response = (
+        self.logger.info(f"Creating request service {service_data.service_name}")
+        id = (
             self.client.rpc(
                 "create_request_service",
                 {
                     "p_user_id": user_id,
                     "p_process_id": process_id,
-                    "p_name": service_name,
-                    "p_description": service_description,
-                    "p_request_name": request_name,
-                    "p_tool_name": tool_name,
+                    "p_name": service_data.service_name,
+                    "p_description": service_data.service_description,
+                    "p_request_format": service_data.request_format,
+                    "p_response_format": service_data.response_format,
+                    "p_tool_name": service_data.tool_name,
                 },
             )
             .execute()
             .data
         )
-        service_data = RequestServiceData(
-            service_name=service_name,
-            service_description=service_description,
-            request_format=response["_request_format"],
-            feedback_format=response["_feedback_format"],
-            response_format=response["_response_format"],
-            tool_name=tool_name,
-        )
-        id = response["_id"]
         self.logger.info(
-            f"New service created at supabase. Name: {service_name}, id: {id}"
+            f"New service created at supabase. Name: {service_data.service_name}, id: {id}"
         )
         return RequestService(
             id=id,
             user_id=user_id,
             process_id=process_id,
-            data=service_data,
-            requests=[],
+            data=service_data
         )
 
     def create_topic_publisher(
